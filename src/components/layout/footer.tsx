@@ -14,8 +14,9 @@ import Image from 'next/image'
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useHeaderData } from '@/components/layout/header/useHeaderData'
 
-// ─── Brand SVG Icons (lucide removed these in v0.29+) ────────────────────────
+// ─── Brand SVG Icons ─────────────────────────────────────────────────────────
 
 function FacebookIcon({ className }: { className?: string }) {
   return (
@@ -115,7 +116,7 @@ const footerNavItems = {
 
 const defaultContactInfo = {
   address: '7/9 Lawani Street, off Ishaga Rd, Surulere, Lagos',
-  phone:   '+234 912 1155 554',
+  phone:   '+234 907 082 9999',
   email:   'vincollinsschools@gmail.com',
   hours:   'Mon – Fri: 8:00 AM – 4:00 PM',
 }
@@ -206,39 +207,29 @@ export function Footer() {
   const router      = useRouter()
   const currentYear = new Date().getFullYear()
 
-  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null)
+  // Use the same header data hook for consistent school settings
+  const { schoolSettings, isLoading } = useHeaderData()
+  
   const [email,      setEmail]      = useState('')
   const [subscribed, setSubscribed] = useState(false)
   const [subError,   setSubError]   = useState('')
-  const [contactData, setContactData] = useState(defaultContactInfo)
+  const [logoError, setLogoError] = useState(false)
 
-  // ── Auth listener (kept for portal behaviour) ──────────────────────────────
+  // Use a compatible shape for the header data so the footer can safely
+  // read school metadata even when the hook type differs from this component.
+  const schoolProfile = (schoolSettings ?? {}) as Partial<SchoolSettings>
+
+  const contactData = {
+    address: schoolProfile.school_address || defaultContactInfo.address,
+    phone:   schoolProfile.school_phone   || defaultContactInfo.phone,
+    email:   schoolProfile.school_email   || defaultContactInfo.email,
+    hours:   defaultContactInfo.hours,
+  }
+
+  // ── Auth listener ──────────────────────────────────────────────────────────
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {})
     return () => subscription.unsubscribe()
-  }, [])
-
-  // ── School settings ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('school_settings')
-          .select('school_name, logo_path, school_phone, school_email, school_address')
-          .single()
-
-        if (!error && data) {
-          setSchoolSettings(data)
-          setContactData({
-            address: data.school_address || defaultContactInfo.address,
-            phone:   data.school_phone   || defaultContactInfo.phone,
-            email:   data.school_email   || defaultContactInfo.email,
-            hours:   defaultContactInfo.hours,
-          })
-        }
-      } catch { /* silent */ }
-    }
-    fetchSettings()
   }, [])
 
   // ── Handlers ───────────────────────────────────────────────────────────────
@@ -345,7 +336,7 @@ export function Footer() {
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
                 className="relative h-14 w-14 shrink-0"
               >
-                {schoolSettings?.logo_path ? (
+                {schoolSettings?.logo_path && !logoError && !isLoading ? (
                   <Image
                     src={schoolSettings.logo_path}
                     alt={schoolSettings.school_name || 'Vincollins Schools'}
@@ -353,6 +344,7 @@ export function Footer() {
                     height={56}
                     className="object-contain rounded-xl"
                     priority
+                    onError={() => setLogoError(true)}
                   />
                 ) : (
                   <div className="h-14 w-14 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center">

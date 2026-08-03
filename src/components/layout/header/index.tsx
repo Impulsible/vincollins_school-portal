@@ -1,9 +1,10 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-// src/components/layout/header/index.tsx
+// components/layout/header/index.tsx
 'use client'
 
 import { useState, useEffect, Suspense, memo } from 'react'
 import { usePathname } from 'next/navigation'
+import { Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHeaderData } from './useHeaderData'
 import { Logo } from './Logo'
@@ -135,21 +136,36 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
               />
             </div>
 
-            <UserSection
-              user={user}
-              isAuthenticated={effectiveIsAuthenticated}
-              pathname={pathname}
-              notifications={notifications}
-              unreadCount={unreadCount}
-              isPublicPage={isPublicPage || isPortalPage || isHomePage}
-              onSearchToggle={() => setSearchOpen(!searchOpen)}
-              onMobileToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
-              onSignOut={() => setShowSignOut(true)}
-              mobileMenuOpen={mobileMenuOpen}
-              onMarkAsRead={markAsRead}
-              onMarkAllAsRead={markAllAsRead}
-              onDeleteNotification={deleteNotification}
-            />
+            <div className="flex items-center gap-2">
+              <UserSection
+                user={user}
+                isAuthenticated={effectiveIsAuthenticated}
+                pathname={pathname}
+                notifications={notifications}
+                unreadCount={unreadCount}
+                isPublicPage={isPublicPage || isPortalPage || isHomePage}
+                onSearchToggle={() => setSearchOpen(!searchOpen)}
+                onMobileToggle={() => setMobileMenuOpen(!mobileMenuOpen)}
+                onSignOut={() => setShowSignOut(true)}
+                mobileMenuOpen={mobileMenuOpen}
+                onMarkAsRead={markAsRead}
+                onMarkAllAsRead={markAllAsRead}
+                onDeleteNotification={deleteNotification}
+              />
+              
+              {/* Mobile Hamburger Button */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-white/10 transition-colors"
+                aria-label="Toggle menu"
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-6 w-6" />
+                ) : (
+                  <Menu className="h-6 w-6" />
+                )}
+              </button>
+            </div>
           </div>
         </div>
 

@@ -1,22 +1,22 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable react-hooks/preserve-manual-memoization */
 // src/components/layout/header/useHeaderData.ts
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useUser } from '@/contexts/UserContext'
 import { HeaderUser, SchoolSettings, Notification, UserRole } from './types'
 
 export function useHeaderData() {
-  const { user: contextUser, isAuthenticated: contextIsAuthenticated, loading: authLoading } = useUser()
+  const { user: contextUser, loading: authLoading } = useUser()
   
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [mounted, setMounted] = useState(false)
+  
+  // Store user in ref for callbacks - only update in useEffect
+  const userRef = useRef<HeaderUser | null>(null)
 
   const user: HeaderUser | null = useMemo(() => {
     if (contextUser) {
@@ -30,7 +30,7 @@ export function useHeaderData() {
       else if (contextRole === 'staff' || contextRole === 'teacher') role = 'teacher'
       else if (contextRole === 'student') role = 'student'
 
-      return {
+      const headerUser: HeaderUser = {
         id: contextUser.id,
         name: displayName,
         firstName,
@@ -39,19 +39,26 @@ export function useHeaderData() {
         avatar: contextUser.avatar_url || contextUser.photo_url || undefined,
         isAuthenticated: true
       }
+      return headerUser
     }
     return null
   }, [contextUser])
 
-  const immediateIsAuthenticated = !!contextUser
+  // Update ref when user changes - only in effect, not during render
+  useEffect(() => {
+    userRef.current = user
+  }, [user])
 
+  // Mark as mounted
   useEffect(() => {
     setMounted(true)
+    return () => {
+      setMounted(false)
+    }
   }, [])
 
+  // Fetch school settings
   useEffect(() => {
-    if (!mounted) return
-    
     const fetchSettings = async () => {
       try {
         const { data, error } = await supabase
@@ -67,27 +74,31 @@ export function useHeaderData() {
       }
     }
     fetchSettings()
-  }, [mounted])
+  }, [])
 
+  // Load notifications
   const loadNotifications = useCallback(async () => {
-    if (!user?.id) return
+    const currentUser = userRef.current
+    if (!currentUser?.id) return
+    
     try {
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .order('created_at', { ascending: false })
         .limit(20)
       
       if (!error && data) {
         setNotifications(data as Notification[])
-        setUnreadCount(data.filter((n: any) => !n.read).length)
+        setUnreadCount(data.filter((n: Notification) => !n.read).length)
       }
     } catch {
       // Silently fail
     }
-  }, [user?.id])
+  }, [])
 
+  // Set up notification polling
   useEffect(() => {
     if (!user?.id) return
     
@@ -110,7 +121,8 @@ export function useHeaderData() {
   }, [])
 
   const markAllAsRead = useCallback(async () => {
-    if (!user?.id) return
+    const currentUser = userRef.current
+    if (!currentUser?.id) return
     
     const previousNotifications = [...notifications]
     const previousUnreadCount = unreadCount
@@ -121,13 +133,13 @@ export function useHeaderData() {
     try {
       await supabase.from('notifications')
         .update({ read: true })
-        .eq('user_id', user.id)
+        .eq('user_id', currentUser.id)
         .eq('read', false)
     } catch {
       setNotifications(previousNotifications)
       setUnreadCount(previousUnreadCount)
     }
-  }, [user?.id, notifications, unreadCount])
+  }, [notifications, unreadCount])
 
   const deleteNotification = useCallback(async (id: string) => {
     const deletedNotification = notifications.find(n => n.id === id)
@@ -150,6 +162,7 @@ export function useHeaderData() {
     }
   }, [notifications])
 
+  // Use state for loading instead of ref during render
   const isLoading = !mounted || (authLoading && !user)
 
   return { 
@@ -161,6 +174,6 @@ export function useHeaderData() {
     markAllAsRead, 
     deleteNotification,
     isLoading,
-    isAuthenticated: immediateIsAuthenticated
+    isAuthenticated: !!user
   }
 }

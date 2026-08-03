@@ -4,17 +4,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { supabase } from '@/lib/supabase'
 
-interface User {
+export interface User {
   id: string
   email: string
-  full_name?: string
-  first_name?: string
+  full_name?: string | null
+  first_name?: string | null
   role?: string
-  avatar_url?: string
-  photo_url?: string
+  avatar_url?: string | null
+  photo_url?: string | null
 }
 
-interface UserContextType {
+export interface UserContextType {
   user: User | null
   isAuthenticated: boolean
   loading: boolean
@@ -59,24 +59,36 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     getUser()
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
-        supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          .then(({ data: profile }) => {
-            setUser({
-              id: session.user.id,
-              email: session.user.email || '',
-              full_name: profile?.full_name || session.user.user_metadata?.full_name,
-              first_name: profile?.first_name || session.user.user_metadata?.first_name,
-              role: profile?.role || session.user.user_metadata?.role || 'student',
-              avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url,
-              photo_url: profile?.photo_url || session.user.user_metadata?.photo_url,
-            })
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: profile?.full_name || session.user.user_metadata?.full_name,
+            first_name: profile?.first_name || session.user.user_metadata?.first_name,
+            role: profile?.role || session.user.user_metadata?.role || 'student',
+            avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url,
+            photo_url: profile?.photo_url || session.user.user_metadata?.photo_url,
           })
+        } catch {
+          // Silently fail - user will be set from session metadata
+          setUser({
+            id: session.user.id,
+            email: session.user.email || '',
+            full_name: session.user.user_metadata?.full_name || 'User',
+            first_name: session.user.user_metadata?.first_name || 'User',
+            role: session.user.user_metadata?.role || 'student',
+            avatar_url: session.user.user_metadata?.avatar_url || null,
+            photo_url: session.user.user_metadata?.photo_url || null,
+          })
+        }
       } else {
         setUser(null)
       }
@@ -100,7 +112,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   )
 }
 
-export function useUser() {
+export function useUser(): UserContextType {
   const context = useContext(UserContext)
   if (context === undefined) {
     throw new Error('useUser must be used within a UserProvider')

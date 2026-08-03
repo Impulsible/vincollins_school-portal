@@ -1,73 +1,84 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/components/layout/header/MobileMenu.tsx - UPDATED (removed exams and monitor)
+// src/components/layout/header/MobileMenu.tsx
 'use client'
 
 import { memo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { 
+import {
   X, LayoutDashboard, Users, FileCheck, GraduationCap, Briefcase, BarChart3,
   LogOut, ArrowRight, Home, KeyRound, BookOpen,
-  Mail, MapPin, Phone, Clock,
-  FileText, Activity
+  Mail, MapPin, Phone, Clock, Sparkles,
+  FileText, Activity, ChevronRight,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { HeaderUser, SchoolSettings } from './types'
 
-// Social links with simple icon components (using div instead of imported icons)
+// ── Social links ──────────────────────────────────────────────────────────────
 const socialLinks = [
-  { icon: 'f', href: 'https://facebook.com/vincollins', label: 'Facebook', color: 'bg-[#1877f2]' },
-  { icon: 't', href: 'https://twitter.com/vincollins', label: 'Twitter', color: 'bg-[#000000]' },
-  { icon: 'i', href: 'https://instagram.com/vincollins', label: 'Instagram', color: 'bg-gradient-to-br from-[#f09433] to-[#bc1888]' },
-  { icon: 'l', href: 'https://linkedin.com/school/vincollins', label: 'LinkedIn', color: 'bg-[#0A66C2]' },
+  { icon: 'f', href: 'https://facebook.com/vincollins', label: 'Facebook', color: '#1877f2' },
+  { icon: '𝕏', href: 'https://twitter.com/vincollins', label: 'Twitter', color: '#000000' },
+  { icon: 'ig', href: 'https://instagram.com/vincollins', label: 'Instagram', color: '#E1306C' },
+  { icon: 'in', href: 'https://linkedin.com/school/vincollins', label: 'LinkedIn', color: '#0A66C2' },
 ]
 
 const contactInfoData = [
-  { icon: MapPin, text: '7/9, Lawani Street, off Ishaga Rd, Surulere, Lagos' },
-  { icon: Phone, text: '+234 912 1155 554' },
-  { icon: Mail, text: 'vincollinsschools@gmail.com' },
-  { icon: Clock, text: 'Mon-Fri: 8:00 AM - 4:00 PM' },
+  { icon: MapPin, label: 'Address', text: '7/9 Lawani Street, Surulere, Lagos' },
+  { icon: Phone, label: 'Phone', text: '+234 907 082 9999' },
+  { icon: Mail, label: 'Email', text: 'vincollinsschools@gmail.com' },
+  { icon: Clock, label: 'Hours', text: 'Mon–Fri · 8:00 AM – 4:00 PM' },
 ]
 
 const publicNavItems = [
-  { name: 'Home', href: '/', icon: Home },
-  { name: 'Admission', href: '/admission', icon: FileText },
-  { name: 'Schools', href: '/schools', icon: BookOpen },
-  { name: 'Contact', href: '/contact', icon: Activity },
+  { name: 'Home', href: '/', icon: Home, description: 'Back to landing page' },
+  { name: 'Admission', href: '/admission', icon: FileText, description: 'Apply to enroll' },
+  { name: 'Schools', href: '/schools', icon: BookOpen, description: 'Explore our sections' },
+  { name: 'Contact', href: '/contact', icon: Activity, description: 'Get in touch' },
 ]
 
-const dashboardNavMap: Record<string, { name: string; href: string; icon: any }[]> = {
+const dashboardNavMap: Record<string, { name: string; href: string; icon: any; description: string }[]> = {
   admin: [
-    { name: 'Overview', href: '/admin', icon: LayoutDashboard },
-    { name: 'Students', href: '/admin/students', icon: GraduationCap },
-    { name: 'Staff', href: '/admin/staff', icon: Briefcase },
-    { name: 'Reports', href: '/admin/report-cards', icon: FileCheck },
+    { name: 'Overview', href: '/admin', icon: LayoutDashboard, description: 'Dashboard summary' },
+    { name: 'Students', href: '/admin/students', icon: GraduationCap, description: 'Manage pupils' },
+    { name: 'Staff', href: '/admin/staff', icon: Briefcase, description: 'Teachers & admins' },
+    { name: 'Reports', href: '/admin/report-cards', icon: FileCheck, description: 'Report cards' },
   ],
   teacher: [
-    { name: 'Overview', href: '/staff', icon: LayoutDashboard },
-    { name: 'Assignments', href: '/staff/assignments', icon: FileText },
-    { name: 'Students', href: '/staff/students', icon: Users },
-    { name: 'Analytics', href: '/staff/analytics', icon: BarChart3 },
+    { name: 'Overview', href: '/staff', icon: LayoutDashboard, description: 'My classes' },
+    { name: 'Assignments', href: '/staff/assignments', icon: FileText, description: 'Homework & tasks' },
+    { name: 'Students', href: '/staff/students', icon: Users, description: 'My pupils' },
+    { name: 'Analytics', href: '/staff/analytics', icon: BarChart3, description: 'Performance insights' },
   ],
   student: [
-    { name: 'Overview', href: '/student', icon: LayoutDashboard },
-    { name: 'Results', href: '/student/results', icon: GraduationCap },
-    { name: 'Profile', href: '/student/profile', icon: Users },
+    { name: 'Overview', href: '/student', icon: LayoutDashboard, description: 'Your dashboard' },
+    { name: 'Results', href: '/student/results', icon: GraduationCap, description: 'Grades & reports' },
+    { name: 'Profile', href: '/student/profile', icon: Users, description: 'Your details' },
   ],
 }
 
-const roleBadgeColors: Record<string, string> = {
-  admin: 'bg-purple-500 text-white',
-  teacher: 'bg-blue-500 text-white',
-  student: 'bg-emerald-500 text-white',
-}
-
-const roleDisplayNames: Record<string, string> = {
-  admin: 'Administrator', teacher: 'Teacher', student: 'Student',
+// ── Role visual system ────────────────────────────────────────────────────────
+const roleConfig: Record<string, { label: string; color: string; gradient: string; bg: string }> = {
+  admin: {
+    label: 'Administrator',
+    color: '#7c3aed',
+    gradient: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+    bg: 'bg-purple-50 border-purple-200 text-purple-700',
+  },
+  teacher: {
+    label: 'Teacher',
+    color: '#2563EB',
+    gradient: 'linear-gradient(135deg, #2563EB, #4f46e5)',
+    bg: 'bg-blue-50 border-blue-200 text-blue-700',
+  },
+  student: {
+    label: 'Student',
+    color: '#059669',
+    gradient: 'linear-gradient(135deg, #059669, #0d9488)',
+    bg: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  },
 }
 
 const getInitials = (name: string) => {
@@ -85,12 +96,14 @@ interface MobileMenuProps {
   pathname: string
 }
 
-export const MobileMenu = memo(function MobileMenu({ open, onClose, user, schoolSettings, onSignOut, pathname }: MobileMenuProps) {
+export const MobileMenu = memo(function MobileMenu({
+  open, onClose, user, schoolSettings, onSignOut, pathname,
+}: MobileMenuProps) {
   const router = useRouter()
   const currentYear = new Date().getFullYear()
   const [avatarError, setAvatarError] = useState(false)
   const isAuthenticated = user?.isAuthenticated ?? false
-  
+
   const getAvatarUrl = () => {
     if (avatarError) return undefined
     if (user?.avatar) return user.avatar
@@ -98,10 +111,14 @@ export const MobileMenu = memo(function MobileMenu({ open, onClose, user, school
   }
 
   const avatarUrl = getAvatarUrl()
-  
-  const isDashboardPage = pathname?.startsWith('/admin') || pathname?.startsWith('/staff') || pathname?.startsWith('/student')
+  const currentRole = roleConfig[user?.role || 'student'] || roleConfig.student
+
+  const isDashboardPage =
+    pathname?.startsWith('/admin') ||
+    pathname?.startsWith('/staff') ||
+    pathname?.startsWith('/student')
   const isPortalPage = pathname === '/portal'
-  
+
   const navItems = isDashboardPage && isAuthenticated
     ? (dashboardNavMap[user?.role || 'student'] || dashboardNavMap.student)
     : publicNavItems
@@ -114,14 +131,16 @@ export const MobileMenu = memo(function MobileMenu({ open, onClose, user, school
     return pathname === href || pathname?.startsWith(href + '/')
   }
 
-  const handleNav = (href: string) => { 
+  const handleNav = (href: string) => {
     onClose()
-    router.push(href) 
+    router.push(href)
   }
-  
+
   const goToDashboard = () => {
     onClose()
-    const urls: Record<string, string> = { admin: '/admin', teacher: '/staff', student: '/student' }
+    const urls: Record<string, string> = {
+      admin: '/admin', teacher: '/staff', student: '/student',
+    }
     router.push(urls[user?.role || 'student'] || '/student')
   }
 
@@ -129,158 +148,430 @@ export const MobileMenu = memo(function MobileMenu({ open, onClose, user, school
     <AnimatePresence>
       {open && (
         <>
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden" onClick={onClose} />
-          
-          <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-full xs:w-[320px] sm:w-[380px] bg-white z-50 shadow-2xl lg:hidden flex flex-col">
-            
-            {/* Header */}
-            <div className="flex-shrink-0 bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] p-4 sm:p-6 flex items-center justify-between">
-              <div className="flex items-center gap-3 min-w-0">
-                {schoolSettings?.logo_path ? (
-                  <Image src={schoolSettings.logo_path} alt="Logo" width={40} height={40} className="rounded-lg flex-shrink-0" />
-                ) : (
-                  <div className="h-10 w-10 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <GraduationCap className="h-5 w-5 text-white" />
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-md z-40 lg:hidden"
+            onClick={onClose}
+          />
+
+          {/* Drawer */}
+          <motion.div
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+            className="fixed top-0 right-0 h-full w-full xs:w-[340px] sm:w-[400px] bg-white z-50 shadow-2xl lg:hidden flex flex-col overflow-hidden"
+          >
+
+            {/* ══════════════════════════════════════════════════════
+                HEADER — School identity with gradient
+            ══════════════════════════════════════════════════════ */}
+            <div className="relative flex-shrink-0 overflow-hidden">
+              {/* Gradient background */}
+              <div className="absolute inset-0 bg-gradient-to-br from-[#0A2472] via-[#1e3a8a] to-[#312e81]" />
+
+              {/* Decorative circles */}
+              <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full border-[3px] border-white/10" />
+              <div className="absolute -bottom-20 -left-16 w-48 h-48 rounded-full border-[3px] border-white/5" />
+              <div className="absolute top-8 right-16 w-2 h-2 rounded-full bg-yellow-300/60" />
+              <div className="absolute top-16 right-8 w-1.5 h-1.5 rounded-full bg-white/40" />
+
+              {/* Content */}
+              <div className="relative p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    {schoolSettings?.logo_path ? (
+                      <div className="relative h-12 w-12 rounded-2xl bg-white/95 p-1.5 flex-shrink-0 shadow-lg ring-1 ring-white/20">
+                        <Image
+                          src={schoolSettings.logo_path}
+                          alt="Logo"
+                          fill
+                          className="object-contain p-0.5"
+                          sizes="48px"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-12 w-12 bg-white/20 rounded-2xl flex items-center justify-center flex-shrink-0 backdrop-blur-sm ring-1 ring-white/30">
+                        <GraduationCap className="h-6 w-6 text-white" />
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-white font-bold text-[15px] leading-tight truncate">
+                        Vincollins Schools
+                      </p>
+                      <p className="text-white/70 text-[11px] italic mt-0.5 truncate">
+                        Geared Towards Excellence
+                      </p>
+                    </div>
                   </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-white font-semibold text-sm truncate">Vincollins Schools</p>
-                  {isAuthenticated && <p className="text-white/70 text-xs truncate">Hi, {user?.firstName || 'User'}!</p>}
+
+                  <button
+                    onClick={onClose}
+                    className="h-9 w-9 rounded-xl bg-white/15 hover:bg-white/25 backdrop-blur-sm flex items-center justify-center text-white transition-colors flex-shrink-0 ring-1 ring-white/20"
+                    aria-label="Close menu"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
+
+                {/* Welcome pill for guests */}
+                {!isAuthenticated && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                    className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 border border-white/20 backdrop-blur-sm"
+                  >
+                    <Sparkles className="h-3 w-3 text-yellow-300" />
+                    <span className="text-white text-[11px] font-semibold">
+                      Welcome, Guest
+                    </span>
+                  </motion.div>
+                )}
               </div>
-              <button onClick={onClose} className="h-8 w-8 rounded-full bg-white/20 flex items-center justify-center text-white">
-                <X className="h-4 w-4" />
-              </button>
             </div>
 
-            {/* User Info */}
-            {isDashboardPage && isAuthenticated && (
-              <div className="flex-shrink-0 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-12 w-12 ring-2 ring-primary/20 flex-shrink-0">
-                    {avatarUrl && !avatarError ? (
-                      <AvatarImage 
-                        src={avatarUrl} 
-                        alt={user?.name || 'User'} 
-                        onError={() => setAvatarError(true)}
-                      />
-                    ) : null}
-                    <AvatarFallback className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold">
-                      {user?.name ? getInitials(user.name) : 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm truncate">{user?.name || 'User'}</p>
-                    <p className="text-xs text-gray-500 truncate">{user?.email || ''}</p>
-                    <Badge className={cn("mt-1 text-xs", roleBadgeColors[user?.role || 'student'])}>
-                      {roleDisplayNames[user?.role || 'student']}
-                    </Badge>
+            {/* ══════════════════════════════════════════════════════
+                USER PROFILE CARD (authenticated)
+            ══════════════════════════════════════════════════════ */}
+            {isAuthenticated && (
+              <div className="flex-shrink-0 px-4 pt-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="relative rounded-2xl p-4 overflow-hidden border border-gray-100 bg-gradient-to-br from-white to-gray-50/80 shadow-sm"
+                >
+                  {/* Accent bar top */}
+                  <div
+                    className="absolute top-0 left-0 right-0 h-[3px]"
+                    style={{ background: currentRole.gradient }}
+                  />
+
+                  <div className="flex items-center gap-3">
+                    <div className="relative flex-shrink-0">
+                      <Avatar className="h-12 w-12 ring-[2.5px] ring-white shadow-md">
+                        {avatarUrl && !avatarError ? (
+                          <AvatarImage
+                            src={avatarUrl}
+                            alt={user?.name || 'User'}
+                            onError={() => setAvatarError(true)}
+                          />
+                        ) : null}
+                        <AvatarFallback
+                          className="text-white font-bold text-sm"
+                          style={{ background: currentRole.gradient }}
+                        >
+                          {user?.name ? getInitials(user.name) : 'U'}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Online dot */}
+                      <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white" />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-gray-900 text-[14px] truncate leading-tight">
+                        {user?.name || 'User'}
+                      </p>
+                      <p className="text-[11px] text-gray-500 truncate mt-0.5">
+                        {user?.email || ''}
+                      </p>
+                      <div
+                        className={cn(
+                          'inline-flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border',
+                          currentRole.bg,
+                        )}
+                      >
+                        <span
+                          className="h-1 w-1 rounded-full"
+                          style={{ background: currentRole.color }}
+                        />
+                        {currentRole.label}
+                      </div>
+                    </div>
                   </div>
-                </div>
-                {!isDashboardPage && (
-                  <button onClick={goToDashboard} className="mt-3 w-full py-2.5 bg-[#F5A623] text-[#0A2472] rounded-lg font-semibold text-sm flex items-center justify-center gap-2">
-                    <LayoutDashboard className="h-4 w-4" />Go to Dashboard<ArrowRight className="h-4 w-4" />
-                  </button>
-                )}
+
+                  {/* Quick dashboard shortcut for public pages */}
+                  {!isDashboardPage && (
+                    <button
+                      onClick={goToDashboard}
+                      className="mt-3.5 w-full py-2.5 rounded-xl text-white font-bold text-[12.5px] flex items-center justify-center gap-2 transition-all hover:brightness-110 active:scale-[0.98] shadow-md"
+                      style={{
+                        background: currentRole.gradient,
+                        boxShadow: `0 6px 16px -4px ${currentRole.color}55`,
+                      }}
+                    >
+                      <LayoutDashboard className="h-3.5 w-3.5" />
+                      Go to Dashboard
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </motion.div>
               </div>
             )}
 
-            <ScrollArea className="flex-1">
-              <nav className="p-4">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">
-                  {isDashboardPage ? 'Dashboard' : 'Navigation'}
-                </p>
-                
-                <div className="space-y-1">
-                  {navItems.map((item) => {
-                    const active = isActive(item.href)
-                    return (
-                      <button
-                        key={item.name}
-                        onClick={() => handleNav(item.href)}
-                        className={cn(
-                          "flex items-center gap-3 w-full px-3 py-3 rounded-lg text-sm font-medium transition-all",
-                          active
-                            ? 'bg-primary/10 text-primary shadow-sm font-semibold'
-                            : 'text-gray-700 hover:bg-gray-50'
-                        )}
-                      >
-                        <item.icon className={cn(
-                          "h-5 w-5 flex-shrink-0",
-                          active ? 'text-primary' : 'text-gray-400'
-                        )} />
-                        <span className="flex-1 text-left">{item.name}</span>
-                        {active && (
-                          <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                        )}
-                      </button>
-                    )
-                  })}
+            {/* ══════════════════════════════════════════════════════
+                SCROLLABLE CONTENT
+            ══════════════════════════════════════════════════════ */}
+            <ScrollArea className="flex-1 mt-2">
+              <div className="p-4 space-y-6">
+
+                {/* ── Primary Navigation ── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                      {isDashboardPage ? 'Dashboard' : 'Navigation'}
+                    </span>
+                    <div className="h-px flex-1 bg-gradient-to-l from-gray-200 to-transparent" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    {navItems.map((item, idx) => {
+                      const active = isActive(item.href)
+                      const activeColor = isDashboardPage ? currentRole.color : '#0A2472'
+
+                      return (
+                        <motion.button
+                          key={item.name}
+                          initial={{ opacity: 0, x: 8 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: idx * 0.04 }}
+                          onClick={() => handleNav(item.href)}
+                          className={cn(
+                            'group relative flex items-center gap-3 w-full px-3 py-3 rounded-2xl text-[13.5px] transition-all',
+                            active
+                              ? 'bg-white shadow-sm'
+                              : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100',
+                          )}
+                          style={active ? {
+                            border: `1.5px solid ${activeColor}25`,
+                            boxShadow: `0 2px 12px -2px ${activeColor}20`,
+                          } : {
+                            border: '1.5px solid transparent',
+                          }}
+                        >
+                          {/* Icon block */}
+                          <div
+                            className={cn(
+                              'h-9 w-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all',
+                              active ? 'shadow-sm' : 'bg-gray-100 group-hover:bg-white',
+                            )}
+                            style={active ? {
+                              background: `linear-gradient(135deg, ${activeColor}15, ${activeColor}05)`,
+                              boxShadow: `inset 0 0 0 1.5px ${activeColor}25`,
+                            } : {}}
+                          >
+                            <item.icon
+                              className="h-4 w-4 transition-colors"
+                              style={{ color: active ? activeColor : '#9ca3af' }}
+                            />
+                          </div>
+
+                          {/* Text */}
+                          <div className="flex-1 text-left min-w-0">
+                            <p
+                              className={cn(
+                                'font-bold leading-tight truncate',
+                                active ? '' : 'text-gray-800',
+                              )}
+                              style={active ? { color: activeColor } : {}}
+                            >
+                              {item.name}
+                            </p>
+                            <p className="text-[10.5px] text-gray-400 truncate mt-0.5 font-medium">
+                              {item.description}
+                            </p>
+                          </div>
+
+                          {/* Chevron / indicator */}
+                          {active ? (
+                            <div
+                              className="h-6 w-6 rounded-full flex items-center justify-center flex-shrink-0"
+                              style={{ background: activeColor }}
+                            >
+                              <ChevronRight className="h-3 w-3 text-white" />
+                            </div>
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-gray-300 group-hover:text-gray-400 group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+                          )}
+                        </motion.button>
+                      )
+                    })}
+                  </div>
                 </div>
 
+                {/* ── Quick Links (dashboard only) ── */}
                 {isDashboardPage && (
-                  <>
-                    <div className="my-4 border-t border-gray-100" />
-                    <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 px-2">Quick Links</p>
-                    <div className="space-y-1">
-                      <button onClick={() => handleNav('/')} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
-                        <Home className="h-4 w-4 text-gray-400 flex-shrink-0" />
-                        <span>Home Page</span>
+                  <div>
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
+                      <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                        Quick Links
+                      </span>
+                      <div className="h-px flex-1 bg-gradient-to-l from-gray-200 to-transparent" />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <button
+                        onClick={() => handleNav('/')}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-gray-50 hover:bg-gray-100 transition-colors group"
+                      >
+                        <div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                          <Home className="h-4 w-4 text-gray-600" />
+                        </div>
+                        <span className="text-[11px] font-bold text-gray-700">Home</span>
                       </button>
+
                       {!isPortalPage && (
-                        <button onClick={() => handleNav('/portal')} className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm font-medium text-amber-700 hover:bg-amber-50 bg-amber-50/50">
-                          <KeyRound className="h-4 w-4 text-amber-500 flex-shrink-0" />
-                          <span>Portal page</span>
+                        <button
+                          onClick={() => handleNav('/portal')}
+                          className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 transition-colors group border border-amber-100"
+                        >
+                          <div className="h-9 w-9 rounded-xl bg-white flex items-center justify-center shadow-sm group-hover:scale-105 transition-transform">
+                            <KeyRound className="h-4 w-4 text-amber-600" />
+                          </div>
+                          <span className="text-[11px] font-bold text-amber-700">Portal</span>
                         </button>
                       )}
                     </div>
-                  </>
+                  </div>
                 )}
 
-                {/* Contact Info + Social + Footer */}
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <div className="space-y-2 mb-4">
-                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1 px-2">Contact Info</p>
-                    {contactInfoData.map((info, idx) => (
-                      <div key={idx} className="flex items-start gap-2 px-2 text-xs text-gray-500">
-                        <info.icon className="h-3.5 w-3.5 text-gray-400 flex-shrink-0 mt-0.5" />
-                        <span className="break-words">{info.text}</span>
-                      </div>
-                    ))}
+                {/* ── Contact info ── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                      Get in Touch
+                    </span>
+                    <div className="h-px flex-1 bg-gradient-to-l from-gray-200 to-transparent" />
                   </div>
 
-                  <div className="flex items-center justify-center gap-3 mb-4">
-                    {socialLinks.map((s, idx) => (
-                      <a key={idx} href={s.href} target="_blank" rel="noopener noreferrer"
-                        className="h-9 w-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-[#0A2472] hover:text-white transition-colors flex-shrink-0">
-                        <span className="font-bold text-sm">{s.icon}</span>
+                  <div className="rounded-2xl border border-gray-100 bg-gray-50/60 divide-y divide-gray-100">
+                    {contactInfoData.map((info, idx) => (
+                      <a
+                        key={idx}
+                        href={
+                          info.icon === Phone ? `tel:${info.text.replace(/\s/g, '')}` :
+                          info.icon === Mail ? `mailto:${info.text}` : '#'
+                        }
+                        className="flex items-center gap-3 px-3.5 py-3 hover:bg-white transition-colors first:rounded-t-2xl last:rounded-b-2xl"
+                      >
+                        <div className="h-8 w-8 rounded-lg bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                          <info.icon className="h-3.5 w-3.5 text-gray-500" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[9.5px] font-bold uppercase tracking-wider text-gray-400 leading-none mb-0.5">
+                            {info.label}
+                          </p>
+                          <p className="text-[11.5px] text-gray-700 font-medium truncate">
+                            {info.text}
+                          </p>
+                        </div>
                       </a>
                     ))}
                   </div>
+                </div>
 
-                  <div className="text-center mb-4">
-                    <p className="text-[10px] text-gray-400">© {currentYear} Vincollins Schools</p>
-                    <p className="text-[9px] text-gray-300">Geared Towards Excellence</p>
+                {/* ── Social links ── */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3 px-1">
+                    <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">
+                      Follow Us
+                    </span>
+                    <div className="h-px flex-1 bg-gradient-to-l from-gray-200 to-transparent" />
                   </div>
 
-                  {!isAuthenticated && !isPortalPage && (
-                    <button onClick={() => handleNav('/portal')} className="flex items-center justify-center gap-2 w-full py-3 bg-[#F5A623] text-[#0A2472] rounded-xl font-semibold shadow-md text-sm mb-3">
-                      <KeyRound className="h-4 w-4" />Portal Login
-                    </button>
-                  )}
-
-                  {isAuthenticated && (
-                    <button onClick={() => { onClose(); onSignOut() }}
-                      className="flex items-center justify-center gap-2 w-full py-3 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl font-medium text-sm">
-                      <LogOut className="h-4 w-4" />Sign Out
-                    </button>
-                  )}
+                  <div className="flex items-center justify-center gap-2.5">
+                    {socialLinks.map((s, idx) => (
+                      <a
+                        key={idx}
+                        href={s.href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={s.label}
+                        className="group relative h-10 w-10 rounded-xl bg-gray-100 hover:bg-white flex items-center justify-center transition-all hover:shadow-md hover:-translate-y-0.5 border border-transparent hover:border-gray-200"
+                      >
+                        <span
+                          className="font-black text-[13px] text-gray-500 group-hover:text-white transition-colors relative z-10"
+                          style={{
+                            fontFamily: s.icon === '𝕏' ? 'system-ui' : 'inherit',
+                          }}
+                        >
+                          {s.icon}
+                        </span>
+                        <div
+                          className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity"
+                          style={{ background: s.color }}
+                        />
+                        <span
+                          className="absolute inset-0 rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                        >
+                          <span className="text-white font-black text-[13px]" style={{
+                            fontFamily: s.icon === '𝕏' ? 'system-ui' : 'inherit',
+                          }}>
+                            {s.icon}
+                          </span>
+                        </span>
+                      </a>
+                    ))}
+                  </div>
                 </div>
-              </nav>
+              </div>
             </ScrollArea>
+
+            {/* ══════════════════════════════════════════════════════
+                FIXED FOOTER — Actions + Copyright
+            ══════════════════════════════════════════════════════ */}
+            <div className="flex-shrink-0 border-t border-gray-100 bg-gradient-to-b from-white to-gray-50/60 p-4 space-y-3">
+              {/* Primary CTA */}
+              {!isAuthenticated && !isPortalPage && (
+                <button
+                  onClick={() => handleNav('/portal')}
+                  className="relative w-full h-12 rounded-2xl font-bold text-[13px] text-[#0A2472] shadow-lg overflow-hidden group active:scale-[0.98] transition-transform"
+                  style={{
+                    background: 'linear-gradient(135deg, #F5A623, #FFB84D)',
+                    boxShadow: '0 8px 20px -4px rgba(245, 166, 35, 0.4)',
+                  }}
+                >
+                  <span className="absolute inset-0 overflow-hidden">
+                    <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                  </span>
+                  <span className="relative flex items-center justify-center gap-2">
+                    <KeyRound className="h-4 w-4" />
+                    <span>Access Portal</span>
+                    <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
+                </button>
+              )}
+
+              {isAuthenticated && (
+                <button
+                  onClick={() => { onClose(); onSignOut() }}
+                  className="w-full h-12 rounded-2xl font-bold text-[13px] text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-100 flex items-center justify-center gap-2 transition-all active:scale-[0.98]"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </button>
+              )}
+
+              {/* Copyright */}
+              <div className="text-center pt-1">
+                <p className="text-[10.5px] font-semibold text-gray-500">
+                  © {currentYear} Vincollins Schools
+                </p>
+                <p className="text-[9.5px] text-gray-400 italic mt-0.5">
+                  Geared Towards Excellence
+                </p>
+              </div>
+            </div>
+
           </motion.div>
         </>
       )}

@@ -12,8 +12,6 @@ import {
   Calendar,
   Sparkles,
   CheckCircle2,
-  Users,
-  Star,
 } from 'lucide-react'
 
 const benefits = [
@@ -140,12 +138,12 @@ export const CTA = () => {
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40">
                     Call us
                   </p>
-                  <p className="font-medium">+234 800 123 4567</p>
+                  <p className="font-medium">+234 907 082 9999</p>
                 </div>
               </Link>
 
               <Link
-                href="mailto:info@vincollinsschools.com"
+                href="mailto:vincollinsschools@gmail.com"
                 className="group flex items-center gap-3 text-sm text-white/70 transition-colors hover:text-white"
               >
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/15 transition-colors group-hover:bg-amber-500/25">
@@ -155,14 +153,14 @@ export const CTA = () => {
                   <p className="text-[10px] font-semibold uppercase tracking-widest text-white/40">
                     Email us
                   </p>
-                  <p className="font-medium">info@vincollinsschools.com</p>
+                  <p className="font-medium">vincollinsschools@gmail.com</p>
                 </div>
               </Link>
             </motion.div>
 
           </div>
 
-          {/* ═════════ RIGHT — Photo with floating cards ═════════ */}
+          {/* ═════════ RIGHT — Photo only (no floating cards) ═════════ */}
           <motion.div
             {...makeAnim(0.2)}
             className="relative"
@@ -218,75 +216,6 @@ export const CTA = () => {
                 </p>
               </div>
             </div>
-
-            {/* ✨ Floating card — top left — Happy Pupils (SOLID WHITE) */}
-            <motion.div
-              initial={{ opacity: 0, x: -20, y: -10 }}
-              whileInView={{ opacity: 1, x: 0, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.5, duration: 0.6 }}
-              className="absolute -left-4 -top-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_rgba(0,0,0,0.35)] sm:-left-6"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-100">
-                  <Users className="h-5 w-5 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-slate-900">500+</p>
-                  <p className="text-[11px] font-medium text-slate-500">
-                    Happy Pupils
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* ✨ Floating card — top right — Rating (SOLID WHITE) */}
-            <motion.div
-              initial={{ opacity: 0, x: 20, y: -10 }}
-              whileInView={{ opacity: 1, x: 0, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.6, duration: 0.6 }}
-              className="absolute -right-4 -top-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_20px_50px_rgba(0,0,0,0.35)] sm:-right-6"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-100">
-                  <Star className="h-5 w-5 fill-amber-500 text-amber-500" />
-                </div>
-                <div>
-                  <div className="flex items-baseline gap-1">
-                    <p className="text-lg font-bold text-slate-900">4.9</p>
-                    <p className="text-[11px] text-slate-500">/ 5</p>
-                  </div>
-                  <p className="text-[11px] font-medium text-slate-500">
-                    Parent Reviews
-                  </p>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* ✨ Floating card — bottom center — Admissions Open (AMBER GRADIENT) */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.7, duration: 0.6 }}
-              className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-2xl bg-gradient-to-br from-[#F5A623] to-amber-500 px-5 py-3 shadow-[0_20px_50px_rgba(245,166,35,0.5)] ring-4 ring-white/20"
-            >
-              <div className="flex items-center gap-3">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
-                </span>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-slate-900/70">
-                    Now Enrolling
-                  </p>
-                  <p className="text-sm font-bold text-slate-900">
-                    Admissions Open
-                  </p>
-                </div>
-              </div>
-            </motion.div>
           </motion.div>
         </div>
 
