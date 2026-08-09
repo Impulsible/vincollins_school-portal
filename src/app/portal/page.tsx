@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 // src/app/portal/page.tsx
 'use client'
@@ -6,12 +7,11 @@ import {
   useState, useEffect, useRef, useCallback,
 } from 'react'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { useLoginRateLimit } from '@/hooks/useLoginRateLimit'
 import { Header } from '@/components/layout/header'
 import { Button } from '@/components/ui/button'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import {
   Mail, Eye, EyeOff, GraduationCap, Shield, Users,
   Loader2, AlertCircle, KeyRound, ArrowRight, Sparkles,
@@ -34,6 +34,49 @@ interface SchoolSettings {
 
 type UserRole = 'student' | 'teacher' | 'admin'
 
+// ─── Helper: Get First Name ──────────────────────────────────────────────────
+// Handles both "FirstName LastName" and "Surname FirstName" formats
+const getFirstName = (fullName: string): string => {
+  if (!fullName) return 'User'
+  
+  const parts = fullName.trim().split(/\s+/)
+  
+  // If there's only one part, return it
+  if (parts.length === 1) return parts[0]
+  
+  // Check if first part is a title (Dr., Prof., Mr., Mrs., Ms.)
+  const titlePrefixes = ['dr.', 'dr', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms']
+  if (titlePrefixes.includes(parts[0].toLowerCase())) {
+    return parts[2] || parts[1] || parts[0]
+  }
+  
+  // Common Nigerian surnames (to detect "Surname FirstName" format)
+  const commonSurnames = [
+    'Adesope', 'Okafor', 'Okonkwo', 'Adebayo', 'Ogunleye', 
+    'Eze', 'Nwosu', 'Adedeji', 'Oladipo', 'Adeyemi',
+    'Balogun', 'Fashola', 'Oyedele', 'Akinlade', 'Ogunbiyi',
+    'Adeola', 'Olatunji', 'Ogunyemi', 'Akinsanya', 'Olawale'
+  ]
+  
+  // If first part is a common surname and there's a second part,
+  // return the second part as the first name
+  if (commonSurnames.includes(parts[0]) && parts.length > 1) {
+    return parts[1]
+  }
+  
+  // Check if the first part is a single letter (likely an initial)
+  if (parts[0].length === 1 && parts[0].toUpperCase() === parts[0]) {
+    // If first part is an initial, return the second part as first name
+    if (parts.length > 1) {
+      return parts[1]
+    }
+    return parts[0]
+  }
+  
+  // For "FirstName LastName" format, return the first part
+  return parts[0] || 'User'
+}
+
 // ── Role config ────────────────────────────────────────────────────────────────
 const ROLE_CONFIG = {
   student: {
@@ -47,13 +90,13 @@ const ROLE_CONFIG = {
     greeting: 'Welcome back, superstar!',
     infoBg: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     infoText: 'Access your lessons, results & report cards',
-    redirect: '/student',
-    description: 'Student portal',
+    redirect: '/pupil',
+    description: 'Pupil portal',
   },
   teacher: {
     icon: '👩‍🏫',
     emoji: '👋',
-    label: 'Teacher',
+    label: 'Teacher/Staff',
     Icon: Users,
     color: '#2563EB',
     lightBg: '#EFF6FF',
@@ -98,13 +141,20 @@ interface SuccessModalProps {
 
 function SuccessModal({ userName, role, redirectPath, onGo }: SuccessModalProps) {
   const config = ROLE_CONFIG[role]
-  const firstName = userName.split(' ')[0]
+  const firstName = getFirstName(userName)
   const [countdown, setCountdown] = useState(3)
 
   useEffect(() => {
     const interval = setInterval(() => setCountdown((p) => Math.max(0, p - 1)), 1000)
     return () => clearInterval(interval)
   }, [])
+
+  // Auto redirect when countdown reaches 0
+  useEffect(() => {
+    if (countdown === 0) {
+      onGo()
+    }
+  }, [countdown, onGo])
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xl">
@@ -227,7 +277,7 @@ function LockoutBanner({ remainingSeconds }: { remainingSeconds: number }) {
 // ── Main Page ──────────────────────────────────────────────────────────────────
 export default function LoginPage() {
   const router = useRouter()
-  const { user, setUser } = useUser()
+  const { user, setUser, loading: userLoading } = useUser()
   const { isLocked, remainingSeconds, checkAndRecord } = useLoginRateLimit()
 
   const [email, setEmail] = useState('')
@@ -240,60 +290,66 @@ export default function LoginPage() {
   const [imageError, setImageError] = useState(false)
   const [logoLoaded, setLogoLoaded] = useState(false)
   const [heroLoaded, setHeroLoaded] = useState(false)
+  const [mounted, setMounted] = useState(false)
   const [successData, setSuccessData] = useState<{
     userName: string; role: UserRole; redirectPath: string
   } | null>(null)
 
   const loginInProgressRef = useRef(false)
-  const redirectTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const redirectStartedRef = useRef(false)
 
-  // ── Auth redirect ────────────────────────────────────────────────────────────
+  // ─── Mount ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (user) {
-      const redirectMap: Record<UserRole, string> = {
-        admin: '/admin', teacher: '/staff', student: '/student',
-      }
-      router.push(redirectMap[user.role as UserRole] || '/')
-    }
-  }, [user, router])
-
-  useEffect(() => {
-    const img = document.createElement('img')
-    img.src = '/images/portal.jpg'
+    setMounted(true)
   }, [])
 
+  // ─── Check for existing user ──────────────────────────────────────────────
   useEffect(() => {
-    try {
-      const keysToKeep = ['user_profile', 'auth_user', 'auth_role', 'school_settings', 'pwa-install-dismissed']
-      const now = Date.now()
-      const lastClear = localStorage.getItem('portalCacheClear')
-      if (!lastClear || now - parseInt(lastClear) > 24 * 60 * 60 * 1000) {
-        Object.keys(localStorage).forEach((key) => {
-          if (!keysToKeep.includes(key) && !key.startsWith('sb-')) localStorage.removeItem(key)
-        })
-        localStorage.setItem('portalCacheClear', now.toString())
-      }
-    } catch { /* noop */ }
+    if (!mounted || !user || successData) return
 
-    const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) window.location.reload()
+    // If user already exists, show success modal and redirect
+    const redirectMap: Record<string, string> = {
+      admin: '/admin',
+      teacher: '/staff',
+      student: '/pupil',
     }
-    window.addEventListener('pageshow', handlePageShow)
-    return () => window.removeEventListener('pageshow', handlePageShow)
-  }, [])
+    const path = redirectMap[user.role as string] || '/dashboard'
+    
+    setSuccessData({
+      userName: user.full_name || user.first_name || 'User',
+      role: user.role as UserRole,
+      redirectPath: path
+    })
+  }, [mounted, user, successData])
 
+  // ─── LOAD SCHOOL SETTINGS ──────────────────────────────────────────────────
   useEffect(() => {
-    const load = async () => {
+    if (!mounted) return
+    
+    const loadSchoolSettings = async () => {
       try {
         const cached = localStorage.getItem('school_settings')
         if (cached) {
-          try { setSchoolSettings((p) => ({ ...p, ...JSON.parse(cached) })) } catch { /* noop */ }
+          try {
+            const parsed = JSON.parse(cached)
+            setSchoolSettings((prev) => ({ ...prev, ...parsed }))
+          } catch {
+            // Invalid cache, ignore
+          }
         }
-        const { data } = await supabase.from('school_settings').select('*').maybeSingle()
+
+        const { data, error } = await supabase
+          .from('school_settings')
+          .select('school_name, logo_path, school_phone, school_email, school_motto, school_address')
+          .maybeSingle()
+
+        if (error) {
+          console.warn('[Portal] Error fetching school settings:', error.message)
+          return
+        }
+
         if (data) {
           const settings: SchoolSettings = {
-            logo_path: data.logo_path || '',
+            logo_path: data.logo_path || DEFAULT_SETTINGS.logo_path,
             school_name: data.school_name || DEFAULT_SETTINGS.school_name,
             school_motto: data.school_motto || DEFAULT_SETTINGS.school_motto,
             school_phone: data.school_phone || DEFAULT_SETTINGS.school_phone,
@@ -303,47 +359,38 @@ export default function LoginPage() {
           localStorage.setItem('school_settings', JSON.stringify(settings))
         }
       } catch (err) {
-        console.warn('[Portal] Failed to load school settings:', err)
+        console.warn('[Portal] Exception loading school settings:', err)
       }
     }
-    load()
-  }, [])
 
-  useEffect(() => {
-    if (!successData || redirectStartedRef.current) return
-    redirectStartedRef.current = true
-    redirectTimerRef.current = setTimeout(() => {
-      router.push(successData.redirectPath)
-    }, 3000)
-    return () => { if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current) }
-  }, [successData, router])
+    loadSchoolSettings()
+  }, [mounted])
 
-  useEffect(() => {
-    return () => { if (redirectTimerRef.current) clearTimeout(redirectTimerRef.current) }
-  }, [])
-
+  // ─── Go to Dashboard ──────────────────────────────────────────────────────
   const goToDashboard = useCallback(() => {
-    if (redirectTimerRef.current) { clearTimeout(redirectTimerRef.current); redirectTimerRef.current = null }
     if (!successData) return
     router.push(successData.redirectPath)
   }, [successData, router])
 
-  const handleRoleChange = useCallback((role: UserRole) => {
-    setSelectedRole(role)
-    setError('')
-  }, [])
-
+  // ─── HANDLE LOGIN ───────────────────────────────────────────────────────────
   const handleLogin = useCallback(async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    console.log('🔐 [LoginPage] Login attempt started')
+    
     if (isLocked) {
       setError(`Too many failed attempts. Please wait ${Math.ceil(remainingSeconds / 60)} minute(s).`)
       return
     }
-    if (loginInProgressRef.current || loading) return
+    
+    if (loginInProgressRef.current || loading) {
+      console.log('⏳ [LoginPage] Login already in progress')
+      return
+    }
+    
     loginInProgressRef.current = true
     setLoading(true)
     setError('')
-    redirectStartedRef.current = false
 
     const cleanEmail = email.trim().toLowerCase()
     const cleanPassword = password.trim()
@@ -356,11 +403,14 @@ export default function LoginPage() {
     }
 
     try {
+      console.log('🔐 [LoginPage] Calling supabase.auth.signInWithPassword...')
       const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email: cleanEmail, password: cleanPassword,
+        email: cleanEmail,
+        password: cleanPassword,
       })
 
       if (signInError) {
+        console.error('❌ [LoginPage] Sign in error:', signInError)
         const { allowed, message } = checkAndRecord(false)
         if (!allowed) {
           setError(message ?? 'Too many attempts. Please try again later.')
@@ -368,10 +418,6 @@ export default function LoginPage() {
           setError(message
             ? `Invalid email or password. ${message}`
             : 'Invalid email or password. Please try again.')
-        } else if (signInError.message.includes('Email not confirmed')) {
-          setError('Please confirm your email address before logging in.')
-        } else if (signInError.message.includes('rate_limit')) {
-          setError('Too many requests. Please wait a few minutes and try again.')
         } else {
           setError('Login failed. Please check your credentials.')
         }
@@ -381,23 +427,41 @@ export default function LoginPage() {
       }
 
       if (!signInData?.user) {
+        console.error('❌ [LoginPage] No user data received')
         setError('Login failed. No user data received.')
         loginInProgressRef.current = false
         setLoading(false)
         return
       }
 
-      const { data: profile } = await supabase
+      console.log('✅ [LoginPage] Sign in successful, user ID:', signInData.user.id)
+
+      // Get user profile
+      console.log('🔍 [LoginPage] Fetching user profile...')
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
-        .select('role, full_name, first_name, last_name, avatar_url, photo_url')
+        .select('role, full_name, first_name, last_name, avatar_url, photo_url, class')
         .eq('id', signInData.user.id)
         .maybeSingle()
+
+      if (profileError) {
+        console.error('❌ [LoginPage] Profile fetch error:', profileError)
+      }
+
+      console.log('📋 [LoginPage] Profile data:', profile)
 
       const rawRole = profile?.role?.toLowerCase()
         ?? signInData.user.user_metadata?.role?.toLowerCase()
         ?? 'student'
-      const userRole: UserRole = rawRole === 'staff' ? 'teacher' : (rawRole as UserRole)
+      
+      let userRole: UserRole = 'student'
+      if (rawRole === 'admin') userRole = 'admin'
+      else if (rawRole === 'teacher' || rawRole === 'staff') userRole = 'teacher'
+      else if (rawRole === 'student') userRole = 'student'
 
+      console.log('📋 [LoginPage] User role:', userRole)
+
+      // Check if role matches selected tab
       if (userRole !== selectedRole) {
         const displayName = userRole === 'teacher'
           ? 'Teacher/Staff'
@@ -412,6 +476,7 @@ export default function LoginPage() {
 
       checkAndRecord(true)
 
+      // Format user name
       let userName = profile?.first_name && profile?.last_name
         ? `${profile.first_name} ${profile.last_name}`
         : profile?.full_name
@@ -427,36 +492,68 @@ export default function LoginPage() {
 
       const redirectPath = ROLE_CONFIG[userRole].redirect
 
-      setUser({
+      // Get the first name using the robust helper
+      const firstName = getFirstName(userName)
+
+      // Set user in context
+      const userData = {
         id: signInData.user.id,
         email: cleanEmail,
         full_name: userName,
-        first_name: userName.split(' ')[0],
+        first_name: firstName,
         role: userRole,
         avatar_url: profile?.avatar_url || null,
         photo_url: profile?.photo_url || null,
+      }
+      
+      console.log('👤 [LoginPage] Setting user data:', userData)
+      setUser(userData)
+
+      // Store in localStorage - ensure first_name is saved
+      try {
+        localStorage.setItem('auth_user', JSON.stringify({
+          id: signInData.user.id,
+          role: userRole,
+          name: userName,
+          full_name: userName,
+          first_name: firstName,
+          email: cleanEmail
+        }))
+        localStorage.setItem('auth_role', userRole)
+        console.log('💾 [LoginPage] User saved to localStorage with first_name:', firstName)
+      } catch (e) {
+        console.warn('⚠️ [LoginPage] Failed to save to localStorage:', e)
+      }
+
+      // Show success modal
+      setSuccessData({
+        userName,
+        role: userRole,
+        redirectPath
       })
 
-      try {
-        localStorage.setItem('auth_user', JSON.stringify({ id: signInData.user.id, role: userRole }))
-        localStorage.setItem('auth_role', userRole)
-        localStorage.setItem('user_profile', JSON.stringify({
-          id: signInData.user.id, full_name: userName,
-          first_name: userName.split(' ')[0], email: cleanEmail,
-          role: userRole, timestamp: Date.now(),
-        }))
-      } catch { /* noop */ }
-
-      setSuccessData({ userName, role: userRole, redirectPath })
       setLoading(false)
-      setTimeout(() => { loginInProgressRef.current = false }, 500)
+      loginInProgressRef.current = false
+
     } catch (err) {
-      console.error('[Portal] Login error:', err)
+      console.error('❌ [LoginPage] Login error:', err)
       setError('An unexpected error occurred. Please try again.')
       loginInProgressRef.current = false
       setLoading(false)
     }
   }, [email, password, selectedRole, loading, isLocked, remainingSeconds, checkAndRecord, setUser])
+
+  // ─── Loading State ──────────────────────────────────────────────────────────
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-[#0A2472]" />
+          <p className="text-sm text-slate-400">Loading...</p>
+        </div>
+      </div>
+    )
+  }
 
   const currentConfig = ROLE_CONFIG[selectedRole]
 
@@ -468,9 +565,7 @@ export default function LoginPage() {
         <div className="flex-1 flex pt-16 sm:pt-20">
           <div className="flex w-full min-h-[calc(100vh-80px)]">
 
-            {/* ══════════════════════════════════════════════════════════
-                LEFT — Full image, minimal clean overlay & copy
-            ══════════════════════════════════════════════════════════ */}
+            {/* LEFT - Image Side */}
             <div className="hidden lg:flex lg:w-[55%] xl:w-[60%] bg-[#0A2472]">
               <div className="relative w-full min-h-[calc(100vh-80px)]">
                 {!imageError && (
@@ -500,7 +595,6 @@ export default function LoginPage() {
                 <div className="absolute inset-x-0 top-0 h-32 z-10 bg-gradient-to-b from-black/40 to-transparent" />
 
                 <div className="relative z-20 flex flex-col justify-between w-full px-12 xl:px-16 py-12 min-h-[calc(100vh-80px)]">
-
                   {/* TOP: School identity */}
                   <motion.div
                     initial={{ opacity: 0, y: -16 }}
@@ -613,17 +707,14 @@ export default function LoginPage() {
                       </a>
                     )}
                   </motion.div>
-
                 </div>
               </div>
             </div>
 
-            {/* ══════════════════════════════════════════════════════════
-                RIGHT — Form (redesigned inspired by reference image)
-            ══════════════════════════════════════════════════════════ */}
+            {/* RIGHT - Form Side */}
             <div className="w-full lg:w-[45%] xl:w-[40%] bg-white flex items-center justify-center py-8 lg:py-10 px-5 sm:px-8 lg:px-10 xl:px-12 min-h-[calc(100vh-80px)] relative overflow-hidden">
 
-              {/* Soft ambient background gradient that shifts with role */}
+              {/* Soft ambient background gradient */}
               <div
                 className="absolute inset-0 pointer-events-none transition-all duration-700"
                 style={{
@@ -638,9 +729,8 @@ export default function LoginPage() {
                   transition={{ duration: 0.5, delay: 0.2 }}
                 >
 
-                  {/* ── HEADER: Compact logo + title (inspired by reference) ── */}
+                  {/* HEADER */}
                   <div className="flex items-start gap-3 mb-8">
-                    {/* Icon block — matches reference emoji-style header */}
                     <div
                       className="relative h-11 w-11 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm transition-all duration-500"
                       style={{
@@ -666,7 +756,7 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  {/* ── MOBILE ONLY: School branding ── */}
+                  {/* MOBILE ONLY: School branding */}
                   <div className="lg:hidden flex items-center gap-3 mb-6 p-4 rounded-2xl bg-gray-50 border border-gray-100">
                     {schoolSettings.logo_path ? (
                       <div className="relative h-10 w-10 flex-shrink-0">
@@ -690,12 +780,11 @@ export default function LoginPage() {
                     </div>
                   </div>
 
-                  {/* ── "I AM A..." Label ── */}
+                  {/* Role Selector */}
                   <label className="block text-[11px] font-bold uppercase tracking-[0.15em] text-gray-500 mb-3">
                     I am a...
                   </label>
 
-                  {/* ── Role Selector — Card style like reference ── */}
                   <div className="grid grid-cols-3 gap-2.5 mb-6">
                     {(Object.keys(ROLE_CONFIG) as UserRole[]).map((role) => {
                       const cfg = ROLE_CONFIG[role]
@@ -705,7 +794,10 @@ export default function LoginPage() {
                         <motion.button
                           key={role}
                           type="button"
-                          onClick={() => handleRoleChange(role)}
+                          onClick={() => {
+                            setSelectedRole(role)
+                            setError('')
+                          }}
                           whileTap={{ scale: 0.96 }}
                           className={cn(
                             'group relative flex flex-col items-center gap-1.5 pt-3 pb-2.5 px-2 rounded-2xl',
@@ -719,7 +811,6 @@ export default function LoginPage() {
                             boxShadow: `0 4px 16px -4px ${cfg.color}35, 0 0 0 4px ${cfg.color}0d`,
                           } : {}}
                         >
-                          {/* Active check badge — top right corner */}
                           {isActive && (
                             <motion.div
                               initial={{ scale: 0, rotate: -90 }}
@@ -734,7 +825,6 @@ export default function LoginPage() {
                             </motion.div>
                           )}
 
-                          {/* Emoji circle */}
                           <div
                             className={cn(
                               'w-11 h-11 rounded-full flex items-center justify-center text-2xl transition-all duration-300',
@@ -752,7 +842,6 @@ export default function LoginPage() {
                             {cfg.icon}
                           </div>
 
-                          {/* Label */}
                           <span
                             className={cn(
                               'text-[13px] font-bold transition-colors',
@@ -763,7 +852,6 @@ export default function LoginPage() {
                             {cfg.label}
                           </span>
 
-                          {/* Description */}
                           <span className={cn(
                             'text-[9.5px] font-medium transition-colors -mt-0.5',
                             isActive ? 'text-gray-500' : 'text-gray-400',
@@ -775,7 +863,7 @@ export default function LoginPage() {
                     })}
                   </div>
 
-                  {/* ── Info banner — inspired by reference ── */}
+                  {/* Info banner */}
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={selectedRole}
@@ -803,7 +891,7 @@ export default function LoginPage() {
                     </motion.div>
                   </AnimatePresence>
 
-                  {/* ── Error alert ── */}
+                  {/* Error alert */}
                   <AnimatePresence>
                     {error && (
                       <motion.div
@@ -824,7 +912,7 @@ export default function LoginPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* ── Lockout banner ── */}
+                  {/* Lockout banner */}
                   <AnimatePresence>
                     {isLocked && (
                       <motion.div
@@ -838,7 +926,7 @@ export default function LoginPage() {
                     )}
                   </AnimatePresence>
 
-                  {/* ── Login form ── */}
+                  {/* Login form */}
                   <form onSubmit={handleLogin} className="space-y-5" noValidate>
 
                     {/* Email */}
@@ -989,7 +1077,7 @@ export default function LoginPage() {
                     </motion.button>
                   </form>
 
-                  {/* ── Trust row ── */}
+                  {/* Trust row */}
                   <div className="flex items-center justify-center gap-5 mt-7 pt-5 border-t border-gray-100">
                     {[
                       { icon: ShieldCheck, text: 'SSL Secured' },
@@ -1003,7 +1091,7 @@ export default function LoginPage() {
                     ))}
                   </div>
 
-                  {/* ── Footer ── */}
+                  {/* Footer */}
                   <div className="mt-5 space-y-2">
                     <p className="text-center text-[11.5px] text-gray-400">
                       Need help?{' '}
@@ -1028,7 +1116,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* ── Success modal ── */}
+      {/* ─── Success Modal ─── */}
       <AnimatePresence>
         {successData && (
           <SuccessModal

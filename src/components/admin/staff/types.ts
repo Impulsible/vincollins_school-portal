@@ -1,4 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 export interface Staff {
+  last_name: any
+  first_name: any
   id: string
   vin_id: string
   full_name: string

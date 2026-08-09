@@ -6,13 +6,13 @@ export async function POST(req: NextRequest) {
   console.log('📦 API called: Create User')
   
   try {
-    // Validate environment variables
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
     const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
     
     if (!supabaseUrl || !supabaseServiceKey) {
       console.error('❌ Missing Supabase credentials')
       return NextResponse.json({ 
+        success: false,
         error: 'Server configuration error' 
       }, { status: 500 })
     }
@@ -45,14 +45,23 @@ export async function POST(req: NextRequest) {
       medical_notes
     } = body
     
-    // Validate required fields
+    // ─── Validation ─────────────────────────────────────────────────────
     if (!first_name || !last_name || !role) {
       return NextResponse.json({ 
+        success: false,
         error: 'First name, last name, and role are required' 
       }, { status: 400 })
     }
+
+    // Validate email format if provided
+    if (customEmail && !customEmail.includes('@')) {
+      return NextResponse.json({
+        success: false,
+        error: 'Invalid email format'
+      }, { status: 400 })
+    }
     
-    // Helper functions
+    // ─── Helper functions ──────────────────────────────────────────────
     const capitalizeWords = (str: string): string => {
       if (!str) return ''
       return str
@@ -73,11 +82,10 @@ export async function POST(req: NextRequest) {
       return `${prefix}-${year}-${randomNum}`
     }
     
-    // Generate VIN ID
+    // ─── Generate VIN ID ──────────────────────────────────────────────
     const year = admission_year || join_year || new Date().getFullYear()
     let vin_id = generateVINId(role, year)
     
-    // Check if VIN ID exists and regenerate if needed
     let vinExists = true
     let attempts = 0
     while (vinExists && attempts < 10) {
@@ -95,7 +103,7 @@ export async function POST(req: NextRequest) {
       }
     }
     
-    // Generate email
+    // ─── Generate email ───────────────────────────────────────────────
     let email = customEmail
     if (!email) {
       const sanitizedFirst = first_name.toLowerCase().replace(/[^a-z]/g, '').substring(0, 15) || 'user'
@@ -122,7 +130,7 @@ export async function POST(req: NextRequest) {
       email = baseEmail
     }
     
-    // Build full name
+    // ─── Build full name ──────────────────────────────────────────────
     let fullName = last_name.trim() + ' ' + first_name.trim()
     if (middle_name && middle_name.trim()) {
       fullName += ' ' + middle_name.trim()
@@ -132,10 +140,10 @@ export async function POST(req: NextRequest) {
     
     console.log('📧 Creating user:', { email, vin_id, fullName, displayName, role })
     
-    // Step 1: Create auth user
+    // ─── Create auth user with VIN ID as password ─────────────────────
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: email,
-      password: vin_id, // Use VIN ID as initial password
+      password: vin_id, // Use VIN ID as the password
       email_confirm: true,
       user_metadata: {
         full_name: fullName,
@@ -150,13 +158,25 @@ export async function POST(req: NextRequest) {
     
     if (authError) {
       console.error('❌ Auth error:', authError)
-      return NextResponse.json({ error: authError.message }, { status: 500 })
+      
+      // Check for duplicate email
+      if (authError.message.includes('already registered')) {
+        return NextResponse.json({ 
+          success: false,
+          error: 'A user with this email already exists. Please use a different email.'
+        }, { status: 400 })
+      }
+      
+      return NextResponse.json({ 
+        success: false,
+        error: authError.message 
+      }, { status: 500 })
     }
     
     const userId = authData.user.id
     console.log('✅ Auth user created:', userId)
     
-    // Step 2: Insert into profiles
+    // ─── Insert into profiles ─────────────────────────────────────────
     const profileData: any = {
       id: userId,
       vin_id: vin_id,
@@ -178,7 +198,7 @@ export async function POST(req: NextRequest) {
     if (middle_name?.trim()) {
       profileData.middle_name = capitalizeWords(middle_name.trim())
     }
-    if (role === 'student' || role === 'student') {
+    if (role === 'student') {
       if (studentClass) profileData.class = studentClass
       if (admission_year) profileData.admission_year = admission_year
       if (admission_number) profileData.admission_number = admission_number
@@ -210,13 +230,14 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin.auth.admin.deleteUser(userId)
       console.log('🔄 Rolled back auth user')
       return NextResponse.json({ 
+        success: false,
         error: `Failed to create profile: ${profileError.message}`
       }, { status: 500 })
     }
     
     console.log('✅ Profile created:', profile?.id)
     
-    // Success!
+    // ─── Return success with credentials ─────────────────────────────
     return NextResponse.json({ 
       success: true, 
       user: { 
@@ -233,7 +254,7 @@ export async function POST(req: NextRequest) {
       },
       credentials: {
         email: email,
-        password: vin_id,
+        password: vin_id, // VIN ID is the password
         vin_id: vin_id,
         admission_number: admission_number?.trim() || '',
       }
@@ -242,6 +263,7 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('❌ API FATAL ERROR:', error)
     return NextResponse.json({ 
+      success: false,
       error: error.message || 'Internal server error' 
     }, { status: 500 })
   }

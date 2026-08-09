@@ -1,236 +1,416 @@
-// src/app/admin/layout.tsx
+/* eslint-disable react-hooks/set-state-in-effect */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/admin/layout.tsx
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import Link from 'next/link'
-import { useUser } from '@/contexts/UserContext'
-
-import { 
-  LayoutDashboard, 
-  GraduationCap, 
-  Briefcase, 
-  Shield,
-  Settings,
-  LogOut,
-  Menu,
-  Bell,
-  MessageSquare,
-  Megaphone,
-  TrendingUp,
-  FileText
-} from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
+import { supabase } from '@/lib/supabase/client'
+import { Header } from '@/components/layout/header'
+import { AdminSidebar } from '@/components/admin/AdminSidebar'
+import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
+import AdminLoading from '@/components/admin/AdminLoading'
 import { cn } from '@/lib/utils'
-import { Loader2 } from 'lucide-react'
-import { Card, CardContent } from '@/components/ui/card'
+import { motion, AnimatePresence, type Variants } from 'framer-motion'
+import { useUser, getRoleColors } from '@/contexts/UserContext'
 
-// ── Navigation Items ──
-const navItems = [
-  { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { label: 'Students', href: '/admin/students', icon: GraduationCap },
-  { label: 'Staff', href: '/admin/staff', icon: Briefcase },
-  { label: 'Admins', href: '/admin/admins', icon: Shield },
-  { label: 'Report Cards', href: '/admin/report-cards', icon: FileText },
-  { label: 'Announcements', href: '/admin/announcements', icon: Megaphone },
-  { label: 'Inquiries', href: '/admin/inquiries', icon: MessageSquare },
-  { label: 'Promotions', href: '/admin/promotions', icon: TrendingUp },
-  { label: 'Settings', href: '/admin/settings', icon: Settings },
-]
+interface AdminProfile {
+  id: string
+  full_name?: string
+  display_name?: string
+  first_name?: string
+  last_name?: string
+  middle_name?: string
+  email?: string
+  photo_url?: string
+  avatar_url?: string
+  role?: string
+}
 
-// ── Admin Layout ──
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const { user, loading, isAuthenticated } = useUser()
+// ─── Route Maps ───────────────────────────────────────────────────────────────
+const routeToTabMap: Record<string, string> = {
+  '/admin': 'overview',
+  '/admin/broad-sheet': 'broad-sheet',
+  '/admin/students': 'students',
+  '/admin/staff': 'staff',
+  '/admin/report-cards': 'report-cards',
+  '/admin/inquiries': 'inquiries',
+  '/admin/announcements': 'announcements',
+  '/admin/promotions': 'promotions',
+  '/admin/settings': 'settings',
+}
+
+const tabToRouteMap: Record<string, string> = {
+  overview: '/admin',
+  'broad-sheet': '/admin/broad-sheet',
+  students: '/admin/students',
+  staff: '/admin/staff',
+  'report-cards': '/admin/report-cards',
+  inquiries: '/admin/inquiries',
+  announcements: '/admin/announcements',
+  promotions: '/admin/promotions',
+  settings: '/admin/settings',
+}
+
+const getTabFromPathname = (pathname: string): string => {
+  if (routeToTabMap[pathname]) return routeToTabMap[pathname]
+  for (const [route, tab] of Object.entries(routeToTabMap)) {
+    if (pathname?.startsWith(route + '/')) return tab
+  }
+  return 'overview'
+}
+
+// ─── Format Profile ───────────────────────────────────────────────────────────
+function formatProfileForHeader(profile: AdminProfile | null) {
+  if (!profile) return undefined
+  const displayName = profile.display_name || profile.full_name || 'Administrator'
+  const nameParts = displayName.split(' ')
+  const firstName = nameParts.length >= 2 ? nameParts[1] : nameParts[0]
+  return {
+    id: profile.id,
+    name: displayName,
+    firstName,
+    email: profile.email || '',
+    role: profile.role === 'staff' ? ('teacher' as const) : ('admin' as const),
+    avatar: profile.photo_url || profile.avatar_url,
+    isAuthenticated: true,
+  }
+}
+
+// ─── Counts Cache ─────────────────────────────────────────────────────────────
+let countsCache: { data: any; timestamp: number } | null = null
+const COUNTS_CACHE_DURATION = 120_000
+
+// ─── Page transition variants ─────────────────────────────────────────────────
+// ✅ FIX 1: Properly typed `Variants` — `ease` must be a cubic-bezier tuple
+//    or one of the accepted string literals. Cast to Variants for safety.
+const pageVariants: Variants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.3, ease: [0.25, 0.1, 0.25, 1] },
+  },
+  exit: {
+    opacity: 0,
+    y: -8,
+    transition: { duration: 0.2, ease: [0.4, 0, 1, 1] },
+  },
+}
+
+// ─── Sidebar widths ───────────────────────────────────────────────────────────
+const SIDEBAR_EXPANDED = 256
+const SIDEBAR_COLLAPSED = 72
+
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
-  const [isMobile, setIsMobile] = useState(false)
-  const supabase = createClient()
+  const { user } = useUser()
 
-  // Handle responsive
+  const roleColors = getRoleColors(user?.role)
+
+  const [activeTab, setActiveTab] = useState(() =>
+    getTabFromPathname(pathname || '/admin')
+  )
+  const [profile, setProfile] = useState<AdminProfile | null>(null)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
+  const [notificationCount, setNotificationCount] = useState(0)
+  const [pendingReports, setPendingReports] = useState(0)
+  const [pendingInquiries, setPendingInquiries] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [isNavigating, setIsNavigating] = useState(false)
+
+  const prevPathRef = useRef(pathname)
+  const isInitialMount = useRef(true)
+
+  // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
-    const handleResize = () => {
-      const mobile = window.innerWidth < 1024
-      setIsMobile(mobile)
-      if (!mobile) setIsSidebarOpen(true)
-      else setIsSidebarOpen(false)
-    }
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+    const init = async () => {
+      setLoading(true)
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession()
 
-  // Check if user is admin
+        if (!session?.user) {
+          router.push('/portal')
+          return
+        }
+
+        const { data } = await supabase
+          .from('profiles')
+          .select(
+            'id, full_name, display_name, first_name, last_name, middle_name, email, photo_url, avatar_url, role'
+          )
+          .eq('id', session.user.id)
+          .single()
+
+        if (data) setProfile(data)
+
+        if (
+          countsCache &&
+          Date.now() - countsCache.timestamp < COUNTS_CACHE_DURATION
+        ) {
+          const c = countsCache.data
+          setNotificationCount(c.notificationCount)
+          setPendingReports(c.pendingReports)
+          setPendingInquiries(c.pendingInquiries)
+          setLoading(false)
+          return
+        }
+
+        try {
+          const [notifRes, reportsRes, inquiriesRes] = await Promise.allSettled([
+            supabase
+              .from('notifications')
+              .select('*', { count: 'exact', head: true })
+              .eq('user_id', session.user.id)
+              .eq('read', false),
+            supabase
+              .from('report_cards')
+              .select('*', { count: 'exact', head: true })
+              .eq('status', 'pending'),
+            supabase
+              .from('inquiries')
+              .select('*', { count: 'exact', head: true })
+              .eq('status', 'pending'),
+          ])
+
+          const counts = {
+            notificationCount:
+              notifRes.status === 'fulfilled' ? notifRes.value.count ?? 0 : 0,
+            pendingReports:
+              reportsRes.status === 'fulfilled'
+                ? reportsRes.value.count ?? 0
+                : 0,
+            pendingInquiries:
+              inquiriesRes.status === 'fulfilled'
+                ? inquiriesRes.value.count ?? 0
+                : 0,
+          }
+
+          countsCache = { data: counts, timestamp: Date.now() }
+          setNotificationCount(counts.notificationCount)
+          setPendingReports(counts.pendingReports)
+          setPendingInquiries(counts.pendingInquiries)
+        } catch {
+          /* silent */
+        }
+      } catch (err) {
+        console.error('[AdminLayout] init error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    init()
+  }, [router])
+
+  // ── Sync tab with pathname ────────────────────────────────────────────────
   useEffect(() => {
-    if (!loading && (!isAuthenticated || user?.role !== 'admin')) {
-      router.push('/dashboard')
+    if (!pathname) return
+    const tab = getTabFromPathname(pathname)
+
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      if (tab !== activeTab) setActiveTab(tab)
+      return
     }
-  }, [user, isAuthenticated, loading, router])
 
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut()
-      toast.success('Logged out successfully')
-      router.push('/portal')
-    } catch {
-      toast.error('Error logging out')
+    if (tab !== activeTab) setActiveTab(tab)
+
+    if (prevPathRef.current !== pathname) {
+      setIsNavigating(true)
+      const t = setTimeout(() => setIsNavigating(false), 400)
+      prevPathRef.current = pathname
+      return () => clearTimeout(t)
     }
+  }, [pathname])
+
+  // ── Close mobile sidebar on route change ─────────────────────────────────
+  useEffect(() => {
+    if (mobileOpen) setMobileOpen(false)
+  }, [pathname])
+
+  const handleTabChange = useCallback(
+    (tab: string) => {
+      setActiveTab(tab)
+      const target = tabToRouteMap[tab]
+      if (target && pathname !== target) router.push(target)
+    },
+    [pathname, router]
+  )
+
+  const handleLogout = useCallback(async () => {
+    await supabase.auth.signOut()
+    router.push('/portal')
+  }, [router])
+
+  const sidebarWidth = sidebarCollapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED
+
+  if (loading) {
+    return <AdminLoading profile={profile} onLogout={handleLogout} />
   }
 
-  if (loading || !isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F9F7F4]">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-white shadow-md flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-[#0A2472]" />
-          </div>
-          <p className="text-sm text-slate-400 font-medium">Loading admin panel...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (user?.role !== 'admin') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F9F7F4]">
-        <Card className="max-w-md border-0 shadow-soft-lg">
-          <CardContent className="p-8 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
-              <Shield className="h-8 w-8 text-red-400" />
-            </div>
-            <h2 className="text-2xl font-display text-[#0A2472] mb-2">Access Denied</h2>
-            <p className="text-slate-500">You don&apos;t have permission to view this page.</p>
-            <Button 
-              onClick={() => router.push('/dashboard')}
-              className="mt-4 bg-[#0A2472] hover:bg-[#1A3A8A]"
-            >
-              Go to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const headerUser = formatProfileForHeader(profile)
 
   return (
-    <div className="min-h-screen bg-[#F9F7F4]">
-      {/* Sidebar */}
-      <aside 
-        className={cn(
-          "fixed left-0 top-0 z-50 h-full w-72 bg-white border-r border-[#0A2472]/5 shadow-soft transition-all duration-300",
-          isSidebarOpen ? "translate-x-0" : "-translate-x-full",
-          isMobile && "w-64"
+    <div className="min-h-screen bg-slate-50/60 overflow-x-hidden">
+      {/* Top progress bar */}
+      <AnimatePresence>
+        {isNavigating && (
+          <motion.div
+            key="nav-bar"
+            initial={{ scaleX: 0, opacity: 1 }}
+            animate={{ scaleX: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: [0.4, 0, 0.2, 1] }}
+            style={{ transformOrigin: 'left' }}
+            className="fixed top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#0A2472] via-blue-400 to-indigo-400 z-[60]"
+          />
         )}
-      >
-        {/* Logo */}
-        <div className="p-6 border-b border-[#0A2472]/5">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#0A2472] flex items-center justify-center shadow-lg shadow-[#0A2472]/20">
-              <span className="text-white font-bold text-lg">V</span>
-            </div>
-            <div>
-              <h3 className="font-display text-lg text-[#0A2472]">Admin Panel</h3>
-              <p className="text-xs text-slate-400">Vincollins Schools</p>
-            </div>
-          </div>
+      </AnimatePresence>
+
+      <Header user={headerUser} onLogout={handleLogout} />
+
+      <div className="flex min-h-screen overflow-x-hidden">
+        {/* Desktop Sidebar */}
+        <div className="hidden lg:block shrink-0">
+          <AdminSidebar
+            profile={profile}
+            onLogout={handleLogout}
+            collapsed={sidebarCollapsed}
+            onToggle={() => setSidebarCollapsed((v) => !v)}
+            activeTab={activeTab}
+            setActiveTab={handleTabChange}
+            pendingReports={pendingReports}
+            pendingInquiries={pendingInquiries}
+          />
         </div>
 
-        {/* Navigation */}
-        <nav className="p-4 space-y-1 overflow-y-auto h-[calc(100vh-180px)]">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200",
-                  "hover:bg-[#0A2472]/5 hover:text-[#0A2472] group",
-                  isActive 
-                    ? "bg-[#0A2472]/10 text-[#0A2472] font-medium" 
-                    : "text-slate-600"
-                )}
-              >
-                <item.icon className={cn(
-                  "w-5 h-5 transition-colors",
-                  isActive ? "text-[#0A2472]" : "text-slate-400 group-hover:text-[#0A2472]"
-                )} />
-                <span className="text-sm">{item.label}</span>
-                {isActive && (
-                  <div className="ml-auto w-1.5 h-6 rounded-full bg-[#0A2472]" />
-                )}
-              </Link>
-            )
-          })}
-        </nav>
-
-        {/* User Section */}
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[#0A2472]/5 bg-white/80 backdrop-blur-sm">
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-[#F9F7F4]">
-            <Avatar className="w-10 h-10 border-2 border-white shadow-sm">
-              <AvatarImage src={user?.photo_url || user?.avatar_url || undefined} />
-              <AvatarFallback className="bg-[#0A2472] text-white text-sm">
-                {user?.full_name?.[0] || user?.first_name?.[0] || 'A'}
-              </AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-[#0A2472] truncate">
-                {user?.full_name || user?.first_name || 'Admin'}
-              </p>
-              <p className="text-xs text-slate-400 capitalize">{user?.role || 'admin'}</p>
-            </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 rounded-lg hover:bg-red-50 hover:text-red-600"
-              onClick={handleLogout}
+        {/* Mobile Sidebar */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              key="mobile-sidebar"
+              initial={{ x: '-100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              className="fixed inset-y-0 left-0 z-50 lg:hidden"
             >
-              <LogOut className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
-      </aside>
+              <AdminSidebar
+                profile={profile}
+                onLogout={handleLogout}
+                collapsed={false}
+                activeTab={activeTab}
+                setActiveTab={handleTabChange}
+                pendingReports={pendingReports}
+                pendingInquiries={pendingInquiries}
+                isMobile
+                onMobileClose={() => setMobileOpen(false)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-      {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md border-b border-[#0A2472]/5 px-4 py-3">
-        <div className="flex items-center justify-between">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="lg:hidden"
-          >
-            <Menu className="w-5 h-5" />
-          </Button>
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-[#0A2472] flex items-center justify-center">
-              <span className="text-white font-bold text-sm">V</span>
+        {/* ✅ FIX 2: Main content — margin only on lg+ (fixes mobile squishing) */}
+        <main
+          className={cn(
+            'flex-1 min-h-screen w-full',
+            'pt-16 pb-24 lg:pb-10',
+            'overflow-x-hidden',
+            'transition-[margin-left] duration-300 ease-in-out',
+            'lg:ml-[var(--sidebar-w)]'
+          )}
+          style={
+            {
+              '--sidebar-w': `${sidebarWidth}px`,
+            } as React.CSSProperties
+          }
+        >
+          <div className="relative min-h-[calc(100vh-4rem)]">
+            <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-slate-100/60 to-transparent pointer-events-none z-0" />
+
+            <div className="relative z-10 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+              <PathBreadcrumb pathname={pathname || '/admin'} />
+
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={pathname}
+                  variants={pageVariants}
+                  initial="hidden"
+                  animate="visible"
+                  exit="exit"
+                >
+                  {children}
+                </motion.div>
+              </AnimatePresence>
             </div>
-            <span className="font-display text-sm text-[#0A2472]">Admin</span>
           </div>
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-[#C9A84C]" />
-          </Button>
-        </div>
-      </header>
+        </main>
+      </div>
 
-      {/* Main Content */}
-      <main className={cn(
-        "transition-all duration-300 pt-16 lg:pt-0",
-        isSidebarOpen ? "lg:ml-72" : ""
-      )}>
-        <div className="p-4 md:p-6">
-          {children}
-        </div>
-      </main>
+      {/* ✅ FIX 3: Removed `onLogout` prop — MobileBottomNav doesn't accept it.
+          Pass whatever props your MobileBottomNav actually expects below. */}
+      <MobileBottomNav />
     </div>
+  )
+}
+
+// ─── Breadcrumb Component ─────────────────────────────────────────────────────
+function PathBreadcrumb({ pathname }: { pathname: string }) {
+  const segments = pathname.replace('/admin', '').split('/').filter(Boolean)
+
+  const crumbs = [
+    { label: 'Admin', href: '/admin' },
+    ...segments.map((seg, i) => ({
+      label: seg
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' '),
+      href: '/admin/' + segments.slice(0, i + 1).join('/'),
+    })),
+  ]
+
+  if (crumbs.length <= 1) return null
+
+  return (
+    <motion.nav
+      initial={{ opacity: 0, y: -6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25 }}
+      className="flex items-center gap-1.5 mb-5 text-xs text-slate-400 font-medium"
+      aria-label="Breadcrumb"
+    >
+      {crumbs.map((crumb, idx) => {
+        const isLast = idx === crumbs.length - 1
+        return (
+          <span key={crumb.href} className="flex items-center gap-1.5">
+            {isLast ? (
+              <span className="text-slate-600 font-semibold">{crumb.label}</span>
+            ) : (
+              <>
+                <a href={crumb.href} className="hover:text-[#0A2472] transition-colors">
+                  {crumb.label}
+                </a>
+                <svg
+                  className="w-3 h-3 text-slate-300"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={2}
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+              </>
+            )}
+          </span>
+        )
+      })}
+    </motion.nav>
   )
 }

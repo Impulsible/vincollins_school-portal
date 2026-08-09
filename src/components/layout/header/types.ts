@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/layout/header/types.ts
-export type UserRole = 'admin' | 'teacher' | 'student'
+
+// ✅ 3 roles: Admin, Teacher/Staff, Pupil
+export type UserRole = 'admin' | 'teacher' | 'pupil'
 
 export interface HeaderUser {
   id: string
@@ -17,17 +19,23 @@ export interface SchoolSettings {
   logo_path?: string | null
   school_phone?: string | null
   school_email?: string | null
+  school_motto?: string | null
+  school_address?: string | null
+  current_term?: string | null
+  current_session?: string | null
 }
 
 export interface Notification {
   id: string
+  user_id: string
   title: string
-  message: string
-  type: string
-  read: boolean
-  link: string | null
-  metadata: any
+  message?: string | null
+  type?: string
+  is_read: boolean // ✅ Only use is_read, remove 'read'
+  link?: string | null
+  data?: Record<string, any> | null
   created_at: string
+  updated_at?: string | null
 }
 
 export interface NavigationItem {

@@ -12,7 +12,7 @@ import {
 import { cn } from '@/lib/utils'
 import Image from 'next/image'
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useHeaderData } from '@/components/layout/header/useHeaderData'
 

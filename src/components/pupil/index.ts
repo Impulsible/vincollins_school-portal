@@ -1,0 +1,6 @@
+export { OverviewTab } from './OverviewTab'
+export { AssignmentsTab } from './AssignmentsTab'
+export { NotesTab } from './NotesTab'
+export { ReportCardTab } from './ReportCardTab'
+export { ClassmatesTab } from './ClassmatesTab'
+export { PupilSidebar } from './PupilSidebar'

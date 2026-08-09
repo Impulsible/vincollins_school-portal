@@ -1,4 +1,5 @@
-// components/layout/header/DesktopNav.tsx - FIXED
+// components/layout/header/DesktopNav.tsx
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 
 import { useState, memo, useMemo } from 'react'
@@ -7,7 +8,9 @@ import { cn } from '@/lib/utils'
 import { 
   ChevronDown, Home, BookOpen, Phone, FileText,
   LayoutDashboard, Users, GraduationCap,
-  Briefcase, MessageSquare, FileCheck, BarChart3
+  Briefcase, MessageSquare, FileCheck, BarChart3,
+  UserCog, School, NotebookPen, Calendar,
+  Megaphone, Settings, Award, Eye, FileSpreadsheet
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -17,6 +20,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { NavigationItem, UserRole } from './types'
 
+// ─── Public Navigation (Unauthenticated Users) ──────────────────────────────
 const publicNavigation: NavigationItem[] = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Admission', href: '/admission', icon: FileText },
@@ -24,39 +28,59 @@ const publicNavigation: NavigationItem[] = [
   { name: 'Contact', href: '/contact', icon: Phone },
 ]
 
-const studentNavigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/student', icon: LayoutDashboard },
-  { name: 'Results', href: '/student/results', icon: GraduationCap },
-  { name: 'Profile', href: '/student/profile', icon: Users },
+// ─── Pupil Navigation (Dashboard, Results, Report Cards, Profile) ──────────
+const pupilNavigation: NavigationItem[] = [
+  { name: 'Dashboard', href: '/pupil', icon: LayoutDashboard },
+  { name: 'Results', href: '/pupil/results', icon: Award },
+  { name: 'Report Cards', href: '/pupil/report-cards', icon: FileCheck },
+  { name: 'Profile', href: '/pupil/profile', icon: UserCog },
 ]
 
+// ─── Teacher Navigation ──────────────────────────────────────────────────────
 const teacherNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
-  { name: 'Assignments', href: '/staff/assignments', icon: FileText },
+  { name: 'My Classes', href: '/staff/classes', icon: School },
   { name: 'Students', href: '/staff/students', icon: Users },
   { name: 'Analytics', href: '/staff/analytics', icon: BarChart3 },
+  { name: 'Report Cards', href: '/staff/report-cards', icon: FileCheck },
 ]
 
+// ─── Admin Navigation (UPDATED: 4 Items Only) ──────────────────────────────
 const adminNavigation: NavigationItem[] = [
-  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { 
-    name: 'User Management', href: '#', icon: Users, isDropdown: true,
+    name: 'Dashboard', 
+    href: '/admin', 
+    icon: LayoutDashboard 
+  },
+  { 
+    name: 'Management', 
+    href: '#', 
+    icon: Users, 
+    isDropdown: true,
     dropdownItems: [
       { name: 'Students', href: '/admin/students', icon: GraduationCap },
       { name: 'Staff', href: '/admin/staff', icon: Briefcase },
-      { name: 'Inquiries', href: '/admin/inquiries', icon: MessageSquare },
     ]
   },
-  { name: 'Reports', href: '/admin/report-cards', icon: FileCheck },
+  { 
+    name: 'Broadsheet', 
+    href: '/admin/broadsheet', 
+    icon: FileSpreadsheet 
+  },
+  { 
+    name: 'Teacher Classes', 
+    href: '/admin/teacher-classes', 
+    icon: School 
+  },
 ]
 
+// ─── Get Navigation Based on Role ──────────────────────────────────────────
 function getNavigation(role?: UserRole, isPublic: boolean = true): NavigationItem[] {
-  if (isPublic) return publicNavigation
-  
+  if (isPublic || !role) return publicNavigation
   switch (role) {
     case 'admin': return adminNavigation
     case 'teacher': return teacherNavigation
-    case 'student': return studentNavigation
+    case 'pupil': return pupilNavigation
     default: return publicNavigation
   }
 }
@@ -67,7 +91,11 @@ interface DesktopNavProps {
   isPublic?: boolean
 }
 
-export const DesktopNav = memo(function DesktopNav({ userRole, pathname, isPublic = true }: DesktopNavProps) {
+export const DesktopNav = memo(function DesktopNav({ 
+  userRole, 
+  pathname, 
+  isPublic = true
+}: DesktopNavProps) {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
 
   const nav = useMemo(() => getNavigation(userRole, isPublic), [userRole, isPublic])
@@ -76,7 +104,7 @@ export const DesktopNav = memo(function DesktopNav({ userRole, pathname, isPubli
     if (href === '/') return pathname === '/'
     if (href === '#') return false
     if (pathname === href) return true
-    if (href !== '/admin' && href !== '/staff' && href !== '/student') {
+    if (href !== '/admin' && href !== '/staff' && href !== '/pupil') {
       return pathname?.startsWith(href + '/') || false
     }
     return false
@@ -90,7 +118,7 @@ export const DesktopNav = memo(function DesktopNav({ userRole, pathname, isPubli
   }
 
   return (
-    <div className="flex items-center gap-0.5 xl:gap-1.5 bg-white/15 backdrop-blur-sm rounded-full p-0.5 lg:p-1 shadow-lg">
+    <div className="flex items-center gap-0.5 xl:gap-1.5 bg-white/15 backdrop-blur-sm rounded-full p-0.5 lg:p-1 shadow-lg border border-white/10">
       {nav.map((item) => {
         const Icon = item.icon
         const itemActive = isActive(item.href)
@@ -107,26 +135,29 @@ export const DesktopNav = memo(function DesktopNav({ userRole, pathname, isPubli
               <DropdownMenuTrigger asChild>
                 <button 
                   className={cn(
-                    "relative px-3 lg:px-3.5 xl:px-4 py-1.5 lg:py-2 text-xs lg:text-sm font-semibold transition-all rounded-full whitespace-nowrap flex items-center gap-1.5 lg:gap-2",
+                    "relative px-3 lg:px-4 xl:px-5 py-1.5 lg:py-2.5 text-xs lg:text-sm font-semibold transition-all duration-200 rounded-full whitespace-nowrap flex items-center gap-1.5 lg:gap-2.5 border-2",
                     dropdownActive 
-                      ? "text-[#0A2472] bg-white shadow-lg" 
-                      : "text-white hover:text-white hover:bg-white/25"
+                      ? "text-[#0A2472] bg-white shadow-lg border-white" 
+                      : "text-white hover:text-white hover:bg-white/20 border-transparent hover:border-white/20"
                   )}
                   aria-expanded={isDropdownOpen}
                 >
                   <Icon className={cn(
-                    "h-3.5 w-3.5 lg:h-4 lg:w-4",
+                    "h-4 w-4 lg:h-4.5 lg:w-4.5",
                     dropdownActive ? "text-[#0A2472]" : "text-white"
                   )} />
-                  <span className="hidden xl:inline">{item.name}</span>
-                  <span className="lg:hidden xl:hidden">Users</span>
+                  <span>{item.name}</span>
                   <ChevronDown className={cn(
-                    "h-3 w-3 lg:h-3.5 lg:w-3.5 transition-transform duration-200",
-                    isDropdownOpen && "rotate-180"
+                    "h-3.5 w-3.5 lg:h-4 lg:w-4 transition-transform duration-200",
+                    isDropdownOpen && "rotate-180",
+                    dropdownActive ? "text-[#0A2472]" : "text-white/70"
                   )} />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="center" className="w-48 mt-2 p-1">
+              <DropdownMenuContent 
+                align="center" 
+                className="w-56 mt-2 p-1.5 bg-white/95 backdrop-blur-md border border-white/20 shadow-xl rounded-xl"
+              >
                 {item.dropdownItems.map((sub) => {
                   const subActive = pathname === sub.href || pathname?.startsWith(sub.href + '/')
                   return (
@@ -134,17 +165,20 @@ export const DesktopNav = memo(function DesktopNav({ userRole, pathname, isPubli
                       <Link 
                         href={sub.href} 
                         className={cn(
-                          "flex items-center gap-2 cursor-pointer px-3 py-2 rounded-md transition-colors",
+                          "flex items-center gap-3 cursor-pointer px-3 py-2.5 rounded-lg transition-all duration-200",
                           subActive 
-                            ? "bg-primary/10 text-primary font-medium" 
-                            : "hover:bg-slate-100"
+                            ? "bg-[#0A2472]/10 text-[#0A2472] font-medium shadow-sm" 
+                            : "hover:bg-slate-100/80 text-slate-700"
                         )}
                         onClick={() => setOpenDropdown(null)}
                       >
-                        <sub.icon className="h-4 w-4" />
-                        <span>{sub.name}</span>
+                        <sub.icon className={cn(
+                          "h-4.5 w-4.5",
+                          subActive ? "text-[#0A2472]" : "text-slate-500"
+                        )} />
+                        <span className="text-sm">{sub.name}</span>
                         {subActive && (
-                          <span className="ml-auto w-2 h-2 rounded-full bg-primary" />
+                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#0A2472]" />
                         )}
                       </Link>
                     </DropdownMenuItem>
@@ -161,22 +195,18 @@ export const DesktopNav = memo(function DesktopNav({ userRole, pathname, isPubli
             href={item.href} 
             prefetch={false}
             className={cn(
-              "relative px-3 lg:px-3.5 xl:px-4 py-1.5 lg:py-2 text-xs lg:text-sm font-semibold transition-all rounded-full whitespace-nowrap",
+              "relative px-3 lg:px-4 xl:px-5 py-1.5 lg:py-2.5 text-xs lg:text-sm font-semibold transition-all duration-200 rounded-full whitespace-nowrap border-2",
               itemActive 
-                ? "text-[#0A2472] bg-white shadow-lg" 
-                : "text-white hover:text-white hover:bg-white/25"
+                ? "text-[#0A2472] bg-white shadow-lg border-white" 
+                : "text-white hover:text-white hover:bg-white/20 border-transparent hover:border-white/20"
             )}
           >
-            <div className="flex items-center gap-1.5 lg:gap-2">
+            <div className="flex items-center gap-1.5 lg:gap-2.5">
               <Icon className={cn(
-                "h-3.5 w-3.5 lg:h-4 lg:w-4",
+                "h-4 w-4 lg:h-4.5 lg:w-4.5",
                 itemActive ? "text-[#0A2472]" : "text-white"
               )} />
-              <span className="hidden xl:inline">{item.name}</span>
-              <span className="lg:hidden xl:hidden">
-                {item.name === 'User Management' ? 'Users' :
-                 item.name === 'My Exams' ? 'Exams' : item.name.substring(0, 4)}
-              </span>
+              <span>{item.name}</span>
             </div>
           </Link>
         )
