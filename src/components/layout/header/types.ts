@@ -26,6 +26,7 @@ export interface SchoolSettings {
 }
 
 export interface Notification {
+  read: boolean
   id: string
   user_id: string
   title: string

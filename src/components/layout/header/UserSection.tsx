@@ -242,6 +242,38 @@ function UserSectionComponent({
   const showAuthenticated = isAuthenticated || !!user
   const avatarUrl = getAvatarUrl()
 
+  // ─── FIX: Normalize notifications to match NotificationPopover expected type ──
+  const normalizedNotifications: Array<{
+    id: string
+    title: string
+    message: string
+    type: 'announcement' | 'message' | 'alert' | 'success' | 'info'
+    link?: string
+    read: boolean
+    created_at: string
+    user_id?: string
+  }> = notifications.map((notification) => {
+    const normalizedType =
+      notification.type === 'announcement' ||
+      notification.type === 'message' ||
+      notification.type === 'alert' ||
+      notification.type === 'success' ||
+      notification.type === 'info'
+        ? notification.type
+        : 'info'
+
+    return {
+      id: notification.id,
+      title: notification.title,
+      message: notification.message ?? '',
+      type: normalizedType,
+      link: notification.link ?? undefined,
+      read: notification.read ?? false,
+      created_at: notification.created_at,
+      user_id: notification.user_id,
+    }
+  })
+
   return (
     <>
       <div className="flex items-center">
@@ -259,7 +291,7 @@ function UserSectionComponent({
             <NotificationPopover
               open={notificationOpen}
               onOpenChange={handleNotificationToggle}
-              notifications={notifications}
+              notifications={normalizedNotifications}
               unreadCount={unreadCount}
               userRole={user?.role}
               onMarkAsRead={onMarkAsRead}
