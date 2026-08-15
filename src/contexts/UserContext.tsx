@@ -169,18 +169,25 @@ export function UserProvider({ children }: { children: ReactNode }) {
     try {
       setLoading(true)
       
+      // ✅ 1. Try to read from cache (if not force refreshing)
+      let cachedUser: User | null = null
       if (!forceRefresh) {
         const cached = localStorage.getItem('auth_user')
         if (cached) {
           try {
             const parsed = JSON.parse(cached)
-            console.log('📂 [UserContext] Cached user found:', parsed)
-            setUser(parsed)
-            setLoading(false)
-            fetchInProgressRef.current = false
-            return
+            if (parsed && parsed.id) {
+              console.log('📂 [UserContext] Cached user found:', parsed)
+              cachedUser = parsed
+              setUser(parsed)
+              setLoading(false)
+              fetchInProgressRef.current = false
+              // ⚠️ We return early ONLY if we don't need to check for updates.
+              // For now, we will proceed to Supabase to ensure the session is valid.
+            }
           } catch {
             console.warn('⚠️ [UserContext] Invalid cache, ignoring')
+            localStorage.removeItem('auth_user')
           }
         }
       }
@@ -190,6 +197,12 @@ export function UserProvider({ children }: { children: ReactNode }) {
       
       if (sessionError) {
         console.error('❌ [UserContext] Session error:', sessionError)
+        setUser(null)
+        localStorage.removeItem('auth_user')
+        localStorage.removeItem('auth_role')
+        setLoading(false)
+        fetchInProgressRef.current = false
+        return
       }
       
       console.log('📋 [UserContext] Session data:', session ? 'Session found' : 'No session')
@@ -197,7 +210,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         console.log('👤 [UserContext] User found in session:', session.user.email)
         
-        // ✅ Includes middle_name column
+        // ✅ Fetch profile data
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('id, full_name, display_name, first_name, last_name, middle_name, email, photo_url, avatar_url, role, class, class_arm, vin_id, phone, address, guardian_name, guardian_phone, date_of_birth, gender, admission_number, admission_year')
@@ -218,23 +231,33 @@ export function UserProvider({ children }: { children: ReactNode }) {
           console.log('🔄 [UserContext] Mapped staff to teacher')
         }
 
-        // Get full name
         const fullName = profile?.full_name || session.user.user_metadata?.full_name || 'User'
         console.log('📋 [UserContext] fullName:', fullName)
         
-        // Get first_name from profile
         let firstName = profile?.first_name || session.user.user_metadata?.first_name || ''
         console.log('📋 [UserContext] first_name from DB:', firstName)
         
-        // If first_name is empty, extract from full_name
         if (!firstName) {
           firstName = extractFirstName(fullName)
           console.log('📋 [UserContext] firstName extracted from fullName:', firstName)
         }
         
-        // If still empty, use 'User' as fallback
         if (!firstName) {
           firstName = 'User'
+        }
+
+        // ✅ CRITICAL FIX: Preserve photo/avatar if DB returns null but cache has it
+        let photoUrl = profile?.photo_url || session.user.user_metadata?.photo_url
+        let avatarUrl = profile?.avatar_url || session.user.user_metadata?.avatar_url
+
+        // If Supabase returned null, but we have a cached user with a photo, KEEP the cached photo
+        if (!photoUrl && cachedUser?.photo_url) {
+          console.log('🖼️ [UserContext] DB returned null photo, keeping cached photo_url:', cachedUser.photo_url)
+          photoUrl = cachedUser.photo_url
+        }
+        if (!avatarUrl && cachedUser?.avatar_url) {
+          console.log('🖼️ [UserContext] DB returned null avatar, keeping cached avatar_url:', cachedUser.avatar_url)
+          avatarUrl = cachedUser.avatar_url
         }
 
         const userData: User = {
@@ -245,8 +268,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
           middle_name: profile?.middle_name || null,
           last_name: profile?.last_name || null,
           role: role,
-          avatar_url: profile?.avatar_url || session.user.user_metadata?.avatar_url,
-          photo_url: profile?.photo_url || session.user.user_metadata?.photo_url,
+          avatar_url: avatarUrl,
+          photo_url: photoUrl,
           class: profile?.class || null,
           class_arm: profile?.class_arm || null,
           vin_id: profile?.vin_id || null,

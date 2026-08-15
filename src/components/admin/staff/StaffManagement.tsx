@@ -1,86 +1,38 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/components/admin/staff/StaffManagement.tsx
-
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  Search,
-  UserPlus,
-  Briefcase,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Loader2,
-  Trash2,
-  Edit2,
-  Eye,
-  Users,
-  UserCheck,
-  UserX,
-  MoreVertical,
-  LayoutGrid,
-  List,
-  Filter,
-  X,
-  UserCog,
-  Shield,
-  Sparkles,
-  BookOpen,
-  Laptop,
-  Microscope,
-  Calculator,
-  Palette,
-  Music,
-  Languages,
-  Landmark,
-  Dumbbell,
-  Copy,
-  Check,
+  Search, UserPlus, Briefcase, Mail, Phone, MapPin,
+  Loader2, Trash2, Edit2, Eye, Users, UserCheck, UserX,
+  RefreshCw, MoreVertical, LayoutGrid, List,
+  X, UserCog, Shield, Sparkles, Calendar, ChevronRight,
+  BookOpen, Laptop, Microscope, Calculator, Palette, Music,
+  Languages, Landmark, Dumbbell,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useUser, getRoleColors } from '@/contexts/UserContext'
 
@@ -101,7 +53,6 @@ export interface Staff {
   date_joined?: string
   gender?: string
   photo_url?: string
-  password_changed?: boolean
   title?: string
   first_name?: string
   last_name?: string
@@ -123,17 +74,17 @@ export interface StaffFormData {
 // ── Constants ──────────────────────────────────────────────────────────────────
 
 const DEPARTMENTS = [
-  { value: 'technology', label: 'Technology', icon: Laptop },
-  { value: 'science', label: 'Science', icon: Microscope },
-  { value: 'mathematics', label: 'Mathematics', icon: Calculator },
-  { value: 'art', label: 'Art', icon: Palette },
-  { value: 'music', label: 'Music', icon: Music },
-  { value: 'languages', label: 'Languages', icon: Languages },
-  { value: 'social-studies', label: 'Social Studies', icon: Landmark },
-  { value: 'physical-education', label: 'Physical Education', icon: Dumbbell },
-  { value: 'business', label: 'Business', icon: Briefcase },
-  { value: 'general', label: 'General Studies', icon: BookOpen },
-]
+  { value: 'technology', label: 'Technology', icon: Laptop, color: 'bg-blue-500' },
+  { value: 'science', label: 'Science', icon: Microscope, color: 'bg-emerald-500' },
+  { value: 'mathematics', label: 'Mathematics', icon: Calculator, color: 'bg-purple-500' },
+  { value: 'art', label: 'Art', icon: Palette, color: 'bg-pink-500' },
+  { value: 'music', label: 'Music', icon: Music, color: 'bg-amber-500' },
+  { value: 'languages', label: 'Languages', icon: Languages, color: 'bg-indigo-500' },
+  { value: 'social-studies', label: 'Social Studies', icon: Landmark, color: 'bg-orange-500' },
+  { value: 'physical-education', label: 'P.E.', icon: Dumbbell, color: 'bg-red-500' },
+  { value: 'business', label: 'Business', icon: Briefcase, color: 'bg-cyan-500' },
+  { value: 'general', label: 'General', icon: BookOpen, color: 'bg-slate-500' },
+] as const
 
 const TITLES = [
   { value: 'mr', label: 'Mr.' },
@@ -141,40 +92,179 @@ const TITLES = [
   { value: 'ms', label: 'Ms.' },
   { value: 'dr', label: 'Dr.' },
   { value: 'prof', label: 'Prof.' },
-]
+] as const
 
 const GENDERS = [
   { value: 'male', label: 'Male' },
   { value: 'female', label: 'Female' },
   { value: 'other', label: 'Other' },
-]
+] as const
+
+const EMPTY_FORM: StaffFormData = {
+  first_name: '', middle_name: '', last_name: '',
+  department: 'general', phone: '', address: '',
+  date_joined: new Date().toISOString().split('T')[0],
+  gender: '', title: '',
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-const getInitials = (name: string) => {
-  if (!name) return '?'
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
-}
+const getInitials = (name: string) =>
+  name ? name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) : '?'
+
+const GRADIENTS = [
+  'from-rose-500 to-pink-600', 'from-orange-500 to-amber-600',
+  'from-emerald-500 to-teal-600', 'from-blue-500 to-cyan-600',
+  'from-violet-500 to-purple-600', 'from-indigo-500 to-blue-600',
+  'from-fuchsia-500 to-pink-600', 'from-lime-500 to-green-600',
+]
 
 const getAvatarGradient = (name: string) => {
-  const gradients = [
-    'from-rose-500 to-pink-600',
-    'from-orange-500 to-amber-600',
-    'from-emerald-500 to-teal-600',
-    'from-blue-500 to-cyan-600',
-    'from-violet-500 to-purple-600',
-    'from-indigo-500 to-blue-600',
-    'from-fuchsia-500 to-pink-600',
-    'from-lime-500 to-green-600',
-  ]
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return gradients[hash % gradients.length]
+  const hash = (name || 'x').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  return GRADIENTS[hash % GRADIENTS.length]
 }
 
+const getDepartment = (value?: string) =>
+  DEPARTMENTS.find((d) => d.value === value) ?? DEPARTMENTS.find((d) => d.value === 'general')!
+
+const getTitleLabel = (value?: string) =>
+  TITLES.find((t) => t.value === value)?.label ?? ''
+
 const generateEmail = (firstName: string, lastName: string): string => {
-  const sanitizedFirst = firstName.toLowerCase().replace(/[^a-z]/g, '').substring(0, 15) || 'user'
-  const sanitizedLast = lastName.toLowerCase().replace(/[^a-z]/g, '').substring(0, 15) || 'account'
-  return `${sanitizedFirst}.${sanitizedLast}@vincollins.edu.ng`
+  const f = firstName.toLowerCase().replace(/[^a-z]/g, '').substring(0, 15) || 'user'
+  const l = lastName.toLowerCase().replace(/[^a-z]/g, '').substring(0, 15) || 'account'
+  return `${f}.${l}@vincollins.edu.ng`
+}
+
+const buildFullName = (f: StaffFormData) =>
+  [f.first_name, f.middle_name, f.last_name].filter(Boolean).join(' ')
+
+// ── Small reusable pieces ──────────────────────────────────────────────────────
+
+function StatCard({ label, value, icon: Icon, color }: {
+  label: string; value: number; icon: React.ElementType; color: string
+}) {
+  return (
+    <Card className="relative overflow-hidden border border-slate-200/60 shadow-sm bg-white">
+      <div className={cn('absolute inset-y-0 left-0 w-1', color)} />
+      <CardContent className="p-2.5 pl-3.5 sm:p-3 sm:pl-4 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{label}</p>
+          <p className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">{value}</p>
+        </div>
+        <div className={cn('p-1.5 sm:p-2 rounded-lg shrink-0 opacity-90', color)}>
+          <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return active ? (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      Active
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+      Inactive
+    </span>
+  )
+}
+
+function DepartmentBadge({ value }: { value?: string }) {
+  const dept = getDepartment(value)
+  const Icon = dept.icon
+  return (
+    <span className={cn(
+      'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-extrabold text-white whitespace-nowrap',
+      dept.color
+    )}>
+      <Icon className="w-2.5 h-2.5" />
+      {dept.label}
+    </span>
+  )
+}
+
+function StaffAvatar({ member, size = 'md' }: { member: Staff; size?: 'sm' | 'md' | 'lg' }) {
+  const sizes = { sm: 'h-8 w-8', md: 'h-9 w-9 sm:h-10 sm:w-10', lg: 'h-16 w-16' }
+  const textSizes = { sm: 'text-[10px]', md: 'text-xs', lg: 'text-lg' }
+  return (
+    <Avatar className={cn(sizes[size], 'shadow-sm ring-1 ring-white shrink-0')}>
+      <AvatarImage src={member.photo_url || undefined} />
+      <AvatarFallback className={cn('text-white font-bold bg-gradient-to-br', getAvatarGradient(member.full_name), textSizes[size])}>
+        {getInitials(member.full_name)}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
+function ActionMenu({ member, onView, onEdit, onToggle, onDelete }: {
+  member: Staff
+  onView: () => void
+  onEdit: () => void
+  onToggle: () => void
+  onDelete: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg shrink-0">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44 rounded-xl bg-white border border-slate-200 shadow-xl">
+        <DropdownMenuItem onClick={onView} className="cursor-pointer text-xs">
+          <Eye className="mr-2 h-3.5 w-3.5" /> View Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onEdit} className="cursor-pointer text-xs">
+          <Edit2 className="mr-2 h-3.5 w-3.5" /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onToggle} className="cursor-pointer text-xs">
+          {member.is_active
+            ? <><UserX className="mr-2 h-3.5 w-3.5" /> Deactivate</>
+            : <><UserCheck className="mr-2 h-3.5 w-3.5" /> Activate</>}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onDelete} className="cursor-pointer text-xs text-red-600 focus:text-red-600">
+          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function FormSection({ title, icon: Icon, accent, children }: {
+  title: string; icon: React.ElementType; accent: string; children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-2">
+        <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${accent}20` }}>
+          <Icon className="w-3 h-3" style={{ color: accent }} />
+        </div>
+        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 whitespace-nowrap">{title}</p>
+        <div className="flex-1 h-px bg-slate-100" />
+      </div>
+      <div className="space-y-2.5">{children}</div>
+    </div>
+  )
+}
+
+function Field({ label, id, helper, required, children }: {
+  label: string; id: string; helper?: string; required?: boolean; children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-xs font-semibold text-slate-600">
+        {label} {required && <span className="text-red-500">*</span>}
+      </Label>
+      {children}
+      {helper && <p className="text-[10px] text-slate-400">{helper}</p>}
+    </div>
+  )
 }
 
 // ── Props ──
@@ -188,738 +278,363 @@ interface StaffManagementProps {
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export default function StaffManagement({
-  staff,
-  onRefresh,
-  loading = false,
-}: StaffManagementProps) {
+export default function StaffManagement({ staff, onRefresh, loading = false }: StaffManagementProps) {
   const { user } = useUser()
-  const roleColors = getRoleColors(user?.role)
-  const accent = roleColors?.primary || '#0A2472'
+  const accent = getRoleColors(user?.role)?.primary || '#0A2472'
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [departmentFilter, setDepartmentFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null)
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [search, setSearch] = useState('')
+  const [deptFilter, setDeptFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards')
+
+  const [selected, setSelected] = useState<Staff | null>(null)
+  const [modal, setModal] = useState<'none' | 'create' | 'edit' | 'detail' | 'delete'>('none')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [editFormData, setEditFormData] = useState<Partial<Staff>>({})
-  const [copied, setCopied] = useState<string | null>(null)
 
-  const [formData, setFormData] = useState<StaffFormData>({
-    first_name: '',
-    middle_name: '',
-    last_name: '',
-    department: 'general',
-    phone: '',
-    address: '',
-    date_joined: new Date().toISOString().split('T')[0],
-    gender: '',
-    title: '',
-  })
+  const [createForm, setCreateForm] = useState<StaffFormData>(EMPTY_FORM)
+  const [editForm, setEditForm] = useState<Partial<Staff>>({})
 
-  // ── Filtered list ─────────────────────────────────────────────────────────
-  const filteredStaff = useMemo(() => {
-    return staff.filter((member) => {
-      const fullName = member.full_name || `${member.first_name || ''} ${member.last_name || ''}`
-      const matchesSearch =
-        fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        member.vin_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        member.email?.toLowerCase().includes(searchQuery.toLowerCase())
+  // Force cards view on mobile
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(min-width: 640px)')
+    const apply = () => setViewMode(mq.matches ? 'table' : 'cards')
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
-      const matchesDepartment = departmentFilter === 'all' || member.department === departmentFilter
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && member.is_active) ||
-        (statusFilter === 'inactive' && !member.is_active)
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const filtered = useMemo(() => staff.filter((m) => {
+    const q = search.toLowerCase()
+    const matchSearch = !q || m.full_name?.toLowerCase().includes(q) ||
+      m.vin_id?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q)
+    const matchDept = deptFilter === 'all' || m.department === deptFilter
+    const matchStatus = statusFilter === 'all' ||
+      (statusFilter === 'active' && m.is_active) || (statusFilter === 'inactive' && !m.is_active)
+    return matchSearch && matchDept && matchStatus
+  }), [staff, search, deptFilter, statusFilter])
 
-      return matchesSearch && matchesDepartment && matchesStatus
+  const stats = useMemo(() => ({
+    total: staff.length,
+    active: staff.filter((s) => s.is_active).length,
+    inactive: staff.filter((s) => !s.is_active).length,
+    departments: new Set(staff.map((s) => s.department).filter(Boolean)).size,
+  }), [staff])
+
+  const activeFilters = (deptFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const closeModal = () => { setModal('none'); setSelected(null) }
+
+  const openEdit = (m: Staff) => {
+    setSelected(m)
+    setEditForm({
+      full_name: m.full_name, first_name: m.first_name, last_name: m.last_name,
+      department: m.department, gender: m.gender, phone: m.phone,
+      address: m.address, title: m.title, is_active: m.is_active,
     })
-  }, [staff, searchQuery, departmentFilter, statusFilter])
+    setModal('edit')
+  }
 
-  const activeFilterCount =
-    (departmentFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleCreateStaff = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Validation
+    if (!createForm.first_name.trim()) return toast.error('First name is required')
+    if (!createForm.last_name.trim()) return toast.error('Last name is required')
+    if (!createForm.department) return toast.error('Please select a department')
+
     setIsSubmitting(true)
     try {
-      const generatedEmail = generateEmail(formData.first_name, formData.last_name)
+      const email = generateEmail(createForm.first_name, createForm.last_name)
+      const fullName = buildFullName(createForm)
 
       const payload: any = {
-        first_name: formData.first_name,
-        middle_name: formData.middle_name || '',
-        last_name: formData.last_name,
-        department: formData.department,
+        first_name: createForm.first_name.trim(),
+        middle_name: createForm.middle_name.trim() || '',
+        last_name: createForm.last_name.trim(),
+        full_name: fullName,
+        display_name: fullName,
+        department: createForm.department,
         role: 'staff',
-        email: generatedEmail,
+        email,
       }
+      if (createForm.phone.trim()) payload.phone = createForm.phone.trim()
+      if (createForm.address.trim()) payload.address = createForm.address.trim()
+      if (createForm.gender) payload.gender = createForm.gender
+      if (createForm.title) payload.title = createForm.title
+      if (createForm.date_joined) payload.join_year = new Date(createForm.date_joined).getFullYear().toString()
 
-      if (formData.phone && formData.phone.trim()) payload.phone = formData.phone
-      if (formData.address && formData.address.trim()) payload.address = formData.address
-      if (formData.gender && formData.gender.trim()) payload.gender = formData.gender
-      if (formData.title && formData.title.trim()) payload.title = formData.title
-      if (formData.date_joined) payload.join_year = new Date(formData.date_joined).getFullYear().toString()
-
-      console.log('📤 Sending payload:', JSON.stringify(payload, null, 2))
-
-      const response = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
-      
-      const data = await response.json()
-      console.log('📥 Full response:', data)
-      
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || 'Failed to create staff')
-      }
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to create staff')
 
-      const emailCred = data.credentials?.email || data.user?.email || generatedEmail
-      const passwordCred = data.credentials?.password || data.user?.vin_id || 'Check email for password'
       const vinId = data.user?.vin_id || data.credentials?.vin_id || 'N/A'
-      
-      // Show success message with credentials in a nice format
-      toast.success(
-        `✅ Staff Added Successfully!\n\n📧 Email: ${emailCred}\n🔑 Password: ${passwordCred}\n🆔 VIN: ${vinId}`,
-        {
-          duration: 15000,
-          style: {
-            whiteSpace: 'pre-line',
-            maxWidth: '500px',
-          },
-        }
-      )
-      
-      // Also show individual toasts for visibility
-      toast.info(`📧 Email: ${emailCred}`, { duration: 5000 })
-      toast.info(`🔑 Password: ${passwordCred}`, { duration: 5000 })
-      
-      setIsCreateModalOpen(false)
-      resetForm()
-      
-      // Refresh the staff list
+      toast.success(`Staff added! VIN: ${vinId}`, { duration: 6000 })
+      setCreateForm(EMPTY_FORM)
+      closeModal()
       await onRefresh()
-      
-    } catch (error: any) {
-      console.error('❌ Error creating staff:', error)
-      toast.error(error.message || 'Failed to create staff')
+    } catch (e: any) {
+      toast.error(e.message)
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text)
-    setCopied(label)
-    setTimeout(() => setCopied(null), 2000)
-    toast.success(`Copied ${label} to clipboard!`)
-  }
-
-  const handleEdit = (member: Staff) => {
-    setSelectedStaff(member)
-    setEditFormData({
-      full_name: member.full_name,
-      first_name: member.first_name || '',
-      last_name: member.last_name || '',
-      department: member.department,
-      gender: member.gender,
-      phone: member.phone,
-      address: member.address,
-      title: member.title,
-      is_active: member.is_active,
-    })
-    setIsEditModalOpen(true)
   }
 
   const handleSaveEdit = async () => {
-    if (!selectedStaff) return
+    if (!selected) return
+    setIsSubmitting(true)
     try {
-      setIsSubmitting(true)
-      const response = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedStaff.id, ...editFormData }),
+        body: JSON.stringify({ id: selected.id, ...editForm }),
       })
-      const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error || 'Failed to update staff')
-      toast.success('Staff updated successfully!')
-      setIsEditModalOpen(false)
-      setSelectedStaff(null)
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || 'Update failed')
+      toast.success('Staff updated!')
+      closeModal()
       await onRefresh()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update staff')
+    } catch (e: any) {
+      toast.error(e.message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleDelete = (member: Staff) => {
-    setSelectedStaff(member)
-    setIsDeleteDialogOpen(true)
-  }
-
-  const handleConfirmDelete = async () => {
-    if (!selectedStaff) return
+  const handleDelete = async () => {
+    if (!selected) return
+    setIsSubmitting(true)
     try {
-      setIsSubmitting(true)
-      const response = await fetch(
-        `/api/admin/users?id=${selectedStaff.id}`,
-        { method: 'DELETE' }
-      )
-      const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error || 'Failed to delete staff')
-      toast.success('Staff deleted successfully!')
-      setIsDeleteDialogOpen(false)
-      setSelectedStaff(null)
+      const res = await fetch(`/api/admin/users?id=${selected.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || 'Delete failed')
+      toast.success('Staff deleted!')
+      closeModal()
       await onRefresh()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to delete staff')
+    } catch (e: any) {
+      toast.error(e.message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleToggleStatus = async (member: Staff) => {
+  const handleToggleStatus = async (m: Staff) => {
     try {
-      const response = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: member.id, is_active: !member.is_active }),
+        body: JSON.stringify({ id: m.id, is_active: !m.is_active }),
       })
-      const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error || 'Failed to update status')
-      toast.success(`Staff ${!member.is_active ? 'activated' : 'deactivated'}!`)
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error)
+      toast.success(`Staff ${!m.is_active ? 'activated' : 'deactivated'}!`)
       await onRefresh()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update status')
+    } catch (e: any) {
+      toast.error(e.message)
     }
   }
 
-  const resetForm = () => {
-    setFormData({
-      first_name: '',
-      middle_name: '',
-      last_name: '',
-      department: 'general',
-      phone: '',
-      address: '',
-      date_joined: new Date().toISOString().split('T')[0],
-      gender: '',
-      title: '',
-    })
-  }
-
-  const clearFilters = () => {
-    setDepartmentFilter('all')
-    setStatusFilter('all')
-    setSearchQuery('')
-  }
-
-  // ── Get Department Badge ──
-  const getDepartmentBadge = (department: string) => {
-    const deptColors: Record<string, { bg: string; text: string; icon: React.ElementType }> = {
-      technology: { bg: 'bg-blue-100', text: 'text-blue-700', icon: Laptop },
-      science: { bg: 'bg-emerald-100', text: 'text-emerald-700', icon: Microscope },
-      mathematics: { bg: 'bg-purple-100', text: 'text-purple-700', icon: Calculator },
-      art: { bg: 'bg-pink-100', text: 'text-pink-700', icon: Palette },
-      music: { bg: 'bg-amber-100', text: 'text-amber-700', icon: Music },
-      languages: { bg: 'bg-indigo-100', text: 'text-indigo-700', icon: Languages },
-      'social-studies': { bg: 'bg-orange-100', text: 'text-orange-700', icon: Landmark },
-      'physical-education': { bg: 'bg-red-100', text: 'text-red-700', icon: Dumbbell },
-      business: { bg: 'bg-cyan-100', text: 'text-cyan-700', icon: Briefcase },
-      general: { bg: 'bg-slate-100', text: 'text-slate-700', icon: BookOpen },
-    }
-    const colors = deptColors[department] || deptColors.general
-    const Icon = colors.icon
-    
-    return (
-      <Badge className={`${colors.bg} ${colors.text} hover:${colors.bg} flex items-center gap-1`}>
-        <Icon className="w-3 h-3" />
-        {department.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
-      </Badge>
-    )
-  }
-
-  // ── Get Title Display ──
-  const getTitleDisplay = (title: string) => {
-    const found = TITLES.find(t => t.value === title)
-    return found ? found.label : ''
-  }
-
-  // ── Stats ──
-  const stats = {
-    total: staff.length,
-    active: staff.filter(s => s.is_active).length,
-    inactive: staff.filter(s => !s.is_active).length,
-    departments: DEPARTMENTS.map(dept => ({
-      ...dept,
-      count: staff.filter(s => s.department === dept.value).length,
-    })).filter(d => d.count > 0),
-  }
+  const btnStyle = { background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }
 
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-5">
-      {/* ── Header with Add Staff button ───────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-display text-[#0A2472]">Staff Management</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage all staff members across departments</p>
-        </div>
-        <Button 
-          onClick={() => setIsCreateModalOpen(true)}
-          className="bg-[#0A2472] hover:bg-[#1A3A8A] rounded-xl gap-2"
-        >
-          <UserPlus className="w-4 h-4" />
-          Add Staff
-        </Button>
+    <div className="space-y-3 sm:space-y-4">
+
+      {/* ── Stats ─────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <StatCard label="Total" value={stats.total} icon={Users} color="bg-emerald-500" />
+        <StatCard label="Active" value={stats.active} icon={UserCheck} color="bg-blue-500" />
+        <StatCard label="Inactive" value={stats.inactive} icon={UserX} color="bg-slate-400" />
+        <StatCard label="Depts" value={stats.departments} icon={Briefcase} color="bg-violet-500" />
       </div>
 
-      {/* ── Stats Cards ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-[#0A2472]/5">
-                <Users className="w-4 h-4 text-[#0A2472]" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-[#0A2472]">{stats.total}</p>
-                <p className="text-xs text-slate-500">Total Staff</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-50">
-                <UserCheck className="w-4 h-4 text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-emerald-600">{stats.active}</p>
-                <p className="text-xs text-slate-500">Active</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-50">
-                <UserX className="w-4 h-4 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-amber-600">{stats.inactive}</p>
-                <p className="text-xs text-slate-500">Inactive</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-50">
-                <Briefcase className="w-4 h-4 text-purple-600" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-purple-600">{stats.departments.length}</p>
-                <p className="text-xs text-slate-500">Departments</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Department Stats ───────────────────────────────────────────────── */}
-      {stats.departments.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {stats.departments.map((dept) => {
-            const Icon = dept.icon
-            return (
-              <Badge key={dept.value} variant="outline" className="px-3 py-1 text-sm gap-1.5">
-                <Icon className="w-3.5 h-3.5" />
-                {dept.label}: {dept.count}
-              </Badge>
-            )
-          })}
-        </div>
-      )}
-
-      {/* ── Filter / Search Toolbar ───────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4"
-      >
-        <div className="flex flex-col lg:flex-row gap-3">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-2.5 sm:p-3 space-y-2.5">
+        {/* Row 1: search + add */}
+        <div className="flex gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
             <Input
-              placeholder="Search by name, VIN ID, or email…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-10 rounded-xl border-slate-200 focus-visible:ring-1"
-              style={
-                { ['--tw-ring-color' as any]: accent } as React.CSSProperties
-              }
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-8 h-10 rounded-xl border-slate-200 text-sm"
             />
-            {searchQuery && (
+            {search && (
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
               >
                 <X className="w-3 h-3 text-slate-500" />
               </button>
             )}
           </div>
+          <Button onClick={() => setModal('create')} size="sm"
+            className="h-10 rounded-xl gap-1.5 text-white shrink-0 font-semibold px-3" style={btnStyle}>
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden xs:inline sm:inline">Add</span>
+          </Button>
+        </div>
 
-          {/* Filters row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Select value={departmentFilter} onValueChange={setDepartmentFilter}>
-              <SelectTrigger className="w-full sm:w-44 h-10 rounded-xl border-slate-200">
-                <div className="flex items-center gap-2">
-                  <Briefcase className="w-3.5 h-3.5 text-slate-400" />
-                  <SelectValue placeholder="Department" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                <SelectItem value="all">All Departments</SelectItem>
-                {DEPARTMENTS.map((dept) => (
-                  <SelectItem key={dept.value} value={dept.value}>
-                    <div className="flex items-center gap-2">
-                      <dept.icon className="w-3.5 h-3.5" />
-                      {dept.label}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Row 2: filters */}
+        <div className="flex items-center gap-2 overflow-x-auto -mx-0.5 px-0.5 pb-0.5 scrollbar-none">
+          <Select value={deptFilter} onValueChange={setDeptFilter}>
+            <SelectTrigger className="h-8 rounded-lg border-slate-200 text-xs w-36 min-w-36 gap-1 shrink-0">
+              <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
+              <SelectValue placeholder="Department" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+              <SelectItem value="all">All Departments</SelectItem>
+              {DEPARTMENTS.map((d) => (
+                <SelectItem key={d.value} value={d.value}>
+                  <div className="flex items-center gap-2">
+                    <d.icon className="w-3 h-3" />
+                    {d.label}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-36 h-10 rounded-xl border-slate-200">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-                  <SelectValue placeholder="Status" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 rounded-lg border-slate-200 text-xs w-24 min-w-24 shrink-0">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {activeFilterCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="h-10 rounded-xl gap-1 text-slate-500 hover:text-red-600"
-              >
-                <X className="w-3.5 h-3.5" />
-                Clear
-              </Button>
-            )}
+          {activeFilters > 0 && (
+            <button
+              type="button"
+              onClick={() => { setDeptFilter('all'); setStatusFilter('all') }}
+              className="h-8 px-2 rounded-lg text-[10px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-1 shrink-0"
+            >
+              <X className="w-3 h-3" /> Clear
+            </button>
+          )}
 
-            {/* View mode toggle */}
-            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 h-10">
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn(
-                  'px-3 h-9 rounded-lg flex items-center gap-1.5 transition-all text-xs font-semibold',
-                  viewMode === 'table'
-                    ? 'bg-white shadow-sm text-slate-800'
-                    : 'text-slate-500 hover:text-slate-700'
-                )}
-              >
-                <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Table</span>
-              </button>
-              <button
-                onClick={() => setViewMode('cards')}
-                className={cn(
-                  'px-3 h-9 rounded-lg flex items-center gap-1.5 transition-all text-xs font-semibold',
-                  viewMode === 'cards'
-                    ? 'bg-white shadow-sm text-slate-800'
-                    : 'text-slate-500 hover:text-slate-700'
-                )}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Cards</span>
-              </button>
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            <Button variant="ghost" size="sm" onClick={onRefresh} disabled={loading}
+              className="h-8 w-8 p-0 rounded-lg">
+              <RefreshCw className={cn('w-3.5 h-3.5 text-slate-400', loading && 'animate-spin')} />
+            </Button>
+            <div className="hidden sm:flex bg-slate-100 rounded-lg p-0.5">
+              {(['table', 'cards'] as const).map((mode) => (
+                <button key={mode} type="button" onClick={() => setViewMode(mode)}
+                  className={cn('h-7 w-7 rounded-md flex items-center justify-center transition-all',
+                    viewMode === mode ? 'bg-white shadow-sm text-slate-700' : 'text-slate-400 hover:text-slate-600')}>
+                  {mode === 'table' ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Result count */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Showing{' '}
-            <span className="font-bold text-slate-700">
-              {filteredStaff.length}
-            </span>{' '}
-            of{' '}
-            <span className="font-bold text-slate-700">{staff.length}</span>{' '}
-            staff members
-          </p>
-          {activeFilterCount > 0 && (
-            <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
-              style={{
-                backgroundColor: `${accent}15`,
-                color: accent,
-              }}
-            >
-              <Filter className="w-2.5 h-2.5" />
-              {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
+        {/* Row 3: result count */}
+        <p className="text-[11px] text-slate-400">
+          <span className="font-bold text-slate-600">{filtered.length}</span> of{' '}
+          <span className="font-bold text-slate-600">{staff.length}</span> staff
+          {activeFilters > 0 && (
+            <span className="text-violet-500 font-semibold">
+              {' '}· {activeFilters} filter{activeFilters > 1 ? 's' : ''}
             </span>
           )}
-        </div>
-      </motion.div>
+        </p>
+      </div>
 
       {/* ── Content ───────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         {loading ? (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-16 text-center"
-          >
-            <Loader2
-              className="w-8 h-8 animate-spin mx-auto mb-3"
-              style={{ color: accent }}
-            />
-            <p className="text-sm font-semibold text-slate-600">
-              Loading staff…
-            </p>
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-12 sm:p-16 flex flex-col items-center gap-3">
+            <Loader2 className="w-7 h-7 animate-spin" style={{ color: accent }} />
+            <p className="text-sm text-slate-400 font-medium">Loading staff…</p>
           </motion.div>
-        ) : filteredStaff.length === 0 ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-16 text-center"
-          >
-            <div
-              className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-              style={{ backgroundColor: `${accent}15` }}
-            >
-              <Briefcase className="w-8 h-8" style={{ color: accent }} />
+
+        ) : filtered.length === 0 ? (
+          <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-8 sm:p-16 text-center space-y-3">
+            <div className="w-12 h-12 rounded-xl mx-auto flex items-center justify-center"
+              style={{ backgroundColor: `${accent}15` }}>
+              <Briefcase className="w-6 h-6" style={{ color: accent }} />
             </div>
-            <h3 className="text-base font-bold text-slate-800 mb-1">
-              No staff found
-            </h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
-              {searchQuery || activeFilterCount > 0
-                ? 'Try adjusting your search or filters.'
-                : "Click 'Add Staff' to onboard your first team member."}
-            </p>
-            {(searchQuery || activeFilterCount > 0) && (
-              <Button
-                onClick={clearFilters}
-                variant="outline"
-                className="rounded-xl gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear filters
+            <div>
+              <p className="font-bold text-slate-700">No staff found</p>
+              <p className="text-sm text-slate-400 mt-0.5">
+                {search || activeFilters > 0 ? 'Try adjusting your filters.' : 'Add your first staff member to get started.'}
+              </p>
+            </div>
+            {(search || activeFilters > 0) && (
+              <Button variant="outline" onClick={() => { setSearch(''); setDeptFilter('all'); setStatusFilter('all') }}
+                className="rounded-xl gap-2 text-sm">
+                <X className="w-3.5 h-3.5" /> Clear filters
               </Button>
             )}
           </motion.div>
+
         ) : viewMode === 'table' ? (
-          // ── TABLE VIEW ────────────────────────────────────────────────
-          <motion.div
-            key="table"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden"
-          >
+          /* ── TABLE VIEW ─────────────────────────────────────────────────── */
+          <motion.div key="table" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50">
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                      Staff
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 hidden lg:table-cell">
-                      VIN ID
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 hidden lg:table-cell">
-                      Contact
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                      Department
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                      Status
-                    </th>
-                    <th className="text-right p-4 w-[60px]" />
+                  <tr className="border-b border-slate-100 bg-slate-50/80">
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left">Staff</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left hidden md:table-cell">VIN</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left">Department</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left hidden lg:table-cell">Phone</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left">Status</th>
+                    <th className="p-3 w-12" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStaff.map((member, idx) => (
-                    <motion.tr
-                      key={member.id}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
+                  {filtered.map((m, idx) => (
+                    <motion.tr key={m.id}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                       transition={{ delay: Math.min(idx * 0.02, 0.3) }}
-                      className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors group"
-                    >
-                      {/* Name + avatar */}
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 shadow-sm">
-                            <AvatarImage
-                              src={member.photo_url || undefined}
-                            />
-                            <AvatarFallback
-                              className={cn(
-                                'text-white font-bold text-xs bg-gradient-to-br',
-                                getAvatarGradient(member.full_name || 'A')
-                              )}
-                            >
-                              {getInitials(
-                                member.full_name || member.display_name || ''
-                              )}
-                            </AvatarFallback>
-                          </Avatar>
+                      className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors group">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <StaffAvatar member={m} />
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-800 text-sm leading-tight truncate">
-                              {member.title && getTitleDisplay(member.title)} {member.full_name ||
-                                member.display_name ||
-                                'Unknown'}
+                            <p className="font-bold text-sm text-slate-800 truncate leading-tight">
+                              {getTitleLabel(m.title)} {m.full_name || 'Unknown'}
                             </p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-xs text-slate-400 truncate">
-                                {member.email}
-                              </span>
-                            </div>
+                            <p className="text-[10px] text-slate-400 truncate">{m.email || 'No email'}</p>
                           </div>
                         </div>
                       </td>
-
-                      {/* VIN ID */}
-                      <td className="p-4 hidden lg:table-cell">
-                        <code
-                          className="text-xs font-mono px-2 py-1 rounded-md font-bold"
-                          style={{
-                            backgroundColor: `${accent}12`,
-                            color: accent,
-                          }}
-                        >
-                          {member.vin_id || 'N/A'}
+                      <td className="p-3 hidden md:table-cell">
+                        <code className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
+                          style={{ backgroundColor: `${accent}12`, color: accent }}>
+                          {m.vin_id || '—'}
                         </code>
                       </td>
-
-                      {/* Contact */}
-                      <td className="p-4 hidden lg:table-cell">
-                        <div className="text-xs text-slate-600 truncate max-w-[180px]">
-                          {member.email || 'No email'}
-                        </div>
-                        {member.phone && (
-                          <div className="text-[10px] text-slate-400 mt-0.5">
-                            {member.phone}
-                          </div>
-                        )}
+                      <td className="p-3"><DepartmentBadge value={m.department} /></td>
+                      <td className="p-3 hidden lg:table-cell">
+                        <span className="text-[11px] text-slate-600">{m.phone || '—'}</span>
                       </td>
-
-                      {/* Department */}
-                      <td className="p-4">
-                        {getDepartmentBadge(member.department || 'general')}
-                      </td>
-
-                      {/* Status */}
-                      <td className="p-4">
-                        {member.is_active !== false ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                            Inactive
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="p-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0 rounded-lg opacity-60 group-hover:opacity-100 hover:bg-slate-200"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-48 rounded-xl bg-white border border-slate-200 shadow-xl"
-                          >
-                            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400">
-                              Actions
-                            </DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedStaff(member)
-                                setIsDetailModalOpen(true)
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleEdit(member)}
-                              className="cursor-pointer"
-                            >
-                              <Edit2 className="mr-2 h-4 w-4" />
-                              Edit staff
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleToggleStatus(member)}
-                              className="cursor-pointer"
-                            >
-                              {member.is_active !== false ? (
-                                <>
-                                  <UserX className="mr-2 h-4 w-4" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="mr-2 h-4 w-4" />
-                                  Activate
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(member)}
-                              className="text-red-600 cursor-pointer focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <td className="p-3"><StatusBadge active={m.is_active} /></td>
+                      <td className="p-3 text-right">
+                        <ActionMenu member={m}
+                          onView={() => { setSelected(m); setModal('detail') }}
+                          onEdit={() => openEdit(m)}
+                          onToggle={() => handleToggleStatus(m)}
+                          onDelete={() => { setSelected(m); setModal('delete') }}
+                        />
                       </td>
                     </motion.tr>
                   ))}
@@ -927,151 +642,75 @@ export default function StaffManagement({
               </table>
             </div>
           </motion.div>
+
         ) : (
-          // ── CARD VIEW ─────────────────────────────────────────────────
-          <motion.div
-            key="cards"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
-            {filteredStaff.map((member, idx) => (
-              <motion.div
-                key={member.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+          /* ── CARD VIEW ──────────────────────────────────────────────────── */
+          <motion.div key="cards" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
+            {filtered.map((m, idx) => (
+              <motion.div key={m.id}
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(idx * 0.03, 0.4) }}
-                className="group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden"
-              >
-                {/* Top gradient */}
-                <div
-                  className={cn(
-                    'h-1.5 w-full bg-gradient-to-r',
-                    getAvatarGradient(member.full_name || 'A')
-                  )}
-                />
+                className="group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md active:scale-[0.99] transition-all overflow-hidden">
 
-                <div className="p-5">
-                  {/* Avatar + name */}
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="relative shrink-0">
-                      <Avatar className="h-12 w-12 shadow-md">
-                        <AvatarImage src={member.photo_url || undefined} />
-                        <AvatarFallback
-                          className={cn(
-                            'text-white font-bold text-sm bg-gradient-to-br',
-                            getAvatarGradient(member.full_name || 'A')
-                          )}
-                        >
-                          {getInitials(member.full_name || '')}
-                        </AvatarFallback>
-                      </Avatar>
-                      {member.is_active !== false && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white" />
-                      )}
-                    </div>
+                <div className={cn('h-1 w-full bg-gradient-to-r', getAvatarGradient(m.full_name))} />
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-slate-800 truncate leading-tight">
-                        {member.title && getTitleDisplay(member.title)} {member.full_name || 'Unknown'}
-                      </h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                        {member.email}
-                      </p>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 rounded-lg opacity-40 group-hover:opacity-100"
-                        >
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent 
-                        align="end" 
-                        className="w-44 rounded-xl bg-white border border-slate-200 shadow-xl"
-                      >
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedStaff(member)
-                            setIsDetailModalOpen(true)
-                          }}
-                        >
-                          <Eye className="mr-2 h-3.5 w-3.5" /> View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEdit(member)}>
-                          <Edit2 className="mr-2 h-3.5 w-3.5" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleToggleStatus(member)}
-                        >
-                          {member.is_active !== false ? (
-                            <>
-                              <UserX className="mr-2 h-3.5 w-3.5" />
-                              Deactivate
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="mr-2 h-3.5 w-3.5" />
-                              Activate
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(member)}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <button
+                      type="button"
+                      onClick={() => { setSelected(m); setModal('detail') }}
+                      className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
+                    >
+                      <div className="relative shrink-0">
+                        <StaffAvatar member={m} />
+                        {m.is_active && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-800 truncate leading-tight">
+                          {getTitleLabel(m.title)} {m.full_name}
+                        </p>
+                        <p className="text-[10px] text-slate-400 truncate">{m.email || 'No email'}</p>
+                      </div>
+                    </button>
+                    <ActionMenu member={m}
+                      onView={() => { setSelected(m); setModal('detail') }}
+                      onEdit={() => openEdit(m)}
+                      onToggle={() => handleToggleStatus(m)}
+                      onDelete={() => { setSelected(m); setModal('delete') }}
+                    />
                   </div>
 
-                  {/* Details grid */}
-                  <div className="space-y-2 pt-3 border-t border-slate-100">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-slate-400 font-medium">Department</span>
-                      <span>{getDepartmentBadge(member.department || 'general')}</span>
+                  <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-slate-400 shrink-0">Dept</span>
+                      <DepartmentBadge value={m.department} />
                     </div>
-                    {member.vin_id && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400 font-medium">VIN</span>
-                        <code
-                          className="font-mono font-bold text-[10px]"
-                          style={{ color: accent }}
-                        >
-                          {member.vin_id}
-                        </code>
+                    {m.vin_id && (
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-slate-400 shrink-0">VIN</span>
+                        <code className="font-mono text-[10px] font-bold truncate" style={{ color: accent }}>{m.vin_id}</code>
                       </div>
                     )}
-                  </div>
-
-                  {/* Bottom actions */}
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
-                    <button
-                      onClick={() => {
-                        setSelectedStaff(member)
-                        setIsDetailModalOpen(true)
-                      }}
-                      className="text-xs font-semibold hover:underline transition-colors"
-                      style={{ color: accent }}
-                    >
-                      View profile →
-                    </button>
-                    {member.is_active !== false ? (
-                      <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
-                        ● Active
-                      </span>
-                    ) : (
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                        ○ Inactive
-                      </span>
+                    {m.phone && (
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-slate-400 shrink-0">Phone</span>
+                        <span className="text-[10px] font-semibold text-slate-600 truncate">{m.phone}</span>
+                      </div>
                     )}
+                    <div className="flex items-center justify-between gap-2 pt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setSelected(m); setModal('detail') }}
+                        className="text-[11px] font-semibold hover:underline flex items-center gap-0.5"
+                        style={{ color: accent }}
+                      >
+                        View profile <ChevronRight className="w-3 h-3" />
+                      </button>
+                      <StatusBadge active={m.is_active} />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -1081,639 +720,421 @@ export default function StaffManagement({
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Create Staff Modal                                                */}
+      {/* CREATE MODAL                                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl flex flex-col bg-white">
-          <div
-            className="p-6 pb-5 relative overflow-hidden shrink-0"
-            style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)` }}
-          >
-            <div
-              className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-20 blur-3xl"
-              style={{ backgroundColor: accent }}
-            />
-            <DialogHeader className="relative">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  }}
-                >
-                  <UserPlus className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl font-extrabold text-slate-900 text-left">
-                    Add New Staff
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500 mt-0.5 text-left">
-                    Email will be auto-generated from first and last name
-                  </DialogDescription>
-                </div>
+      <Dialog open={modal === 'create'} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent
+          className="p-0 gap-0 border-0 shadow-2xl bg-white flex flex-col
+                     w-screen h-[100dvh] max-w-full rounded-none
+                     sm:w-[calc(100vw-2rem)] sm:h-auto sm:max-w-2xl sm:max-h-[90vh] sm:rounded-2xl"
+        >
+          <DialogHeader className="px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-100 shrink-0 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={btnStyle}>
+                <UserPlus className="w-4 h-4 text-white" />
               </div>
-            </DialogHeader>
-          </div>
-
-          <form onSubmit={handleCreateStaff} className="flex flex-col overflow-hidden flex-1">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-              {/* Required Fields */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${accent}15` }}
-                  >
-                    <Users className="w-3 h-3" style={{ color: accent }} />
-                  </div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-                    Required Information
-                  </p>
-                  <div className="flex-1 h-px bg-slate-100" />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      First Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                      required
-                      className="rounded-xl border-slate-200 h-10"
-                      placeholder="Enter first name"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      Middle Name
-                    </Label>
-                    <Input
-                      value={formData.middle_name}
-                      onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                      placeholder="Enter middle name"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      Last Name <span className="text-red-500">*</span>
-                    </Label>
-                    <Input
-                      value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      required
-                      className="rounded-xl border-slate-200 h-10"
-                      placeholder="Enter last name"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold text-slate-700">
-                    Department <span className="text-red-500">*</span>
-                  </Label>
-                  <Select
-                    value={formData.department}
-                    onValueChange={(v) => setFormData({ ...formData, department: v })}
-                    required
-                  >
-                    <SelectTrigger className="rounded-xl border-slate-200 h-10">
-                      <SelectValue placeholder="Select department" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                      {DEPARTMENTS.map((dept) => (
-                        <SelectItem key={dept.value} value={dept.value}>
-                          <div className="flex items-center gap-2">
-                            <dept.icon className="w-3.5 h-3.5" />
-                            {dept.label}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="flex-1 min-w-0 text-left">
+                <DialogTitle className="text-base font-extrabold text-slate-900 leading-tight">Add New Staff</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5">Email auto-generated from name</DialogDescription>
               </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center shrink-0"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+          </DialogHeader>
 
-              {/* Optional Fields */}
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${accent}10` }}
-                  >
-                    <UserCog className="w-3 h-3" style={{ color: accent }} />
-                  </div>
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                    Additional Information (Optional)
-                  </p>
-                  <div className="flex-1 h-px bg-slate-100" />
+          <form onSubmit={handleCreate} className="flex flex-col overflow-hidden flex-1">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-5">
+
+              <FormSection title="Personal" icon={Users} accent={accent}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <Field label="First Name" id="fn" required>
+                    <Input id="fn" value={createForm.first_name} required
+                      placeholder="First name"
+                      onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                  <Field label="Middle Name" id="mn">
+                    <Input id="mn" value={createForm.middle_name}
+                      placeholder="Middle name"
+                      onChange={(e) => setCreateForm({ ...createForm, middle_name: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                  <Field label="Last Name" id="ln" required>
+                    <Input id="ln" value={createForm.last_name} required
+                      placeholder="Last name"
+                      onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Title</Label>
-                    <Select
-                      value={formData.title}
-                      onValueChange={(v) => setFormData({ ...formData, title: v })}
-                    >
-                      <SelectTrigger className="rounded-xl border-slate-200 h-10">
-                        <SelectValue placeholder="Select title" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <Field label="Title" id="tt">
+                    <Select value={createForm.title} onValueChange={(v) => setCreateForm({ ...createForm, title: v })}>
+                      <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                        <SelectValue placeholder="Select" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                        {TITLES.map((title) => (
-                          <SelectItem key={title.value} value={title.value}>
-                            {title.label}
+                      <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                        {TITLES.map((t) => (
+                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Gender" id="gnd">
+                    <Select value={createForm.gender} onValueChange={(v) => setCreateForm({ ...createForm, gender: v })}>
+                      <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                        {GENDERS.map((g) => (
+                          <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+                  <Field label="Phone" id="ph">
+                    <Input id="ph" type="tel" value={createForm.phone}
+                      placeholder="+234..."
+                      onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                </div>
+                <Field label="Address" id="addr">
+                  <Input id="addr" value={createForm.address}
+                    placeholder="Home address"
+                    onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
+              </FormSection>
+
+              <FormSection title="Employment" icon={Briefcase} accent={accent}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <Field label="Department" id="dept" required>
+                    <Select value={createForm.department} onValueChange={(v) => setCreateForm({ ...createForm, department: v })}>
+                      <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                        {DEPARTMENTS.map((d) => (
+                          <SelectItem key={d.value} value={d.value}>
+                            <div className="flex items-center gap-2">
+                              <d.icon className="w-3 h-3" />
+                              {d.label}
+                            </div>
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Gender</Label>
-                    <Select
-                      value={formData.gender}
-                      onValueChange={(v) => setFormData({ ...formData, gender: v })}
-                    >
-                      <SelectTrigger className="rounded-xl border-slate-200 h-10">
-                        <SelectValue placeholder="Select gender" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                        {GENDERS.map((gender) => (
-                          <SelectItem key={gender.value} value={gender.value}>
-                            {gender.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Phone</Label>
-                    <Input
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                      placeholder="Enter phone number"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs font-semibold text-slate-700">Date Joined</Label>
-                    <Input
-                      type="date"
-                      value={formData.date_joined}
-                      onChange={(e) => setFormData({ ...formData, date_joined: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </div>
-                  <div className="space-y-1.5 md:col-span-2">
-                    <Label className="text-xs font-semibold text-slate-700">Address</Label>
-                    <Input
-                      value={formData.address}
-                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                      placeholder="Enter address"
-                    />
-                  </div>
+                  </Field>
+                  <Field label="Date Joined" id="dj">
+                    <Input id="dj" type="date" value={createForm.date_joined}
+                      onChange={(e) => setCreateForm({ ...createForm, date_joined: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
                 </div>
-              </div>
+              </FormSection>
 
-              {/* Auto-generated info note */}
-              <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                <p className="text-xs text-blue-700">
-                  <strong>📧 Auto-generated:</strong> Email will be created as{' '}
-                  <code className="bg-blue-100 px-1.5 py-0.5 rounded text-[10px] font-mono">
-                    {formData.first_name || 'first'}.{formData.last_name || 'last'}@vincollins.edu.ng
+              {/* Auto-generated info */}
+              <div className="p-3 bg-blue-50 rounded-xl border border-blue-100 flex items-start gap-2">
+                <Mail className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-[11px] font-semibold text-blue-700 mb-0.5">Auto-generated credentials</p>
+                  <code className="block text-[10px] font-mono text-blue-600 truncate">
+                    {(createForm.first_name || 'first').toLowerCase().replace(/[^a-z]/g, '') || 'first'}
+                    .{(createForm.last_name || 'last').toLowerCase().replace(/[^a-z]/g, '') || 'last'}
+                    @vincollins.edu.ng
                   </code>
-                  {' '}and VIN ID will be auto-generated by the system.
-                </p>
+                </div>
               </div>
             </div>
 
-            <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex-row justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateModalOpen(false)}
-                disabled={isSubmitting}
-                className="rounded-xl border-slate-200 font-semibold"
-              >
-                Cancel
+            <div className="px-4 py-3 sm:px-5 border-t border-slate-100 bg-slate-50/80 backdrop-blur shrink-0
+                            flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+              <Button type="button" variant="outline" onClick={closeModal} disabled={isSubmitting}
+                className="h-10 rounded-xl text-sm font-semibold flex-1 sm:flex-initial">Cancel</Button>
+              <Button type="submit" disabled={isSubmitting}
+                className="h-10 rounded-xl gap-2 text-white text-sm font-semibold flex-1 sm:flex-initial" style={btnStyle}>
+                {isSubmitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Adding…</>
+                  : <><UserPlus className="w-3.5 h-3.5" /> Add Staff</>}
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-xl gap-2 text-white shadow-md font-semibold"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  boxShadow: `0 8px 20px -6px ${accent}55`,
-                }}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Adding…
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4" />
-                    Add Staff
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Edit Staff Modal                                                  */}
+      {/* EDIT MODAL                                                          */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl flex flex-col bg-white">
-          <div
-            className="p-6 pb-5 relative overflow-hidden shrink-0"
-            style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)` }}
-          >
-            <div
-              className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-20 blur-3xl"
-              style={{ backgroundColor: accent }}
-            />
-            <DialogHeader className="relative">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  }}
-                >
-                  <Edit2 className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl font-extrabold text-slate-900 text-left">
-                    Edit Staff
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500 mt-0.5 text-left">
-                    Update {selectedStaff?.full_name || 'this staff member'}&apos;s information
-                  </DialogDescription>
-                </div>
+      <Dialog open={modal === 'edit'} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent
+          className="p-0 gap-0 border-0 shadow-2xl bg-white flex flex-col
+                     w-screen h-[100dvh] max-w-full rounded-none
+                     sm:w-[calc(100vw-2rem)] sm:h-auto sm:max-w-xl sm:max-h-[90vh] sm:rounded-2xl"
+        >
+          <DialogHeader className="px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-100 shrink-0 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={btnStyle}>
+                <Edit2 className="w-4 h-4 text-white" />
               </div>
-            </DialogHeader>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">First Name</Label>
-                <Input
-                  value={editFormData.first_name || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
-                  className="rounded-xl border-slate-200 h-10"
-                />
+              <div className="flex-1 min-w-0 text-left">
+                <DialogTitle className="text-base font-extrabold text-slate-900 leading-tight">Edit Staff</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 truncate">
+                  {selected?.full_name}
+                </DialogDescription>
               </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">Last Name</Label>
-                <Input
-                  value={editFormData.last_name || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
-                  className="rounded-xl border-slate-200 h-10"
-                />
-              </div>
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Full Name</Label>
-              <Input
-                value={editFormData.full_name || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
-                className="rounded-xl border-slate-200 h-10"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Department</Label>
-              <Select
-                value={editFormData.department || ''}
-                onValueChange={(v) => setEditFormData({ ...editFormData, department: v })}
+              <button
+                type="button"
+                onClick={closeModal}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center shrink-0"
               >
-                <SelectTrigger className="rounded-xl border-slate-200 h-10">
-                  <SelectValue placeholder="Select department" />
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Field label="First Name" id="ef">
+                <Input id="ef" value={editForm.first_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+              <Field label="Last Name" id="el">
+                <Input id="el" value={editForm.last_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+            </div>
+            <Field label="Full Name" id="efn">
+              <Input id="efn" value={editForm.full_name || ''}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                className="h-10 rounded-xl border-slate-200 text-sm" />
+            </Field>
+            <Field label="Department" id="edept">
+              <Select value={editForm.department || ''} onValueChange={(v) => setEditForm({ ...editForm, department: v })}>
+                <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                  <SelectValue placeholder="Select" />
                 </SelectTrigger>
-                <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                  {DEPARTMENTS.map((dept) => (
-                    <SelectItem key={dept.value} value={dept.value}>
+                <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                  {DEPARTMENTS.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>
                       <div className="flex items-center gap-2">
-                        <dept.icon className="w-3.5 h-3.5" />
-                        {dept.label}
+                        <d.icon className="w-3 h-3" />
+                        {d.label}
                       </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">Title</Label>
-                <Select
-                  value={editFormData.title || ''}
-                  onValueChange={(v) => setEditFormData({ ...editFormData, title: v })}
-                >
-                  <SelectTrigger className="rounded-xl border-slate-200 h-10">
-                    <SelectValue placeholder="Select title" />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Field label="Title" id="ett">
+                <Select value={editForm.title || ''} onValueChange={(v) => setEditForm({ ...editForm, title: v })}>
+                  <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                    <SelectValue placeholder="Select" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                    {TITLES.map((title) => (
-                      <SelectItem key={title.value} value={title.value}>
-                        {title.label}
-                      </SelectItem>
+                  <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                    {TITLES.map((t) => (
+                      <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-xs font-semibold text-slate-700">Gender</Label>
-                <Select
-                  value={editFormData.gender || ''}
-                  onValueChange={(v) => setEditFormData({ ...editFormData, gender: v })}
-                >
-                  <SelectTrigger className="rounded-xl border-slate-200 h-10">
-                    <SelectValue placeholder="Select gender" />
+              </Field>
+              <Field label="Gender" id="eg">
+                <Select value={editForm.gender || ''} onValueChange={(v) => setEditForm({ ...editForm, gender: v })}>
+                  <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                    <SelectValue placeholder="Select" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                    {GENDERS.map((gender) => (
-                      <SelectItem key={gender.value} value={gender.value}>
-                        {gender.label}
-                      </SelectItem>
+                  <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                    {GENDERS.map((g) => (
+                      <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </Field>
             </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Phone</Label>
-              <Input
-                value={editFormData.phone || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                className="rounded-xl border-slate-200 h-10"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-semibold text-slate-700">Address</Label>
-              <Input
-                value={editFormData.address || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                className="rounded-xl border-slate-200 h-10"
-              />
-            </div>
+            <Field label="Phone" id="eph">
+              <Input id="eph" value={editForm.phone || ''}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                className="h-10 rounded-xl border-slate-200 text-sm" />
+            </Field>
+            <Field label="Address" id="ead">
+              <Input id="ead" value={editForm.address || ''}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                className="h-10 rounded-xl border-slate-200 text-sm" />
+            </Field>
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex-row justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
-              className="rounded-xl border-slate-200 font-semibold"
-            >
-              Cancel
+          <div className="px-4 py-3 sm:px-5 border-t border-slate-100 bg-slate-50/80 backdrop-blur shrink-0
+                          flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+            <Button variant="outline" onClick={closeModal}
+              className="h-10 rounded-xl text-sm font-semibold flex-1 sm:flex-initial">Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={isSubmitting}
+              className="h-10 rounded-xl gap-2 text-white text-sm font-semibold flex-1 sm:flex-initial" style={btnStyle}>
+              {isSubmitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</> : 'Save Changes'}
             </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={isSubmitting}
-              className="rounded-xl gap-2 text-white shadow-md font-semibold"
-              style={{
-                background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-              }}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Detail Modal                                                        */}
+      {/* DETAIL MODAL                                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-h-[90vh] flex flex-col bg-white">
-          {selectedStaff && (
+      <Dialog open={modal === 'detail'} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent
+          className="p-0 gap-0 border-0 shadow-2xl bg-white flex flex-col
+                     w-screen h-[100dvh] max-w-full rounded-none
+                     sm:w-[calc(100vw-2rem)] sm:h-auto sm:max-w-lg sm:max-h-[90vh] sm:rounded-2xl"
+        >
+          {selected && (
             <>
-              {/* Hero */}
-              <div
-                className="p-6 pb-16 relative overflow-hidden shrink-0"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                }}
-              >
-                <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-                <div className="absolute -bottom-4 -left-4 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
+              <div className="p-4 pb-14 sm:p-5 sm:pb-12 relative overflow-hidden shrink-0"
+                style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}>
+                <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
 
-                <DialogHeader className="relative">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">
-                        Staff Profile
-                      </span>
-                      <DialogTitle className="text-xl font-extrabold text-white mt-1 text-left">
-                        {selectedStaff.title && getTitleDisplay(selectedStaff.title)} {selectedStaff.full_name}
+                <DialogHeader className="relative space-y-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0 text-left">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Staff Profile</span>
+                      <DialogTitle className="text-base sm:text-lg font-extrabold text-white mt-0.5 truncate">
+                        {getTitleLabel(selected.title)} {selected.full_name}
                       </DialogTitle>
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-[10px] font-bold text-white uppercase tracking-widest">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          {selectedStaff.role || 'Staff'}
+                      <DialogDescription className="sr-only">Profile details for {selected.full_name}</DialogDescription>
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-[10px] font-bold text-white capitalize">
+                          <Sparkles className="w-2.5 h-2.5" /> {selected.role || 'Staff'}
                         </span>
-                        {selectedStaff.is_active !== false ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-400/20 backdrop-blur-sm border border-emerald-300/30 text-[10px] font-bold text-white">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/15 border border-white/20 text-[10px] font-bold text-white/80">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                            Inactive
-                          </span>
-                        )}
+                        <StatusBadge active={selected.is_active} />
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
                   </div>
                 </DialogHeader>
               </div>
 
-              {/* Avatar overlap */}
-              <div className="relative flex-1 overflow-y-auto">
-                <div className="absolute -top-10 left-6">
-                  <Avatar className="h-20 w-20 ring-4 ring-white shadow-2xl">
-                    <AvatarImage src={selectedStaff.photo_url || undefined} />
-                    <AvatarFallback
-                      className={cn(
-                        'text-white font-extrabold text-xl bg-gradient-to-br',
-                        getAvatarGradient(selectedStaff.full_name)
-                      )}
-                    >
-                      {getInitials(selectedStaff.full_name)}
-                    </AvatarFallback>
-                  </Avatar>
+              <div className="relative flex-1 overflow-y-auto overscroll-contain">
+                <div className="absolute -top-8 left-4 sm:left-5">
+                  <StaffAvatar member={selected} size="lg" />
                 </div>
 
-                <div className="pt-14 px-6 pb-6 space-y-5">
-                  {/* Meta row */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <div className="bg-white border border-slate-200 rounded-xl p-3">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Shield className="w-3 h-3 text-slate-400" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">VIN ID</span>
+                <div className="pt-12 px-4 pb-5 sm:px-5 space-y-3">
+                  {/* Meta tiles */}
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-slate-50 rounded-xl p-2 sm:p-2.5">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Shield className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 truncate">VIN</span>
                       </div>
-                      <p className="text-xs font-bold font-mono truncate" style={{ color: accent }}>
-                        {selectedStaff.vin_id || 'N/A'}
+                      <p className="text-[11px] font-bold font-mono truncate" style={{ color: accent }}>
+                        {selected.vin_id || 'N/A'}
                       </p>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-xl p-3">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Briefcase className="w-3 h-3 text-slate-400" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Department</span>
+                    <div className="bg-slate-50 rounded-xl p-2 sm:p-2.5">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Briefcase className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 truncate">Dept</span>
                       </div>
-                      <p className="text-xs font-bold truncate">
-                        {getDepartmentBadge(selectedStaff.department || 'general')}
+                      <p className="text-[11px] font-bold truncate text-slate-700">
+                        {getDepartment(selected.department).label}
                       </p>
                     </div>
-                    <div className="bg-white border border-slate-200 rounded-xl p-3">
-                      <div className="flex items-center gap-1.5 mb-1">
-                        <Mail className="w-3 h-3 text-slate-400" />
-                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Email</span>
+                    <div className="bg-slate-50 rounded-xl p-2 sm:p-2.5">
+                      <div className="flex items-center gap-1 mb-1">
+                        <UserCog className="w-3 h-3 text-slate-400 shrink-0" />
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 truncate">Role</span>
                       </div>
-                      <p className="text-xs font-bold truncate text-slate-700">
-                        {selectedStaff.email}
+                      <p className="text-[11px] font-bold truncate text-slate-700 capitalize">
+                        {selected.role || 'Staff'}
                       </p>
                     </div>
                   </div>
 
-                  {/* Contact */}
-                  {(selectedStaff.phone || selectedStaff.address) && (
-                    <div className="bg-slate-50 rounded-2xl p-4">
-                      <div className="flex items-center gap-2 mb-3">
-                        <Phone className="w-3.5 h-3.5 text-slate-400" />
-                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Contact</p>
+                  {/* Info sections */}
+                  {[
+                    {
+                      title: 'Contact', icon: Mail, rows: [
+                        { label: 'Email', value: selected.email || 'Not provided', icon: Mail },
+                        selected.phone && { label: 'Phone', value: selected.phone, icon: Phone },
+                        selected.address && { label: 'Address', value: selected.address, icon: MapPin },
+                      ].filter(Boolean) as { label: string; value: string; icon?: React.ElementType }[]
+                    },
+                    {
+                      title: 'Employment', icon: Calendar, rows: [
+                        { label: 'Joined', value: new Date(selected.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
+                        selected.gender && { label: 'Gender', value: selected.gender },
+                        selected.title && { label: 'Title', value: getTitleLabel(selected.title) },
+                      ].filter(Boolean) as { label: string; value: string }[]
+                    },
+                  ].map((section: any) => (
+                    <div key={section.title} className="bg-slate-50 rounded-xl p-3">
+                      <div className="flex items-center gap-1.5 mb-2.5">
+                        <section.icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">{section.title}</p>
                       </div>
                       <div className="space-y-2">
-                        {selectedStaff.phone && (
-                          <div className="flex items-start justify-between gap-3 text-xs">
-                            <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1.5">
-                              <Phone className="w-3 h-3" />
-                              Phone
+                        {section.rows.map((row: any) => (
+                          <div key={row.label} className="flex items-start justify-between gap-3 text-xs">
+                            <span className="text-slate-400 shrink-0 flex items-center gap-1 capitalize">
+                              {row.icon && <row.icon className="w-3 h-3" />}
+                              {row.label}
                             </span>
-                            <span className="text-slate-700 font-semibold text-right">{selectedStaff.phone}</span>
+                            <span className="text-slate-700 font-semibold text-right break-all min-w-0 capitalize">{row.value}</span>
                           </div>
-                        )}
-                        {selectedStaff.address && (
-                          <div className="flex items-start justify-between gap-3 text-xs">
-                            <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1.5">
-                              <MapPin className="w-3 h-3" />
-                              Address
-                            </span>
-                            <span className="text-slate-700 font-semibold text-right">{selectedStaff.address}</span>
-                          </div>
-                        )}
+                        ))}
                       </div>
                     </div>
-                  )}
-
-                  {/* Meta */}
-                  <div className="bg-slate-50 rounded-2xl p-4">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">Details</p>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-start justify-between gap-3 text-xs">
-                        <span className="text-slate-400 font-medium">Joined</span>
-                        <span className="text-slate-700 font-semibold text-right">
-                          {new Date(selectedStaff.created_at).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric',
-                          })}
-                        </span>
-                      </div>
-                      {selectedStaff.gender && (
-                        <div className="flex items-start justify-between gap-3 text-xs">
-                          <span className="text-slate-400 font-medium">Gender</span>
-                          <span className="text-slate-700 font-semibold text-right capitalize">{selectedStaff.gender}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  ))}
                 </div>
               </div>
 
-              <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex-row justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDetailModalOpen(false)}
-                  className="rounded-xl border-slate-200 font-semibold"
-                >
-                  Close
+              <div className="px-4 py-3 sm:px-5 border-t border-slate-100 bg-slate-50/80 backdrop-blur shrink-0
+                              flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+                <Button variant="outline" onClick={closeModal}
+                  className="h-10 rounded-xl text-sm font-semibold flex-1 sm:flex-initial">Close</Button>
+                <Button onClick={() => { closeModal(); openEdit(selected) }}
+                  className="h-10 rounded-xl gap-2 text-white text-sm font-semibold flex-1 sm:flex-initial" style={btnStyle}>
+                  <Edit2 className="w-3.5 h-3.5" /> Edit
                 </Button>
-                <Button
-                  onClick={() => {
-                    setIsDetailModalOpen(false)
-                    handleEdit(selectedStaff)
-                  }}
-                  className="rounded-xl gap-2 text-white shadow-md font-semibold"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  }}
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit Staff
-                </Button>
-              </DialogFooter>
+              </div>
             </>
           )}
         </DialogContent>
       </Dialog>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Delete Confirmation                                                 */}
+      {/* DELETE DIALOG                                                       */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-2xl border-0 shadow-2xl bg-white">
+      <AlertDialog open={modal === 'delete'} onOpenChange={(o) => !o && closeModal()}>
+        <AlertDialogContent className="rounded-2xl border-0 shadow-2xl bg-white w-[calc(100vw-2rem)] max-w-sm">
           <AlertDialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-2">
-              <Trash2 className="w-5 h-5 text-red-500" />
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2">
+              <Trash2 className="w-4 h-4 text-red-500" />
             </div>
-            <AlertDialogTitle className="text-lg font-extrabold text-slate-800">
-              Delete staff member?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-500">
-              This will permanently delete
-              {selectedStaff && (
-                <span className="font-bold text-slate-700">
-                  {' '}{selectedStaff.full_name}
-                </span>
-              )}{' '}
-              and all associated data. This action cannot be undone.
+            <AlertDialogTitle className="text-base font-extrabold text-slate-800">Delete staff?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-slate-500 break-words">
+              This will permanently delete{' '}
+              <span className="font-bold text-slate-700">{selected?.full_name}</span>{' '}
+              and all associated data. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl border-slate-200 font-semibold">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="rounded-xl bg-red-600 hover:bg-red-700 font-semibold gap-2"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Deleting…
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4" />
-                  Yes, delete
-                </>
-              )}
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel onClick={closeModal}
+              className="rounded-xl font-semibold text-sm mt-0 h-10 flex-1 sm:flex-initial">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isSubmitting}
+              className="rounded-xl bg-red-600 hover:bg-red-700 font-semibold text-sm gap-2 h-10 flex-1 sm:flex-initial">
+              {isSubmitting
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting…</>
+                : <><Trash2 className="w-3.5 h-3.5" /> Delete</>}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

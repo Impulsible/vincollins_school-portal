@@ -11,6 +11,7 @@ export interface HeaderUser {
   email: string
   role: UserRole
   avatar?: string
+  photo_url?: string // ✅ Add this
   isAuthenticated: boolean
 }
 

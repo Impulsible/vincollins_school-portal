@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/layout/header/UserSection.tsx
 
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -233,9 +234,51 @@ function UserSectionComponent({
     }
   }, [onSignOut, isLoggingOut, firstName, router])
 
+  // ✅ FIX: Check multiple possible property names for the avatar URL
   const getAvatarUrl = () => {
     if (avatarError) return undefined
-    if (user?.avatar) return user.avatar
+    
+    // Priority 1: Check user.avatar (from HeaderUser)
+    if (user?.avatar) {
+      console.log('[UserSection] Using user.avatar:', user.avatar)
+      return user.avatar
+    }
+    
+    // Priority 2: Check for photo_url (from raw user data)
+    if ((user as any)?.photo_url) {
+      console.log('[UserSection] Using user.photo_url:', (user as any).photo_url)
+      return (user as any).photo_url
+    }
+    
+    // Priority 3: Check for avatar_url (from raw user data)
+    if ((user as any)?.avatar_url) {
+      console.log('[UserSection] Using user.avatar_url:', (user as any).avatar_url)
+      return (user as any).avatar_url
+    }
+    
+    // Priority 4: Check localStorage for cached photo URL
+    try {
+      const cachedUser = localStorage.getItem('auth_user')
+      if (cachedUser) {
+        const parsed = JSON.parse(cachedUser)
+        if (parsed.photo_url) {
+          console.log('[UserSection] Using cached photo_url:', parsed.photo_url)
+          return parsed.photo_url
+        }
+        if (parsed.avatar_url) {
+          console.log('[UserSection] Using cached avatar_url:', parsed.avatar_url)
+          return parsed.avatar_url
+        }
+        if (parsed.avatar) {
+          console.log('[UserSection] Using cached avatar:', parsed.avatar)
+          return parsed.avatar
+        }
+      }
+    } catch (e) {
+      console.warn('[UserSection] Error reading localStorage:', e)
+    }
+    
+    console.log('[UserSection] No avatar found, returning undefined')
     return undefined
   }
 

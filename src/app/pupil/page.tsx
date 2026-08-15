@@ -1,4 +1,3 @@
-/* eslint-disable react/no-unescaped-entities */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
@@ -14,17 +13,17 @@ import { ClassmatesTab } from '@/components/pupil/ClassmatesTab'
 import { PupilBanner } from '@/components/pupil/banner/PupilBanner'
 import { PupilLoadingState } from '@/components/pupil/LoadingState'
 import { Button } from '@/components/ui/button'
-import { 
-  RefreshCw, 
-  AlertTriangle, 
-  Loader2, 
+import {
+  RefreshCw,
+  AlertTriangle,
+  Loader2,
   LayoutDashboard,
   BookOpen,
   NotebookPen,
   Award,
   Users,
   Grid3x3,
-  List
+  List,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
@@ -126,6 +125,7 @@ interface Classmate {
   last_name?: string
   display_name?: string
   vin_id?: string
+  gender?: string
 }
 
 interface DashboardStats {
@@ -146,6 +146,14 @@ interface DashboardData {
   stats: DashboardStats
   termProgress: Record<string, unknown> | null
   reportCardStatus: string | null
+  subjectStats: {
+    completedSubjects: number
+    totalSubjects: number
+    averagePercentage: number
+    totalMarksObtained: number
+    totalMarksPossible: number
+    subjectScores: Record<string, { ca: number; exam: number; total: number }>
+  }
 }
 
 function isValidAssignmentStatus(status: string): status is 'pending' | 'completed' | 'submitted' {
@@ -156,11 +164,22 @@ function convertToAssignment(raw: RawAssignment): Assignment {
   const status = raw.status || 'pending'
   return {
     ...raw,
-    status: isValidAssignmentStatus(status) ? status : 'pending'
+    status: isValidAssignmentStatus(status) ? status : 'pending',
   }
 }
 
 const LOADING_TIMEOUT_MS = 10000
+
+const TOTAL_SUBJECTS = 22
+
+const PRIMARY_SUBJECTS = [
+  'English', 'Mathematics', 'Basic Science', 'Social Studies', 'Phonics',
+  'Yoruba', 'Civic Education', 'Creative Arts', 'Agriculture',
+  'Computer Education', 'Christian Religious Studies', 'French',
+  'Quantitative Reasoning', 'Verbal Reasoning', 'Music', 'Handwriting',
+  'Literature', 'Vocational Aptitude', 'History', 'Security Education',
+  'Home Economics', 'Physical and Health Education',
+]
 
 const DEFAULT_STATS: DashboardStats = {
   assignments: [],
@@ -177,75 +196,144 @@ const DEFAULT_STATS: DashboardStats = {
 }
 
 // ── Tab Configuration ──────────────────────────────────────────────────────────
-const TABS = [
-  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
-  { id: 'assignments', label: 'Assignments', icon: BookOpen },
-  { id: 'notes', label: 'Notes', icon: NotebookPen },
-  { id: 'report-cards', label: 'Report Cards', icon: Award },
-  { id: 'classmates', label: 'Classmates', icon: Users },
-]
+type TabId = 'overview' | 'assignments' | 'notes' | 'report-cards' | 'classmates'
 
-// ── Tab Navigation ────────────────────────────────────────────────────────────
-function TabNavigation({ 
-  activeTab, 
+interface TabConfig {
+  id: TabId
+  label: string
+  shortLabel: string
+  icon: React.ElementType
+  count?: number
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Tab Navigation
+// ═══════════════════════════════════════════════════════════════════════════════
+function TabNavigation({
+  activeTab,
   onTabChange,
   viewMode,
-  onViewModeChange 
-}: { 
-  activeTab: string
-  onTabChange: (tab: string) => void
+  onViewModeChange,
+  counts,
+}: {
+  activeTab: TabId
+  onTabChange: (tab: TabId) => void
   viewMode: 'grid' | 'list'
   onViewModeChange: (mode: 'grid' | 'list') => void
+  counts: Record<TabId, number | undefined>
 }) {
+  const tabs: TabConfig[] = [
+    { id: 'overview', label: 'Overview', shortLabel: 'Home', icon: LayoutDashboard },
+    { id: 'assignments', label: 'Assignments', shortLabel: 'Tasks', icon: BookOpen, count: counts.assignments },
+    { id: 'notes', label: 'Notes', shortLabel: 'Notes', icon: NotebookPen, count: counts.notes },
+    { id: 'report-cards', label: 'Reports', shortLabel: 'Reports', icon: Award, count: counts['report-cards'] },
+    { id: 'classmates', label: 'Classmates', shortLabel: 'Class', icon: Users, count: counts.classmates },
+  ]
+
   const showViewToggle = ['assignments', 'notes', 'report-cards', 'classmates'].includes(activeTab)
 
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!scrollRef.current) return
+    const activeEl = scrollRef.current.querySelector<HTMLButtonElement>(`[data-tab-id="${activeTab}"]`)
+    activeEl?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }, [activeTab])
+
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-      <div className="flex flex-wrap gap-2">
-        {TABS.map(({ id, label, icon: Icon }) => (
-          <motion.button
-            key={id}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => onTabChange(id)}
-            className={cn(
-              "flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium transition-all text-sm relative",
-              activeTab === id 
-                ? "bg-emerald-600 text-white shadow-lg shadow-emerald-600/20" 
-                : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
-            )}
-          >
-            <Icon className={cn(
-              "w-4 h-4",
-              activeTab === id ? "text-white" : "text-emerald-600"
-            )} />
-            <span>{label}</span>
-          </motion.button>
-        ))}
+    <div className="flex items-center gap-2 sm:gap-3">
+      <div
+        ref={scrollRef}
+        className="flex-1 min-w-0 relative bg-white rounded-2xl border border-slate-200/70 shadow-sm p-1 overflow-x-auto scrollbar-none"
+      >
+        <div className="flex items-center gap-0.5 min-w-max relative">
+          {tabs.map(({ id, label, shortLabel, icon: Icon, count }) => {
+            const isActive = activeTab === id
+            return (
+              <button
+                key={id}
+                data-tab-id={id}
+                type="button"
+                onClick={() => onTabChange(id)}
+                className={cn(
+                  'relative flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 h-9 sm:h-10 rounded-xl transition-colors z-10 shrink-0 whitespace-nowrap',
+                  isActive
+                    ? 'text-white'
+                    : 'text-slate-500 hover:text-slate-800'
+                )}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="active-tab-pill"
+                    className="absolute inset-0 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-md shadow-emerald-500/30"
+                    transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                  />
+                )}
+
+                <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4 relative z-10 shrink-0" />
+                <span className="relative z-10 text-xs sm:text-sm font-semibold">
+                  <span className="sm:hidden">{shortLabel}</span>
+                  <span className="hidden sm:inline">{label}</span>
+                </span>
+
+                {typeof count === 'number' && count > 0 && (
+                  <span
+                    className={cn(
+                      'relative z-10 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold flex items-center justify-center transition-colors',
+                      isActive
+                        ? 'bg-white/25 text-white'
+                        : 'bg-slate-100 text-slate-500'
+                    )}
+                  >
+                    {count > 99 ? '99+' : count}
+                  </span>
+                )}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      {showViewToggle && (
-        <div className="flex items-center gap-1 bg-white rounded-xl border border-slate-200 p-1">
-          <button
-            onClick={() => onViewModeChange('grid')}
-            className={cn(
-              "p-2 rounded-lg transition-all",
-              viewMode === 'grid' ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-600"
-            )}
+      <AnimatePresence>
+        {showViewToggle && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, width: 0 }}
+            animate={{ opacity: 1, scale: 1, width: 'auto' }}
+            exit={{ opacity: 0, scale: 0.9, width: 0 }}
+            transition={{ duration: 0.2 }}
+            className="hidden sm:flex bg-white rounded-2xl border border-slate-200/70 shadow-sm p-1 shrink-0"
           >
-            <Grid3x3 className="w-4 h-4" />
-          </button>
-          <button
-            onClick={() => onViewModeChange('list')}
-            className={cn(
-              "p-2 rounded-lg transition-all",
-              viewMode === 'list' ? "bg-emerald-600 text-white" : "text-slate-400 hover:text-slate-600"
-            )}
-          >
-            <List className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+            {(['grid', 'list'] as const).map((mode) => {
+              const isActive = viewMode === mode
+              const Icon = mode === 'grid' ? Grid3x3 : List
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => onViewModeChange(mode)}
+                  className={cn(
+                    'relative w-9 h-9 rounded-xl flex items-center justify-center transition-colors z-10'
+                  )}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-view-pill"
+                      className="absolute inset-0 rounded-xl bg-slate-800 shadow-sm"
+                      transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+                    />
+                  )}
+                  <Icon
+                    className={cn(
+                      'w-4 h-4 relative z-10 transition-colors',
+                      isActive ? 'text-white' : 'text-slate-400'
+                    )}
+                  />
+                </button>
+              )
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
@@ -257,15 +345,20 @@ function LoadingTimeoutError({ onRetry }: { onRetry: () => void }) {
       <motion.div
         initial={{ scale: 0 }}
         animate={{ scale: 1 }}
-        transition={{ type: "spring", duration: 0.6 }}
+        transition={{ type: 'spring', duration: 0.6 }}
       >
         <div className="w-24 h-24 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
           <AlertTriangle className="w-12 h-12 text-amber-500" />
         </div>
       </motion.div>
       <h3 className="text-2xl font-bold text-slate-700 mb-2">Taking too long</h3>
-      <p className="text-slate-500 text-center mb-6">We're having trouble loading your dashboard. Please try again.</p>
-      <Button onClick={onRetry} className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl">
+      <p className="text-slate-500 text-center mb-6">
+        We&apos;re having trouble loading your dashboard. Please try again.
+      </p>
+      <Button
+        onClick={onRetry}
+        className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-3 rounded-xl"
+      >
         <RefreshCw className="w-4 h-4 mr-2" />
         Try Again
       </Button>
@@ -277,19 +370,19 @@ function LoadingTimeoutError({ onRetry }: { onRetry: () => void }) {
 export default function PupilDashboardPage() {
   const router = useRouter()
   const { user: contextUser, loading: authLoading, isAuthenticated, logout } = useUser()
-  
-  const [activeSection, setActiveSection] = useState('overview')
+
+  const [activeSection, setActiveSection] = useState<TabId>('overview')
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  
+
   const [profile, setProfile] = useState<PupilProfile | null>(null)
   const [profileLoading, setProfileLoading] = useState(true)
-  
+
   const [currentTerm, setCurrentTerm] = useState('')
   const [currentSession, setCurrentSession] = useState('')
   const [isLoadingTerm, setIsLoadingTerm] = useState(true)
-  
+
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null)
-  
+
   const [loading, setLoading] = useState(true)
   const [loadingTimeout, setLoadingTimeout] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -325,19 +418,28 @@ export default function PupilDashboardPage() {
   // ─── Fetch Profile ──────────────────────────────────────────────────────────
   useEffect(() => {
     if (profileFetchedRef.current || !contextUser?.id) return
-    
+
     const fetchProfile = async () => {
       try {
         setProfileLoading(true)
-        
+
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', contextUser.id)
           .single() as any
 
+        // ✅ FIX: Handle error properly
         if (error) {
-          console.error('❌ Error fetching profile:', error)
+          // Check if error is "no rows returned" (PGRST116)
+          if (error.code === 'PGRST116') {
+            console.log('ℹ️ [Dashboard] No profile found for user, using user data...')
+            setProfile(null)
+          } else {
+            console.error('❌ [Dashboard] Error fetching profile:', error.message || error)
+            setProfile(null)
+          }
+          setProfileLoading(false)
           return
         }
 
@@ -364,7 +466,8 @@ export default function PupilDashboardPage() {
           profileFetchedRef.current = true
         }
       } catch (error) {
-        console.error('Error:', error)
+        console.error('❌ [Dashboard] Error:', error)
+        setProfile(null)
       } finally {
         setProfileLoading(false)
       }
@@ -379,8 +482,9 @@ export default function PupilDashboardPage() {
       router.replace('/portal')
       return
     }
-    
-    if (!authLoading && contextUser?.role?.toLowerCase() !== 'student') {
+
+    // ✅ FIX: Accept both 'student' and 'pupil' roles
+    if (!authLoading && contextUser?.role?.toLowerCase() !== 'student' && contextUser?.role?.toLowerCase() !== 'pupil') {
       router.replace('/portal')
     }
   }, [authLoading, isAuthenticated, contextUser, router])
@@ -394,29 +498,43 @@ export default function PupilDashboardPage() {
     const fetchData = async () => {
       dataFetchedRef.current = true
       setRefreshing(true)
-      
+
       loadingTimeoutRef.current = setTimeout(() => {
         if (loading) setLoadingTimeout(true)
       }, LOADING_TIMEOUT_MS)
-      
+
       try {
         const userId = contextUser.id
 
+        // ─── Fetch Classmates ──────────────────────────────────────────────
         let classmates: Classmate[] = []
         try {
-          const { data, error } = await supabase
+          const { data: userProfile } = await supabase
             .from('profiles')
-            .select('id, full_name, email, photo_url, class, first_name, last_name, display_name, vin_id')
-            .eq('role', 'student')
-            .neq('id', userId) as any
+            .select('class')
+            .eq('id', userId)
+            .single()
 
-          if (!error && data) {
-            classmates = data as Classmate[]
+          const userClass = userProfile?.class || ''
+
+          if (userClass) {
+            const { data, error } = await supabase
+              .from('profiles')
+              .select('id, full_name, email, photo_url, class, first_name, last_name, display_name, vin_id, gender')
+              .ilike('class', userClass)
+              .in('role', ['student', 'pupil'])
+              .neq('id', userId)
+              .order('full_name', { ascending: true })
+
+            if (!error && data) {
+              classmates = data as Classmate[]
+            }
           }
-        } catch {
-          console.log('ℹ️ Error fetching classmates')
+        } catch (error) {
+          console.log('ℹ️ Error fetching classmates:', error)
         }
 
+        // ─── Fetch Assignments ─────────────────────────────────────────────
         let assignments: Assignment[] = []
         try {
           const { data, error } = await supabase
@@ -432,6 +550,7 @@ export default function PupilDashboardPage() {
           console.log('ℹ️ Assignments table not found, using empty data')
         }
 
+        // ─── Fetch Notes ───────────────────────────────────────────────────
         let notes: Note[] = []
         try {
           const { data, error } = await supabase
@@ -446,6 +565,7 @@ export default function PupilDashboardPage() {
           console.log('ℹ️ Notes table not found, using empty data')
         }
 
+        // ─── Fetch Report Cards ────────────────────────────────────────────
         let reportCards: ReportCard[] = []
         try {
           const { data, error } = await supabase
@@ -461,6 +581,7 @@ export default function PupilDashboardPage() {
           console.log('ℹ️ Report cards table not found, using empty data')
         }
 
+        // ─── Fetch Term Progress ──────────────────────────────────────────
         let progressData: Record<string, unknown> | null = null
         try {
           const { data, error } = await supabase
@@ -476,8 +597,83 @@ export default function PupilDashboardPage() {
           console.log('ℹ️ Term progress table not found')
         }
 
+        // ─── ✅ Fetch Subject Scores from primary_scores ──────────────────
+        let subjectStats = {
+          completedSubjects: 0,
+          totalSubjects: TOTAL_SUBJECTS,
+          averagePercentage: 0,
+          totalMarksObtained: 0,
+          totalMarksPossible: TOTAL_SUBJECTS * 100,
+          subjectScores: {} as Record<string, { ca: number; exam: number; total: number }>
+        }
+
+        try {
+          console.log('📊 [Dashboard] Fetching subject scores for pupil:', userId)
+          
+          const { data: scores, error: scoresError } = await supabase
+            .from('primary_scores')
+            .select('subject, ca_score, exam_score, total_score')
+            .eq('student_id', userId)
+            .eq('term', currentTerm)
+            .eq('academic_year', currentSession)
+
+          if (!scoresError && scores) {
+            console.log('✅ [Dashboard] Found scores:', scores.length)
+            
+            const subjectMap: Record<string, { ca: number; exam: number; total: number }> = {}
+            PRIMARY_SUBJECTS.forEach(sub => {
+              subjectMap[sub] = { ca: 0, exam: 0, total: 0 }
+            })
+            
+            scores.forEach((score: any) => {
+              const subject = score.subject
+              if (subjectMap[subject]) {
+                subjectMap[subject].ca = score.ca_score || 0
+                subjectMap[subject].exam = score.exam_score || 0
+                subjectMap[subject].total = score.total_score || 0
+              } else {
+                const match = PRIMARY_SUBJECTS.find(s => s.toLowerCase() === subject.toLowerCase())
+                if (match && subjectMap[match]) {
+                  subjectMap[match].ca = score.ca_score || 0
+                  subjectMap[match].exam = score.exam_score || 0
+                  subjectMap[match].total = score.total_score || 0
+                }
+              }
+            })
+            
+            let completed = 0
+            let totalMarks = 0
+            
+            Object.values(subjectMap).forEach(({ ca, exam, total }) => {
+              if (ca > 0 && exam > 0) {
+                completed++
+                totalMarks += total
+              }
+            })
+            
+            const avgPercentage = completed > 0 ? Math.round((totalMarks / completed) * 100) / 100 : 0
+            
+            subjectStats = {
+              completedSubjects: completed,
+              totalSubjects: TOTAL_SUBJECTS,
+              averagePercentage: avgPercentage,
+              totalMarksObtained: totalMarks,
+              totalMarksPossible: TOTAL_SUBJECTS * 100,
+              subjectScores: subjectMap
+            }
+            
+            console.log('📊 [Dashboard] Subject stats:', subjectStats)
+          } else {
+            console.log('ℹ️ No scores found or error fetching:', scoresError)
+          }
+        } catch (error) {
+          console.error('Error fetching subject scores:', error)
+        }
+
         const pendingAssignments = assignments.filter((a: Assignment) => a.status === 'pending').length
-        const completedAssignments = assignments.filter((a: Assignment) => a.status === 'completed' || a.status === 'submitted').length
+        const completedAssignments = assignments.filter(
+          (a: Assignment) => a.status === 'completed' || a.status === 'submitted'
+        ).length
 
         const newData: DashboardData = {
           stats: {
@@ -495,11 +691,12 @@ export default function PupilDashboardPage() {
           },
           termProgress: progressData,
           reportCardStatus: reportCards.length > 0 ? 'available' : 'pending',
+          subjectStats: subjectStats,
         }
-        
+
         setDashboardData(newData)
         setLoading(false)
-        
+
         localStorage.setItem('pupil_dashboard_cache', JSON.stringify(newData))
       } catch (error) {
         console.error('Error fetching dashboard:', error)
@@ -516,7 +713,7 @@ export default function PupilDashboardPage() {
     return () => {
       if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current)
     }
-  }, [contextUser?.id, authLoading, isAuthenticated, loading, profile, profileLoading, isLoadingTerm])
+  }, [contextUser?.id, authLoading, isAuthenticated, loading, profile, profileLoading, isLoadingTerm, currentTerm, currentSession])
 
   // ─── Handle Logout ──────────────────────────────────────────────────────────
   const handleLogout = useCallback(async () => {
@@ -526,6 +723,14 @@ export default function PupilDashboardPage() {
 
   const stats = dashboardData?.stats || DEFAULT_STATS
   const termProgress = dashboardData?.termProgress
+  const subjectStats = dashboardData?.subjectStats || {
+    completedSubjects: 0,
+    totalSubjects: TOTAL_SUBJECTS,
+    averagePercentage: 0,
+    totalMarksObtained: 0,
+    totalMarksPossible: TOTAL_SUBJECTS * 100,
+    subjectScores: {}
+  }
 
   const handleRetry = () => {
     dataFetchedRef.current = false
@@ -535,27 +740,39 @@ export default function PupilDashboardPage() {
 
   const handleBackgroundRefresh = useCallback(async () => {
     if (!isAuthenticated || !contextUser?.id || refreshing) return
-    
-    setRefreshing(true)
-    
-    try {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, photo_url, class, first_name, last_name, display_name, vin_id')
-        .eq('role', 'student')
-        .neq('id', contextUser.id) as any
 
-      if (data) {
-        setDashboardData(prev => {
-          if (!prev) return prev
-          return {
-            ...prev,
-            stats: {
-              ...prev.stats,
-              classmates: data as Classmate[],
+    setRefreshing(true)
+
+    try {
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('class')
+        .eq('id', contextUser.id)
+        .single()
+
+      const userClass = userProfile?.class || ''
+
+      if (userClass) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, photo_url, class, first_name, last_name, display_name, vin_id, gender')
+          .ilike('class', userClass)
+          .in('role', ['student', 'pupil'])
+          .neq('id', contextUser.id)
+          .order('full_name', { ascending: true }) as any
+
+        if (data) {
+          setDashboardData((prev) => {
+            if (!prev) return prev
+            return {
+              ...prev,
+              stats: {
+                ...prev.stats,
+                classmates: data as Classmate[],
+              },
             }
-          }
-        })
+          })
+        }
       }
     } catch (error) {
       console.error('Background refresh failed:', error)
@@ -566,11 +783,11 @@ export default function PupilDashboardPage() {
 
   useEffect(() => {
     if (!isAuthenticated || !contextUser) return
-    
+
     const interval = setInterval(() => {
       handleBackgroundRefresh()
     }, 60000)
-    
+
     return () => clearInterval(interval)
   }, [isAuthenticated, contextUser, handleBackgroundRefresh])
 
@@ -587,15 +804,29 @@ export default function PupilDashboardPage() {
       pendingAssignments,
       totalNotes,
       totalClassmates,
-      completionRate: totalAssignments > 0 ? Math.round((completedAssignments / totalAssignments) * 100) : 0
+      completionRate:
+        totalAssignments > 0 ? Math.round((completedAssignments / totalAssignments) * 100) : 0,
     }
-  }, [stats.totalAssignments, stats.completedAssignments, stats.pendingAssignments, stats.totalNotes, stats.classmates])
+  }, [
+    stats.totalAssignments,
+    stats.completedAssignments,
+    stats.pendingAssignments,
+    stats.totalNotes,
+    stats.classmates,
+  ])
+
+  // ─── Tab counts ─────────────────────────────────────────────────────────────
+  const tabCounts = useMemo<Record<TabId, number | undefined>>(() => ({
+    overview: undefined,
+    assignments: stats.totalAssignments || undefined,
+    notes: stats.totalNotes || undefined,
+    'report-cards': stats.reportCards?.length || undefined,
+    classmates: stats.classmates?.length || undefined,
+  }), [stats])
 
   // ─── Loading States ──────────────────────────────────────────────────────────
-  const showLoadingSpinner = (loading && !dashboardData && !loadingTimeout) || 
-                             authLoading || 
-                             isLoadingTerm || 
-                             profileLoading
+  const showLoadingSpinner =
+    (loading && !dashboardData && !loadingTimeout) || authLoading || isLoadingTerm || profileLoading
 
   if (showLoadingSpinner) {
     return <PupilLoadingState profile={contextUser} onLogout={handleLogout} />
@@ -605,7 +836,9 @@ export default function PupilDashboardPage() {
     return <LoadingTimeoutError onRetry={handleRetry} />
   }
 
-  if (!contextUser || contextUser.role !== 'student') {
+  // ✅ FIXED: Accept both 'student' and 'pupil' roles
+  if (!contextUser || (contextUser.role !== 'student' && contextUser.role !== 'pupil')) {
+    console.log('🚫 [Dashboard] User not valid, returning null')
     return null
   }
 
@@ -630,9 +863,8 @@ export default function PupilDashboardPage() {
 
   const reportCardStatus = dashboardData?.reportCardStatus || 'pending'
 
-  // ─── Handle Tab Change from Banner ──────────────────────────────────────────
   const handleTabChange = (tab: string) => {
-    setActiveSection(tab)
+    setActiveSection(tab as TabId)
   }
 
   // ─── Render Tab Content ──────────────────────────────────────────────────────
@@ -640,7 +872,7 @@ export default function PupilDashboardPage() {
     switch (activeSection) {
       case 'overview':
         return (
-          <OverviewTab 
+          <OverviewTab
             profile={profileForTab}
             stats={stats}
             bannerStats={{
@@ -655,27 +887,17 @@ export default function PupilDashboardPage() {
             termProgress={termProgress || null}
             currentTerm={currentTerm}
             currentSession={currentSession}
-            handleTabChange={(tab: string) => setActiveSection(tab)}
+            handleTabChange={(tab: string) => setActiveSection(tab as TabId)}
             router={router}
           />
         )
       case 'assignments':
-        return (
-          <AssignmentsTab 
-            assignments={stats.assignments}
-            profile={profile}
-          />
-        )
+        return <AssignmentsTab assignments={stats.assignments} profile={profile} />
       case 'notes':
-        return (
-          <NotesTab 
-            notes={stats.notes}
-            profile={profile}
-          />
-        )
+        return <NotesTab notes={stats.notes} profile={profile} />
       case 'report-cards':
         return (
-          <ReportCardTab 
+          <ReportCardTab
             reportCards={stats.reportCards}
             profile={profile}
             currentTerm={currentTerm}
@@ -683,41 +905,45 @@ export default function PupilDashboardPage() {
           />
         )
       case 'classmates':
-        return (
-          <ClassmatesTab 
-            classmates={stats.classmates}
-            profile={profile}
-          />
-        )
+        return <ClassmatesTab classmates={stats.classmates} profile={profile} />
       default:
         return null
     }
   }
 
   return (
-    <div className="space-y-6 pb-8">
+    <div className="space-y-4 sm:space-y-6 pb-8">
       {/* Refresh Indicator */}
-      {refreshing && (
-        <div className="fixed bottom-4 right-4 z-50 bg-white rounded-full shadow-lg px-4 py-2 flex items-center gap-2 text-sm text-slate-600 border border-slate-200">
-          <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
-          <span>Updating...</span>
-        </div>
-      )}
+      <AnimatePresence>
+        {refreshing && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.9 }}
+            className="fixed bottom-4 right-4 z-50 bg-white/95 backdrop-blur-md rounded-full shadow-xl px-4 py-2.5 flex items-center gap-2 text-sm text-slate-600 border border-slate-200/60"
+          >
+            <Loader2 className="w-4 h-4 animate-spin text-emerald-600" />
+            <span className="font-semibold">Updating...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Banner */}
+      {/* ✅ Banner - Now passing marksObtained */}
       <PupilBanner
         fullName={profileForTab.full_name || 'Pupil'}
+        pupilId={profileForTab.id}
         class={profileForTab.class}
         classArm={profileForTab.class_arm}
         currentTerm={currentTerm}
         currentSession={currentSession}
         photoUrl={profileForTab.photo_url}
         academicStats={{
-          termProgress: `${dashboardMetrics.completedAssignments}/${dashboardMetrics.totalAssignments}`,
-          completedSubjects: dashboardMetrics.completedAssignments,
-          totalSubjects: dashboardMetrics.totalAssignments || 1,
-          averagePercentage: dashboardMetrics.completionRate,
-          pendingTheoryCount: dashboardMetrics.pendingAssignments,
+          termProgress: `${subjectStats.completedSubjects}/${subjectStats.totalSubjects}`,
+          completedSubjects: subjectStats.completedSubjects,
+          totalSubjects: subjectStats.totalSubjects,
+          averagePercentage: subjectStats.averagePercentage,
+          marksObtained: subjectStats.totalMarksObtained, // ✅ ADD THIS
+          pendingTheoryCount: 0,
         }}
         onTabChange={handleTabChange}
         onRefresh={handleRetry}
@@ -729,17 +955,17 @@ export default function PupilDashboardPage() {
         onTabChange={setActiveSection}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
+        counts={tabCounts}
       />
 
       {/* Tab Content */}
       <AnimatePresence mode="wait">
         <motion.div
           key={activeSection}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-          className="mt-6"
+          exit={{ opacity: 0, y: -12 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
         >
           {renderTabContent()}
         </motion.div>

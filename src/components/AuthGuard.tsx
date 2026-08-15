@@ -18,11 +18,18 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   useEffect(() => {
     if (!loading) {
       if (!isAuthenticated || !user) {
-        router.push('/portal')
+        // ✅ Redirect to portal if not authenticated
+        router.replace('/portal')
       } else if (allowedRoles && allowedRoles.length > 0) {
         const userRole = user.role || 'student'
-        if (!allowedRoles.includes(userRole)) {
-          router.push('/dashboard')
+        // ✅ Normalize 'pupil' to 'student' for role checks
+        const normalizedRole = userRole === 'pupil' ? 'student' : userRole
+        if (!allowedRoles.includes(normalizedRole) && !allowedRoles.includes(userRole)) {
+          // Redirect to the correct dashboard based on role
+          const dashboardPath = userRole === 'admin' ? '/admin' 
+            : userRole === 'teacher' ? '/staff' 
+            : '/pupil'
+          router.replace(dashboardPath)
         }
       }
     }
@@ -44,18 +51,15 @@ export function AuthGuard({ children, allowedRoles }: AuthGuardProps) {
   // Check role-based access
   if (allowedRoles && allowedRoles.length > 0) {
     const userRole = user.role || 'student'
-    if (!allowedRoles.includes(userRole)) {
-      return (
-        <div className="min-h-screen flex items-center justify-center bg-[#F9F7F4]">
-          <div className="max-w-md p-8 text-center bg-white rounded-2xl shadow-soft">
-            <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-4">
-              <Loader2 className="h-8 w-8 text-red-400" />
-            </div>
-            <h2 className="text-2xl font-display text-[#0A2472] mb-2">Access Denied</h2>
-            <p className="text-slate-500">You don&apos;t have permission to view this page.</p>
-          </div>
-        </div>
-      )
+    // ✅ Normalize 'pupil' to 'student' for role checks
+    const normalizedRole = userRole === 'pupil' ? 'student' : userRole
+    if (!allowedRoles.includes(normalizedRole) && !allowedRoles.includes(userRole)) {
+      // Redirect to the correct dashboard based on role
+      const dashboardPath = userRole === 'admin' ? '/admin' 
+        : userRole === 'teacher' ? '/staff' 
+        : '/pupil'
+      router.replace(dashboardPath)
+      return null
     }
   }
 

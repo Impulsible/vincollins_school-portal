@@ -47,7 +47,7 @@ const extractFirstName = (fullName: string): string => {
 }
 
 export function useHeaderData() {
-  const { user: contextUser, loading: authLoading } = useUser()
+  const { user: contextUser, loading: authLoading, refreshUser } = useUser()
   
   const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
@@ -89,18 +89,31 @@ export function useHeaderData() {
       else if (contextRole === 'staff' || contextRole === 'teacher') role = 'teacher'
       else if (contextRole === 'pupil' || contextRole === 'student') role = 'pupil'
 
+      // ✅ Get avatar URL from multiple possible sources
+      const avatarUrl = contextUser.photo_url || 
+                        contextUser.avatar_url || 
+                        (contextUser as any).avatar || 
+                        undefined
+      
+      console.log('🔍 [useHeaderData] avatarUrl:', avatarUrl)
+      console.log('🔍 [useHeaderData] contextUser.photo_url:', contextUser.photo_url)
+      console.log('🔍 [useHeaderData] contextUser.avatar_url:', contextUser.avatar_url)
+
       const headerUser: HeaderUser = {
         id: contextUser.id,
         name: displayName,
         firstName: firstName,
         email: contextUser.email || '',
         role,
-        avatar: contextUser.avatar_url || contextUser.photo_url || undefined,
+        avatar: avatarUrl,
+        photo_url: avatarUrl, // ✅ Add photo_url as an alias
         isAuthenticated: true
       }
       
       console.log('✅ [useHeaderData] Built headerUser:', headerUser)
       console.log('✅ [useHeaderData] headerUser.firstName:', headerUser.firstName)
+      console.log('✅ [useHeaderData] headerUser.avatar:', headerUser.avatar)
+      console.log('✅ [useHeaderData] headerUser.photo_url:', headerUser.photo_url)
       
       return headerUser
     }
@@ -110,6 +123,12 @@ export function useHeaderData() {
 
   // Update ref when user changes
   useEffect(() => {
+    userRef.current = user
+  }, [user])
+
+  // ─── Listen for user context changes ──────────────────────────────────────
+  useEffect(() => {
+    // When contextUser changes, update the ref
     userRef.current = user
   }, [user])
 
@@ -184,7 +203,6 @@ export function useHeaderData() {
     if (!currentUser?.id) return
     
     try {
-      // ✅ Fetch ALL notifications without filtering by read/is_read
       const { data, error } = await supabase
         .from('notifications')
         .select('*')
@@ -200,10 +218,8 @@ export function useHeaderData() {
       }
       
       if (data && data.length > 0) {
-        // ✅ Filter in JavaScript to avoid column name issues
         const notificationsWithRead = data.map((n: any) => ({
           ...n,
-          // ✅ Handle both 'read' and 'is_read' column names
           is_read: n.is_read !== undefined ? n.is_read : n.read || false
         }))
         
@@ -234,20 +250,17 @@ export function useHeaderData() {
     setUnreadCount(prev => Math.max(0, prev - 1))
     
     try {
-      // ✅ Try both column names
       await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('id', id)
     } catch {
-      // Fallback: try with 'read' column
       try {
         await supabase
           .from('notifications')
           .update({ read: true })
           .eq('id', id)
       } catch {
-        // If both fail, revert the state
         setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: false } : n))
         setUnreadCount(prev => prev + 1)
       }
@@ -265,14 +278,12 @@ export function useHeaderData() {
     setUnreadCount(0)
     
     try {
-      // ✅ Try with is_read first
       await supabase
         .from('notifications')
         .update({ is_read: true })
         .eq('user_id', currentUser.id)
         .eq('is_read', false)
     } catch {
-      // Fallback: try with 'read' column
       try {
         await supabase
           .from('notifications')
@@ -280,7 +291,6 @@ export function useHeaderData() {
           .eq('user_id', currentUser.id)
           .eq('read', false)
       } catch {
-        // If both fail, revert the state
         setNotifications(previousNotifications)
         setUnreadCount(previousUnreadCount)
       }
@@ -319,6 +329,7 @@ export function useHeaderData() {
     markAllAsRead, 
     deleteNotification,
     isLoading,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    refreshUser // ✅ Expose refreshUser to force update
   }
 }

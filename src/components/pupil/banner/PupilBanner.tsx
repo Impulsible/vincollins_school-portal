@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unused-vars */
@@ -27,6 +28,7 @@ import {
   Zap,
   Trophy,
   Target,
+  AlertCircle,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
@@ -39,6 +41,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
+import { supabase } from '@/lib/supabase/client'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface PupilBannerProps {
@@ -48,64 +51,42 @@ interface PupilBannerProps {
   classArm?: string
   currentTerm: string
   currentSession: string
+  pupilId?: string
   photoUrl?: string
+  onTabChange?: (tab: string) => void
+  onRefresh?: () => void
   academicStats?: {
     termProgress: string
     completedSubjects: number
     totalSubjects: number
     averagePercentage: number
-    marksObtained?: number
-    totalMarks?: number
-    pendingTheoryCount?: number
+    marksObtained?: number // ✅ Make it optional with fallback
+    pendingTheoryCount: number
   }
-  onTabChange?: (tab: string) => void
-  onRefresh?: () => void
+}
+
+interface AcademicStats {
+  termProgress: string
+  completedSubjects: number
+  totalSubjects: number
+  averagePercentage: number
+  marksObtained: number
+  totalMarks: number
+  pendingTheoryCount: number
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 const TOTAL_SUBJECTS = 22
-const TOTAL_MARKS_PER_SUBJECT = 100
-const TOTAL_POSSIBLE_MARKS = TOTAL_SUBJECTS * TOTAL_MARKS_PER_SUBJECT
+const MINIMUM_SUBJECTS = 20
 
-// ── Expanded Quotes Collection ──────────────────────────────────────────────
-const QUOTES = {
-  morning: [
-    { text: "Every morning is a new chance to shine, {name}! 🌟", author: "School Motto" },
-    { text: "Today is a great day to learn something amazing, {name}!", author: "Your Teacher" },
-    { text: "You are smart, kind, and capable, {name}. Believe it!", author: "Vincollins" },
-    { text: "Learning is a superpower, {name}. Use it every day!", author: "School Motto" },
-    { text: "Rise and shine, {name}! The world is waiting for your brilliance!", author: "Vincollins" },
-    { text: "Every expert was once a beginner, {name}. Keep going!", author: "Your Teacher" },
-    { text: "Your potential is limitless, {name}. Today is your day!", author: "School Motto" },
-    { text: "Dream big, {name}! You're capable of amazing things.", author: "Vincollins" },
-    { text: "The best way to predict your future is to create it, {name}!", author: "Your Teacher" },
-    { text: "Be a rainbow in someone else's cloud, {name}. ☀️", author: "School Motto" },
-  ],
-  afternoon: [
-    { text: "You're doing amazing, {name}! Keep going strong!", author: "Your Teacher" },
-    { text: "Every page you read makes you smarter, {name}!", author: "Vincollins" },
-    { text: "Hard work + fun = success! You've got this, {name}!", author: "School Motto" },
-    { text: "Keep trying, {name}! The best is yet to come.", author: "Your Teacher" },
-    { text: "You're a star, {name}! Never forget how bright you shine!", author: "Vincollins" },
-    { text: "Progress, not perfection, {name}. You're growing every day!", author: "School Motto" },
-    { text: "You're stronger than you think, {name}. Keep pushing!", author: "Your Teacher" },
-    { text: "The future belongs to those who believe in themselves, {name}!", author: "Vincollins" },
-    { text: "Your effort today is building tomorrow's success, {name}. 💪", author: "School Motto" },
-    { text: "Stay curious, {name}! The world is full of wonders to discover!", author: "Your Teacher" },
-  ],
-  evening: [
-    { text: "You did great today, {name}! Rest and dream big!", author: "Your Teacher" },
-    { text: "Every day you learn is a day you grow, {name}. Well done!", author: "Vincollins" },
-    { text: "Sleep well, {name}. Tomorrow brings new adventures!", author: "School Motto" },
-    { text: "You are a star, {name}! Shine bright always.", author: "Your Teacher" },
-    { text: "Today was a good day, {name}! Tomorrow will be even better!", author: "Vincollins" },
-    { text: "Rest your mind, {name}. You've earned it. Tomorrow is a new beginning!", author: "School Motto" },
-    { text: "The best part of learning is that it never ends, {name}. Good night!", author: "Your Teacher" },
-    { text: "You're one day closer to your dreams, {name}. Keep believing!", author: "Vincollins" },
-    { text: "End each day with a grateful heart, {name}. You're doing wonderfully!", author: "School Motto" },
-    { text: "Sleep tight, {name}! Tomorrow you'll wake up even stronger!", author: "Your Teacher" },
-  ],
-}
+const PRIMARY_SUBJECTS = [
+  'English', 'Mathematics', 'Basic Science', 'Social Studies', 'Phonics',
+  'Yoruba', 'Civic Education', 'Creative Arts', 'Agriculture',
+  'Computer Education', 'Christian Religious Studies', 'French',
+  'Quantitative Reasoning', 'Verbal Reasoning', 'Music', 'Handwriting',
+  'Literature', 'Vocational Aptitude', 'History', 'Security Education',
+  'Home Economics', 'Physical and Health Education',
+]
 
 // ── Helper Functions ──────────────────────────────────────────────────────────
 const getFirstName = (fullName: string): string => {
@@ -127,6 +108,27 @@ const getFirstName = (fullName: string): string => {
 }
 
 const getPersonalizedQuote = (hour: number, firstName: string) => {
+  const QUOTES = {
+    morning: [
+      { text: "Every morning is a new chance to shine, {name}! 🌟", author: "School Motto" },
+      { text: "Today is a great day to learn something amazing, {name}!", author: "Your Teacher" },
+      { text: "You are smart, kind, and capable, {name}. Believe it!", author: "Vincollins" },
+      { text: "Rise and shine, {name}! The world is waiting for your brilliance!", author: "Vincollins" },
+    ],
+    afternoon: [
+      { text: "You're doing amazing, {name}! Keep going strong!", author: "Your Teacher" },
+      { text: "Hard work + fun = success! You've got this, {name}!", author: "School Motto" },
+      { text: "You're a star, {name}! Never forget how bright you shine!", author: "Vincollins" },
+      { text: "Stay curious, {name}! The world is full of wonders to discover!", author: "Your Teacher" },
+    ],
+    evening: [
+      { text: "You did great today, {name}! Rest and dream big!", author: "Your Teacher" },
+      { text: "Sleep well, {name}. Tomorrow brings new adventures!", author: "School Motto" },
+      { text: "The best part of learning is that it never ends, {name}. Good night!", author: "Your Teacher" },
+      { text: "Sleep tight, {name}! Tomorrow you'll wake up even stronger!", author: "Your Teacher" },
+    ],
+  }
+
   let quoteSet = QUOTES.morning
   if (hour >= 12 && hour < 17) quoteSet = QUOTES.afternoon
   if (hour >= 17) quoteSet = QUOTES.evening
@@ -202,7 +204,6 @@ const BgShapes = () => {
 }
 
 // ── Confetti ──────────────────────────────────────────────────────────────────
-// Fixed: Removed Math.random from useMemo and used deterministic values
 const CONFETTI_COLORS = [
   'bg-pink-400', 'bg-yellow-400', 'bg-cyan-400',
   'bg-violet-400', 'bg-emerald-400', 'bg-orange-400',
@@ -324,7 +325,6 @@ const AnimatedRing = ({ isOnline, isTermComplete }: { isOnline: boolean; isTermC
 
   return (
     <div className="absolute -inset-2.5">
-      {/* Outer ring - rotates slowly */}
       <motion.div
         animate={{ rotate: 360 }}
         transition={{ duration: 12, repeat: Infinity, ease: 'linear' }}
@@ -334,8 +334,6 @@ const AnimatedRing = ({ isOnline, isTermComplete }: { isOnline: boolean; isTermC
         )}
         style={{ borderRadius: '50%' }}
       />
-      
-      {/* Middle ring - rotates opposite direction */}
       <motion.div
         animate={{ rotate: -360 }}
         transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
@@ -345,8 +343,6 @@ const AnimatedRing = ({ isOnline, isTermComplete }: { isOnline: boolean; isTermC
         )}
         style={{ borderRadius: '50%' }}
       />
-      
-      {/* Inner ring - pulses */}
       <motion.div
         animate={{ 
           scale: [1, 1.05, 1],
@@ -359,8 +355,6 @@ const AnimatedRing = ({ isOnline, isTermComplete }: { isOnline: boolean; isTermC
         )}
         style={{ borderRadius: '50%' }}
       />
-
-      {/* Sparkle dots that orbit around */}
       {[0, 72, 144, 216, 288].map((deg, i) => (
         <motion.div
           key={i}
@@ -386,6 +380,14 @@ const AnimatedRing = ({ isOnline, isTermComplete }: { isOnline: boolean; isTermC
   )
 }
 
+// ── Debug Banner ──────────────────────────────────────────────────────────────
+const DebugBanner = ({ message }: { message: string }) => (
+  <div className="flex items-center gap-2 bg-amber-500/20 backdrop-blur-sm rounded-xl p-3 border border-amber-400/30 mb-2">
+    <AlertCircle className="h-4 w-4 text-amber-300 shrink-0" />
+    <p className="text-xs text-amber-100">{message}</p>
+  </div>
+)
+
 // ── Main Banner ───────────────────────────────────────────────────────────────
 export function PupilBanner({
   fullName,
@@ -394,18 +396,11 @@ export function PupilBanner({
   classArm,
   currentTerm,
   currentSession,
+  pupilId,
   photoUrl,
-  academicStats = {
-    termProgress: '0/22',
-    completedSubjects: 0,
-    totalSubjects: TOTAL_SUBJECTS,
-    averagePercentage: 0,
-    marksObtained: 0,
-    totalMarks: TOTAL_POSSIBLE_MARKS,
-    pendingTheoryCount: 0,
-  },
   onTabChange,
   onRefresh,
+  academicStats: propsAcademicStats,
 }: PupilBannerProps) {
   const [mounted, setMounted] = useState(false)
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
@@ -416,12 +411,22 @@ export function PupilBanner({
   const [showCelebration, setShowCelebration] = useState(false)
   const [showTermComplete, setShowTermComplete] = useState(false)
   const [quoteKey, setQuoteKey] = useState(0)
+  const [academicStats, setAcademicStats] = useState<AcademicStats>({
+    termProgress: '0/22',
+    completedSubjects: 0,
+    totalSubjects: TOTAL_SUBJECTS,
+    averagePercentage: 0,
+    marksObtained: 0,
+    totalMarks: 0,
+    pendingTheoryCount: 0,
+  })
+  const [loading, setLoading] = useState(true)
+  const [debugInfo, setDebugInfo] = useState<string | null>(null)
   const prevAvg = useRef(0)
 
   const STORAGE_KEY = 'pupil_session_start'
 
   // ─── Mount ──────────────────────────────────────────────────────────────────
-  // Fixed: Use useCallback for initialization
   const initializeSession = useCallback(() => {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
@@ -441,6 +446,221 @@ export function PupilBanner({
     const t = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [initializeSession])
+
+  // ─── Fetch Stats from primary_scores ──────────────────────────────────────
+  const fetchStats = useCallback(async () => {
+    console.log('🔍 [Banner] fetchStats called with:', {
+      pupilId,
+      currentTerm,
+      currentSession,
+      hasPropsStats: !!propsAcademicStats,
+      fullName
+    })
+
+    // If we have propsAcademicStats from parent, use them and skip fetch
+    if (propsAcademicStats) {
+      console.log('📊 [Banner] Using academicStats from props:', propsAcademicStats)
+      const totalSubjects = TOTAL_SUBJECTS
+      const completedSubjects = propsAcademicStats.completedSubjects || 0
+      const termProgress = `${completedSubjects}/${totalSubjects}`
+      
+      // ✅ Get marksObtained from props or calculate it
+      let marksObtained = propsAcademicStats.marksObtained || 0
+      
+      // ✅ If marksObtained is 0 but we have an average and completed subjects, calculate it
+      if (marksObtained === 0 && propsAcademicStats.averagePercentage > 0 && completedSubjects > 0) {
+        marksObtained = Math.round(propsAcademicStats.averagePercentage * completedSubjects)
+        console.log('📊 [Banner] Calculated marksObtained from average:', marksObtained)
+      }
+      
+      setAcademicStats({
+        termProgress: termProgress,
+        completedSubjects: completedSubjects,
+        totalSubjects: totalSubjects,
+        averagePercentage: propsAcademicStats.averagePercentage || 0,
+        marksObtained: marksObtained,
+        totalMarks: totalSubjects * 100,
+        pendingTheoryCount: propsAcademicStats.pendingTheoryCount || 0,
+      })
+      setLoading(false)
+      setDebugInfo(`Props: ${completedSubjects}/${totalSubjects} subjects done, Marks: ${marksObtained}`)
+      return
+    }
+
+    // If no pupilId, set default stats and stop loading
+    if (!pupilId) {
+      console.warn('⚠️ [Banner] No pupilId provided!')
+      setDebugInfo('No pupilId provided - waiting for student selection')
+      setAcademicStats({
+        termProgress: `0/${TOTAL_SUBJECTS}`,
+        completedSubjects: 0,
+        totalSubjects: TOTAL_SUBJECTS,
+        averagePercentage: 0,
+        marksObtained: 0,
+        totalMarks: 0,
+        pendingTheoryCount: 0,
+      })
+      setLoading(false)
+      return
+    }
+
+    if (!currentTerm || !currentSession) {
+      console.warn('⚠️ [Banner] Missing term or session:', { currentTerm, currentSession })
+      setDebugInfo(`Missing term (${currentTerm}) or session (${currentSession})`)
+      setAcademicStats({
+        termProgress: `0/${TOTAL_SUBJECTS}`,
+        completedSubjects: 0,
+        totalSubjects: TOTAL_SUBJECTS,
+        averagePercentage: 0,
+        marksObtained: 0,
+        totalMarks: 0,
+        pendingTheoryCount: 0,
+      })
+      setLoading(false)
+      return
+    }
+
+    try {
+      setDebugInfo(`Fetching scores for pupil ${pupilId.substring(0, 8)}...`)
+      console.log('📊 [Banner] Fetching stats for pupil:', pupilId)
+      
+      const { data: scores, error } = await supabase
+        .from('primary_scores')
+        .select('subject, ca_score, exam_score, total_score')
+        .eq('student_id', pupilId)
+        .eq('term', currentTerm)
+        .eq('academic_year', currentSession)
+
+      if (error) {
+        console.error('❌ [Banner] Error fetching pupil scores:', error)
+        setDebugInfo(`Error: ${error.message}`)
+        setAcademicStats({
+          termProgress: `0/${TOTAL_SUBJECTS}`,
+          completedSubjects: 0,
+          totalSubjects: TOTAL_SUBJECTS,
+          averagePercentage: 0,
+          marksObtained: 0,
+          totalMarks: 0,
+          pendingTheoryCount: 0,
+        })
+        setLoading(false)
+        return
+      }
+
+      console.log('✅ [Banner] Found scores:', scores?.length || 0)
+      setDebugInfo(`Found ${scores?.length || 0} scores`)
+
+      // If no scores, set default stats
+      if (!scores || scores.length === 0) {
+        console.log('⚠️ [Banner] No scores found, using defaults')
+        setDebugInfo('No scores found for this student')
+        setAcademicStats({
+          termProgress: `0/${TOTAL_SUBJECTS}`,
+          completedSubjects: 0,
+          totalSubjects: TOTAL_SUBJECTS,
+          averagePercentage: 0,
+          marksObtained: 0,
+          totalMarks: 0,
+          pendingTheoryCount: 0,
+        })
+        setLoading(false)
+        return
+      }
+
+      // Create a map of subject -> { ca, exam, total }
+      const subjectScoreMap: Record<string, { ca: number; exam: number; total: number }> = {}
+
+      // Initialize all subjects
+      PRIMARY_SUBJECTS.forEach(sub => {
+        subjectScoreMap[sub] = { ca: 0, exam: 0, total: 0 }
+      })
+
+      // Populate with scores
+      scores?.forEach((score: any) => {
+        const ca = score.ca_score || 0
+        const exam = score.exam_score || 0
+        const total = score.total_score || 0
+        const subject = score.subject
+        
+        // Try exact match first
+        if (subjectScoreMap[subject]) {
+          subjectScoreMap[subject].ca = ca
+          subjectScoreMap[subject].exam = exam
+          subjectScoreMap[subject].total = total
+        } else {
+          // Try case-insensitive match
+          const match = PRIMARY_SUBJECTS.find(s => s.toLowerCase() === subject.toLowerCase())
+          if (match && subjectScoreMap[match]) {
+            subjectScoreMap[match].ca = ca
+            subjectScoreMap[match].exam = exam
+            subjectScoreMap[match].total = total
+          } else {
+            console.warn(`⚠️ [Banner] Unknown subject: "${subject}"`)
+          }
+        }
+      })
+
+      // ✅ Count completed subjects (BOTH CA and Exam > 0)
+      let completedSubjects = 0
+      let totalMarksObtained = 0
+      const subjectsWithScores: string[] = []
+
+      Object.entries(subjectScoreMap).forEach(([subject, { ca, exam, total }]) => {
+        if (ca > 0 && exam > 0) {
+          completedSubjects++
+          totalMarksObtained += total
+          subjectsWithScores.push(subject)
+        }
+      })
+
+      // ✅ Calculate average percentage based on completed subjects only
+      let avgPercentage = 0
+      if (completedSubjects > 0) {
+        avgPercentage = totalMarksObtained / completedSubjects
+        // ✅ Round to 2 decimal places
+        avgPercentage = Math.round(avgPercentage * 100) / 100
+      }
+
+      console.log('📊 [Banner] Stats calculated:', { 
+        completedSubjects, 
+        avgPercentage,
+        totalMarksObtained,
+        subjectsWithScores
+      })
+      setDebugInfo(`Completed: ${completedSubjects}/${TOTAL_SUBJECTS}, Avg: ${avgPercentage.toFixed(2)}%`)
+
+      setAcademicStats({
+        termProgress: `${completedSubjects}/${TOTAL_SUBJECTS}`,
+        completedSubjects,
+        totalSubjects: TOTAL_SUBJECTS,
+        averagePercentage: avgPercentage,
+        marksObtained: totalMarksObtained,
+        totalMarks: TOTAL_SUBJECTS * 100,
+        pendingTheoryCount: 0,
+      })
+      
+      setLoading(false)
+      
+    } catch (error) {
+      console.error('❌ [Banner] Error fetching stats:', error)
+      setDebugInfo(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      setAcademicStats({
+        termProgress: `0/${TOTAL_SUBJECTS}`,
+        completedSubjects: 0,
+        totalSubjects: TOTAL_SUBJECTS,
+        averagePercentage: 0,
+        marksObtained: 0,
+        totalMarks: 0,
+        pendingTheoryCount: 0,
+      })
+      setLoading(false)
+    }
+  }, [pupilId, currentTerm, currentSession, propsAcademicStats])
+
+  // ─── Fetch stats when pupilId changes ─────────────────────────────────────
+  useEffect(() => {
+    fetchStats()
+  }, [pupilId, currentTerm, currentSession, fetchStats])
 
   // ─── Rotate quotes every 15 seconds ────────────────────────────────────────
   useEffect(() => {
@@ -472,11 +692,10 @@ export function PupilBanner({
   }, [academicStats.averagePercentage])
 
   // ─── Term complete ─────────────────────────────────────────────────────────
-  // Fixed: Moved setShowTermComplete to a callback to avoid setState in effect
   const handleTermComplete = useCallback(() => {
-    if (academicStats.completedSubjects === TOTAL_SUBJECTS && !showTermComplete) {
+    if (academicStats.completedSubjects >= MINIMUM_SUBJECTS && !showTermComplete) {
       setShowTermComplete(true)
-      toast.success(`🎉 All ${TOTAL_SUBJECTS} subjects complete! 100% Term Progress!`, { duration: 8000, position: 'top-center' })
+      toast.success(`🎉 ${academicStats.completedSubjects} subjects complete! Great job!`, { duration: 8000, position: 'top-center' })
     }
   }, [academicStats.completedSubjects, showTermComplete])
 
@@ -486,22 +705,33 @@ export function PupilBanner({
 
   // ─── Welcome toast ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (mounted && fullName) {
+    if (mounted && fullName && !loading) {
       const fn = getFirstName(fullName)
       setTimeout(() => toast.success(`👋 Welcome back, ${fn}! Ready to shine?`, { duration: 3000, icon: '🎒', position: 'top-center' }), 600)
     }
-  }, [mounted, fullName])
+  }, [mounted, fullName, loading])
 
   // ─── Refresh ───────────────────────────────────────────────────────────────
   const handleRefresh = () => {
-    if (!onRefresh || refreshing) return
+    if (!onRefresh && !pupilId) return
+    if (refreshing) return
+    
     setRefreshing(true)
     toast.loading('🔄 Refreshing…', { duration: 1000 })
-    onRefresh()
-    setTimeout(() => { setRefreshing(false); toast.success('✅ Updated!', { duration: 2000 }) }, 1200)
+    
+    if (onRefresh) {
+      onRefresh()
+    } else {
+      fetchStats()
+    }
+    
+    setTimeout(() => { 
+      setRefreshing(false)
+      toast.success('✅ Updated!', { duration: 2000 })
+    }, 1200)
   }
 
-  // ── Generate deterministic confetti values ──────────────────────────────
+  // ─── Generate deterministic confetti values ──────────────────────────────
   const confettiItems = useMemo(() => {
     return Array.from({ length: 50 }).map((_, i) => ({
       id: i,
@@ -521,7 +751,6 @@ export function PupilBanner({
   const quote = useMemo(() => {
     const hourNow = new Date().getHours()
     return getPersonalizedQuote(hourNow, firstName)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firstName, quoteKey])
 
   const formattedDate = useMemo(() =>
@@ -546,10 +775,9 @@ export function PupilBanner({
   const completed = academicStats.completedSubjects || 0
   const avg = academicStats.averagePercentage || 0
   const marksObtained = academicStats.marksObtained || 0
-  const totalMarks = academicStats.totalMarks || TOTAL_POSSIBLE_MARKS
-  const marksPercent = totalMarks > 0 ? Math.round((marksObtained / totalMarks) * 100) : 0
-  const isTermComplete = completed === TOTAL_SUBJECTS
-  const termProgress = Math.round((completed / TOTAL_SUBJECTS) * 100)
+  const totalMarks = academicStats.totalMarks || TOTAL_SUBJECTS * 100
+  const isComplete = completed >= MINIMUM_SUBJECTS
+  const termProgress = Math.min(Math.round((completed / TOTAL_SUBJECTS) * 100), 100)
   const showRemark = avg > 0
   const remarkData = getRemarkData(avg)
   const avatarLetter = firstName.charAt(0).toUpperCase()
@@ -615,9 +843,14 @@ export function PupilBanner({
       </motion.button>
 
       <div className="relative z-10 p-5 md:p-6">
-        {/* ══════════════════════════════════════════════════════════════════
-            TOP ROW — Meta Badges
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* ── Debug Banner ────────────────────────────────────────────────── */}
+        {debugInfo && (
+          <div className="mb-3">
+            <DebugBanner message={`🔍 ${debugInfo}`} />
+          </div>
+        )}
+
+        {/* ── Top Row — Meta Badges ────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -670,20 +903,18 @@ export function PupilBanner({
             {currentTerm} Term
           </span>
 
-          {isTermComplete && (
+          {isComplete && (
             <motion.span
               animate={{ scale: [1, 1.05, 1] }}
               transition={{ duration: 1.2, repeat: Infinity }}
               className="inline-flex items-center gap-1 text-[10px] font-bold bg-yellow-400/20 px-2.5 py-1 rounded-full text-yellow-200 border border-yellow-400/30"
             >
-              🏆 Complete!
+              🏆 {completed}/{TOTAL_SUBJECTS} Complete!
             </motion.span>
           )}
         </motion.div>
 
-        {/* ══════════════════════════════════════════════════════════════════
-            HERO ROW — Avatar with Animated Ring + Greeting + Quote
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* ── Hero Row — Avatar + Greeting + Quote ────────────────────────── */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-4">
           {/* Avatar with animated rings */}
           <motion.div
@@ -692,10 +923,8 @@ export function PupilBanner({
             transition={{ delay: 0.3, type: 'spring', stiffness: 120 }}
             className="relative shrink-0 self-center sm:self-auto"
           >
-            {/* Animated rings around avatar */}
-            <AnimatedRing isOnline={isOnline} isTermComplete={isTermComplete} />
+            <AnimatedRing isOnline={isOnline} isTermComplete={isComplete} />
 
-            {/* Avatar */}
             <Avatar className="relative h-20 w-20 md:h-24 md:w-24 ring-0 shadow-2xl border-2 border-white/20">
               {photoUrl && !avatarError ? (
                 <AvatarImage
@@ -710,7 +939,6 @@ export function PupilBanner({
               </AvatarFallback>
             </Avatar>
 
-            {/* Status indicator */}
             <motion.div
               animate={isOnline ? { scale: [1, 1.3, 1] } : {}}
               transition={{ duration: 2, repeat: Infinity }}
@@ -799,13 +1027,11 @@ export function PupilBanner({
           </div>
         </div>
 
-        {/* ══════════════════════════════════════════════════════════════════
-            STAT CARDS GRID
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* ── Stat Cards Grid ────────────────────────────────────────────── */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
           <StatCard
             delay={0.6}
-            gradient={isTermComplete ? 'from-yellow-600 to-amber-700' : 'from-emerald-600 to-emerald-800'}
+            gradient={isComplete ? 'from-yellow-600 to-amber-700' : 'from-emerald-600 to-emerald-800'}
             icon={<CheckCircle2 className="h-3.5 w-3.5 text-white" />}
             value={
               <span className="flex items-baseline gap-0.5">
@@ -814,8 +1040,8 @@ export function PupilBanner({
               </span>
             }
             label="Subjects Done"
-            sub={isTermComplete ? '🎉 Complete!' : `${termProgress}%`}
-            pulse={isTermComplete}
+            sub={isComplete ? `✅ ${MINIMUM_SUBJECTS}+ Complete!` : `${termProgress}%`}
+            pulse={isComplete}
           />
 
           <StatCard
@@ -824,14 +1050,14 @@ export function PupilBanner({
             icon={<FileText className="h-3.5 w-3.5 text-white" />}
             value={marksObtained > 0 ? marksObtained.toLocaleString() : '—'}
             label="Marks Obtained"
-            sub={marksObtained > 0 ? `${marksPercent}%` : 'No marks'}
+            sub={marksObtained > 0 ? `Total of ${completed} subjects` : 'No marks'}
           />
 
           <StatCard
             delay={0.76}
             gradient="from-cyan-600 to-cyan-800"
             icon={<TrendingUp className="h-3.5 w-3.5 text-white" />}
-            value={avg > 0 ? `${avg.toFixed(1)}%` : '—'}
+            value={avg > 0 ? `${avg.toFixed(2)}%` : '—'}
             label="Average Score"
             sub={avg > 0 ? remarkData.remark : 'No data'}
           />
@@ -847,23 +1073,19 @@ export function PupilBanner({
           />
         </div>
 
-        {/* ══════════════════════════════════════════════════════════════════
-            TERM PROGRESS BAR
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* ── Term Progress Bar ───────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.9 }}
           className="bg-white/5 backdrop-blur-sm rounded-xl px-3 py-1.5 border border-white/5"
         >
-          <TermProgressBar value={termProgress} isComplete={isTermComplete} />
+          <TermProgressBar value={termProgress} isComplete={isComplete} />
         </motion.div>
 
-        {/* ══════════════════════════════════════════════════════════════════
-            CELEBRATION / ENCOURAGEMENT BANNERS
-        ══════════════════════════════════════════════════════════════════ */}
+        {/* ── Celebration / Encouragement Banners ─────────────────────────── */}
         <AnimatePresence>
-          {isTermComplete && (
+          {isComplete && (
             <motion.div
               key="term-complete"
               initial={{ opacity: 0, scale: 0.9, y: 12 }}
@@ -879,7 +1101,7 @@ export function PupilBanner({
                 <PartyPopper className="h-4 w-4 text-yellow-300 shrink-0" />
               </motion.div>
               <p className="text-xs font-bold text-yellow-100 flex-1">
-                🎉 <span className="text-yellow-300">{firstName}</span> achieved <span className="text-yellow-300 font-extrabold">100%</span>! 🌟
+                🎉 <span className="text-yellow-300">{firstName}</span> completed <span className="text-yellow-300 font-extrabold">{completed}/{TOTAL_SUBJECTS}</span> subjects! 🌟
               </p>
               <motion.div
                 animate={{ scale: [1, 1.3, 1], opacity: [1, 0.6, 1] }}
@@ -890,7 +1112,7 @@ export function PupilBanner({
             </motion.div>
           )}
 
-          {!isTermComplete && termProgress >= 70 && (
+          {!isComplete && completed >= 15 && (
             <motion.div
               key="great-progress"
               initial={{ opacity: 0, y: 10 }}
@@ -901,13 +1123,13 @@ export function PupilBanner({
             >
               <Zap className="h-4 w-4 text-emerald-300 shrink-0 animate-pulse" />
               <p className="text-xs font-semibold text-emerald-100">
-                ⚡ {termProgress}% - Almost there, <span className="text-emerald-200">{firstName}</span>!
+                ⚡ {completed}/{TOTAL_SUBJECTS} - Almost there, <span className="text-emerald-200">{firstName}</span>!
               </p>
               <Sparkles className="h-3.5 w-3.5 text-emerald-300 shrink-0 ml-auto animate-pulse" />
             </motion.div>
           )}
 
-          {!isTermComplete && termProgress > 0 && termProgress < 70 && (
+          {!isComplete && completed > 0 && completed < 15 && (
             <motion.div
               key="encouragement"
               initial={{ opacity: 0, y: 10 }}
@@ -918,7 +1140,7 @@ export function PupilBanner({
             >
               <Heart className="h-4 w-4 text-blue-300 shrink-0 animate-pulse" />
               <p className="text-xs font-semibold text-blue-100">
-                💪 {termProgress}% - Keep going, <span className="text-blue-200">{firstName}</span>!
+                💪 {completed}/{TOTAL_SUBJECTS} - Keep going, <span className="text-blue-200">{firstName}</span>!
               </p>
               <Rocket className="h-3.5 w-3.5 text-blue-300 shrink-0 ml-auto animate-bounce" />
             </motion.div>

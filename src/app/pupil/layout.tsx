@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -54,11 +54,6 @@ interface ProfileData {
   first_name?: string
 }
 
-// Add a type guard to check if profile is PupilProfile
-function isPupilProfile(profile: PupilProfile | any): profile is PupilProfile {
-  return profile && 'vin_id' in profile && 'display_name' in profile
-}
-
 interface PupilLayoutProps {
   children: React.ReactNode
 }
@@ -92,15 +87,24 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
     const fetchProfile = async () => {
       try {
         setProfileLoading(true)
-        // ✅ Add 'as any' to fix TypeScript, then cast the data
         const { data, error } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', user.id)
           .single() as any
 
+        // ✅ FIX: Handle error properly
         if (error) {
-          console.error('Error fetching profile:', error)
+          // Check if error is "no rows returned" (PGRST116)
+          if (error.code === 'PGRST116') {
+            console.log('ℹ️ [PupilLayout] No profile found for user, using user data...')
+            // No profile found - use user data from context
+            setProfile(null)
+          } else {
+            console.error('❌ [PupilLayout] Error fetching profile:', error.message || error)
+            // Don't return early - use user data from context
+            setProfile(null)
+          }
           setProfileLoading(false)
           return
         }
@@ -127,7 +131,8 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
           })
         }
       } catch (error) {
-        console.error('Error:', error)
+        console.error('❌ [PupilLayout] Exception in fetchProfile:', error)
+        setProfile(null)
       } finally {
         setProfileLoading(false)
       }
@@ -170,11 +175,25 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
     // Don't run until mounted and user loading is complete
     if (!mounted || userLoading) return
     
+    console.log('🔍 [PupilLayout] Auth check - user:', user)
+    console.log('🔍 [PupilLayout] Auth check - user.role:', user?.role)
+    
     if (!user) {
+      console.log('🚫 [PupilLayout] No user, redirecting to portal')
       router.replace('/portal')
-    } else if (user.role !== 'student') {
-      router.replace('/dashboard')
+      return
     }
+    
+    // ✅ FIX: Check for both 'student' and 'pupil' roles
+    const isValidRole = user.role === 'student' || user.role === 'pupil'
+    
+    if (!isValidRole) {
+      console.log('🚫 [PupilLayout] Invalid role:', user.role, 'redirecting to portal')
+      router.replace('/portal')
+      return
+    }
+    
+    console.log('✅ [PupilLayout] User is valid, rendering layout')
   }, [user, userLoading, router, mounted])
 
   // ─── Build header user ─────────────────────────────────────────────────────
@@ -206,7 +225,9 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
     )
   }
 
-  if (!user || user.role !== 'student') {
+  // ✅ FIX: Check for both 'student' and 'pupil' roles
+  if (!user || (user.role !== 'student' && user.role !== 'pupil')) {
+    console.log('🚫 [PupilLayout] User not valid, returning null')
     return null
   }
 
@@ -220,6 +241,9 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
     class: user.class || '',
     class_arm: user.class_arm || '',
   }
+
+  console.log('✅ [PupilLayout] Rendering layout with user:', user)
+  console.log('✅ [PupilLayout] sidebarProfile:', sidebarProfile)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-x-hidden w-full">

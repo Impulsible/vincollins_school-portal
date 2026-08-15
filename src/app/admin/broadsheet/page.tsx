@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/exhaustive-deps */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/set-state-in-effect */
 // app/admin/broad-sheet/page.tsx
 'use client'
@@ -23,7 +22,6 @@ import { cn } from '@/lib/utils'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
-// ✅ ALL 22 SUBJECTS FOR PRIMARY SCHOOL
 const PRIMARY_SUBJECTS = [
   { id: 'english', name: 'English', category: 'Core' },
   { id: 'mathematics', name: 'Mathematics', category: 'Core' },
@@ -49,7 +47,6 @@ const PRIMARY_SUBJECTS = [
   { id: 'phe', name: 'Physical and Health Education', category: 'Core' },
 ] as const
 
-// ✅ ALL CLASSES (Playgroup to Primary 5)
 const CLASSES = [
   { id: 'playgroup', name: 'Playgroup', code: 'PG' },
   { id: 'nursery_1', name: 'Nursery 1', code: 'N1' },
@@ -77,98 +74,27 @@ const SUBJECT_DISPLAY_NAMES: Record<string, string> = {
   'Civic Education': 'Civic',
 }
 
-const SUBJECT_ORDER: Record<string, number> = {
-  'English': 1,
-  'Mathematics': 2,
-  'Basic Science': 3,
-  'Social Studies': 4,
-  'Phonics': 5,
-  'Yoruba': 6,
-  'Civic Education': 7,
-  'Creative Arts': 8,
-  'Agriculture': 9,
-  'Computer Education': 10,
-  'Christian Religious Studies': 11,
-  'French': 12,
-  'Quantitative Reasoning': 13,
-  'Verbal Reasoning': 14,
-  'Music': 15,
-  'Handwriting': 16,
-  'Literature': 17,
-  'Vocational Aptitude': 18,
-  'History': 19,
-  'Security Education': 20,
-  'Home Economics': 21,
-  'Physical and Health Education': 22,
-}
-
-const getDisplaySubjectName = (subject: string): string => {
-  return SUBJECT_DISPLAY_NAMES[subject] || subject
-}
-
 // ── Grading System ──────────────────────────────────────────────────────────
-const getSubjectGrade = (score: number): string => {
-  if (score >= 75) return 'A'
-  if (score >= 65) return 'B'
-  if (score >= 55) return 'C'
-  if (score >= 45) return 'D'
-  if (score >= 35) return 'E'
-  return 'F'
-}
-
-const getOverallGrade = (avg: number): string => {
-  if (avg >= 75) return 'A'
-  if (avg >= 65) return 'B'
-  if (avg >= 55) return 'C'
-  if (avg >= 45) return 'D'
-  if (avg >= 35) return 'E'
-  return 'F'
-}
-
-const getGradeRemark = (grade: string): string => {
-  const remarks: Record<string, string> = {
-    'A': 'Excellent',
-    'B': 'Very Good',
-    'C': 'Good',
-    'D': 'Average',
-    'E': 'Below Average',
-    'F': 'Needs Improvement'
+const getRemarkColor = (remark: string): string => {
+  const colors: Record<string, string> = {
+    'Excellent': 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800',
+    'Very Good': 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border-blue-200 dark:border-blue-800',
+    'Good': 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border-cyan-200 dark:border-cyan-800',
+    'Satisfactory': 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800',
+    'Average': 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border-orange-200 dark:border-orange-800',
+    'Fair': 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border-rose-200 dark:border-rose-800',
+    'Not graded': 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700',
+    'No Score': 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700',
   }
-  return remarks[grade] || ''
-}
-
-const gradeChipClass = (grade: string): string => {
-  const classes: Record<string, string> = {
-    'A': 'bg-emerald-100 text-emerald-700',
-    'B': 'bg-blue-100 text-blue-700',
-    'C': 'bg-cyan-100 text-cyan-700',
-    'D': 'bg-amber-100 text-amber-700',
-    'E': 'bg-orange-100 text-orange-700',
-    'F': 'bg-red-100 text-red-700',
-  }
-  return classes[grade] || 'bg-slate-100 text-slate-600'
-}
-
-const overallChipClass = (grade: string): string => {
-  const classes: Record<string, string> = {
-    'A': 'bg-emerald-100 text-emerald-700',
-    'B': 'bg-blue-100 text-blue-700',
-    'C': 'bg-cyan-100 text-cyan-700',
-    'D': 'bg-amber-100 text-amber-700',
-    'E': 'bg-orange-100 text-orange-700',
-    'F': 'bg-red-100 text-red-700',
-  }
-  return classes[grade] || 'bg-slate-100 text-slate-600'
+  return colors[remark] || 'bg-slate-100 text-slate-600'
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface SubjectScore {
   subject: string
-  ca1: number
-  ca2: number
+  ca: number
   exam: number
   total: number
-  grade: string
   remark: string
 }
 
@@ -178,14 +104,12 @@ interface StudentRecord {
   admission_number: string
   vin_id: string
   class: string
-  class_id: string
   subjectMap: Record<string, SubjectScore>
   totalScore: number
   averageScore: number
-  grade: string
+  overallRemark: string
   completedSubjects: number
   totalSubjects: number
-  expectedSubjects: string[]
   hasAllSubjects: boolean
   meetsMinimum: boolean
   reportCardStatus?: string | null
@@ -258,23 +182,19 @@ export default function BroadSheetPage() {
   // ─── Fetch current term and session ──────────────────────────────────────
   const fetchCurrentTerm = useCallback(async () => {
     try {
-      console.log('🔍 [BroadSheet] Fetching school settings...')
-      
       const { data: settings, error } = await supabase
         .from('school_settings')
         .select('current_term, current_session')
         .maybeSingle()
 
       if (error) {
-        console.error('❌ [BroadSheet] Error fetching settings:', error)
+        console.error('Error fetching settings:', error)
         if (!selectedTerm) setSelectedTerm('first')
-        if (!selectedYear) setSelectedYear(new Date().getFullYear().toString())
         setIsLoadingTerm(false)
         return
       }
 
       if (settings) {
-        console.log('📋 [BroadSheet] Settings fetched:', settings)
         if (settings.current_term) {
           setSelectedTerm(settings.current_term.toLowerCase())
         } else if (!selectedTerm) {
@@ -284,17 +204,15 @@ export default function BroadSheetPage() {
         if (settings.current_session) {
           setSelectedYear(settings.current_session)
         } else if (!selectedYear) {
-          setSelectedYear(new Date().getFullYear().toString())
+          const year = new Date().getFullYear()
+          setSelectedYear(`${year}/${year + 1}`)
         }
-      } else {
-        console.log('ℹ️ [BroadSheet] No settings found, using defaults')
-        if (!selectedTerm) setSelectedTerm('first')
-        if (!selectedYear) setSelectedYear(new Date().getFullYear().toString())
       }
     } catch (error) {
-      console.error('❌ [BroadSheet] Unexpected error:', error)
+      console.error('Unexpected error:', error)
       if (!selectedTerm) setSelectedTerm('first')
-      if (!selectedYear) setSelectedYear(new Date().getFullYear().toString())
+      const year = new Date().getFullYear()
+      if (!selectedYear) setSelectedYear(`${year}/${year + 1}`)
     } finally {
       setIsLoadingTerm(false)
     }
@@ -329,7 +247,7 @@ export default function BroadSheetPage() {
     init()
   }, [])
 
-  // ─── Load broad sheet ─────────────────────────────────────────────────────
+  // ─── Load broad sheet from primary_scores ─────────────────────────────────
   const loadBroadSheet = useCallback(async () => {
     if (!selectedClass || !selectedTerm || !selectedYear || isLoadingTerm) return
     
@@ -339,54 +257,68 @@ export default function BroadSheetPage() {
     try {
       console.log('📊 [BroadSheet] Loading data for class:', selectedClass)
       
-      // 🔥 FIX: Only select columns that exist in your profiles table
+      const classInfo = CLASSES.find(c => c.id === selectedClass)
+      const className = classInfo?.name || selectedClass
+      
+      // Fetch students
       const { data: classStudents, error: studentError } = await supabase
         .from('profiles')
-        .select('id, full_name, display_name, vin_id, class, class_id, photo_url')
-        .eq('role', 'student')
-        .eq('class_id', selectedClass)
+        .select('id, full_name, display_name, admission_number, vin_id, class, class_arm, photo_url')
+        .in('role', ['pupil', 'student'])
+        .eq('class', className)
         .order('display_name', { ascending: true, nullsFirst: false })
         .limit(500)
 
       if (studentError) {
-        console.error('❌ [BroadSheet] Student fetch error:', studentError)
+        console.error('Student fetch error:', studentError)
         throw studentError
       }
       
       if (!classStudents || classStudents.length === 0) {
-        console.log('ℹ️ [BroadSheet] No students found for class:', selectedClass)
         setStudents([])
         setLoading(false)
         return
       }
 
-      console.log(`✅ [BroadSheet] Found ${classStudents.length} students`)
+      console.log(`✅ Found ${classStudents.length} students in ${className}`)
 
       const studentIds = classStudents.map(s => s.id)
       
-      // Get scores
+      // Fetch scores - Map term correctly
+      const termMap: Record<string, string> = {
+        'first': 'First',
+        'second': 'Second',
+        'third': 'Third'
+      }
+      const dbTerm = termMap[selectedTerm] || 'First'
+      
       const { data: allScores, error: scoreError } = await supabase
-        .from('ca_scores')
+        .from('primary_scores')
         .select('*')
         .in('student_id', studentIds)
-        .eq('term', selectedTerm)
+        .eq('term', dbTerm)
         .eq('academic_year', selectedYear)
-        .eq('status', 'approved')
         .limit(5000)
       
       if (scoreError) {
-        console.error('❌ [BroadSheet] Score fetch error:', scoreError)
-        // Continue with empty scores
+        console.error('Score fetch error:', scoreError)
       }
 
-      console.log(`✅ [BroadSheet] Found ${allScores?.length || 0} scores`)
+      console.log(`✅ Found ${allScores?.length || 0} scores from primary_scores for term: ${dbTerm}`)
+      
+      // DEBUG: Log subjects
+      if (allScores && allScores.length > 0) {
+        const uniqueSubjects = [...new Set(allScores.map(s => s.subject))];
+        console.log('🔍 UNIQUE SUBJECTS IN DATABASE:', uniqueSubjects);
+        console.log('📝 SAMPLE SCORES:', allScores.slice(0, 3));
+      }
 
-      // Get report card statuses
+      // Fetch report cards
       const { data: existingReportCards } = await supabase
         .from('report_cards')
         .select('student_id, status, id')
         .in('student_id', studentIds)
-        .eq('term', selectedTerm)
+        .eq('term', dbTerm)
         .eq('academic_year', selectedYear)
       
       const reportCardStatusMap: Record<string, string> = {}
@@ -396,62 +328,103 @@ export default function BroadSheetPage() {
         reportCardIdMap[rc.student_id] = rc.id
       })
 
+      // Build records
       const records: StudentRecord[] = classStudents.map(student => {
         const scores = (allScores || []).filter(s => s.student_id === student.id)
         const subjectMap: Record<string, SubjectScore> = {}
         const subjectNames = PRIMARY_SUBJECTS.map(s => s.name)
         
-        // Initialize all subjects
+        // Initialize all subjects with empty scores
         subjectNames.forEach(sub => {
-          const score = scores.find(s => s.subject === sub)
-          if (score) {
-            const total = (score.ca1_score || 0) + (score.ca2_score || 0) + (score.exam_score || 0)
-            const grade = getSubjectGrade(Math.round(total))
-            subjectMap[sub] = {
-              subject: sub,
-              ca1: score.ca1_score || 0,
-              ca2: score.ca2_score || 0,
+          subjectMap[sub] = {
+            subject: sub,
+            ca: 0,
+            exam: 0,
+            total: 0,
+            remark: 'Not graded'
+          }
+        })
+        
+        // Fill in scores that exist
+        scores.forEach(score => {
+          // Find the subject in PRIMARY_SUBJECTS by matching the name exactly
+          const matchedSubject = subjectNames.find(sub => sub === score.subject)
+          if (matchedSubject) {
+            subjectMap[matchedSubject] = {
+              subject: matchedSubject,
+              ca: score.ca_score || 0,
               exam: score.exam_score || 0,
-              total: total,
-              grade: grade,
-              remark: getGradeRemark(grade)
+              total: score.total_score || 0,
+              remark: score.remark || 'Not graded'
             }
           } else {
-            subjectMap[sub] = {
-              subject: sub,
-              ca1: 0,
-              ca2: 0,
-              exam: 0,
-              total: 0,
-              grade: '-',
-              remark: 'Not graded'
+            // If the subject doesn't match exactly, try case-insensitive
+            const caseInsensitiveMatch = subjectNames.find(sub => 
+              sub.toLowerCase() === score.subject.toLowerCase()
+            )
+            if (caseInsensitiveMatch) {
+              subjectMap[caseInsensitiveMatch] = {
+                subject: caseInsensitiveMatch,
+                ca: score.ca_score || 0,
+                exam: score.exam_score || 0,
+                total: score.total_score || 0,
+                remark: score.remark || 'Not graded'
+              }
+            } else {
+              console.warn(`⚠️ Subject "${score.subject}" not found in PRIMARY_SUBJECTS for student ${student.display_name || student.full_name}`)
             }
           }
         })
         
+        // ✅ Calculate completed subjects (subjects with total > 0)
         const completedSubjects = Object.values(subjectMap).filter(s => s.total > 0).length
-        const totalScore = Object.values(subjectMap).reduce((sum, s) => sum + s.total, 0)
-        const averageScore = completedSubjects > 0 ? Math.round(totalScore / PRIMARY_SUBJECTS.length) : 0
         
-        // Get class from student data or use the selected class
-        const studentClass = student.class || CLASSES.find(c => c.id === selectedClass)?.name || ''
+        // ✅ Calculate total score (sum of all subject totals)
+        const totalScore = Object.values(subjectMap).reduce((sum, s) => sum + s.total, 0)
+        
+        // ✅ FIXED: Average = Average percentage across completed subjects
+        // Example: 1 subject with 60/100 → 60/1 = 60%
+        // Example: 5 subjects with 60,70,80,65,75 → 350/5 = 70%
+        let averageScore = 0
+        if (completedSubjects > 0) {
+          const completedScores = Object.values(subjectMap)
+            .filter(s => s.total > 0)
+            .map(s => s.total)
+          
+          // Sum of all completed subject scores
+          const sumCompletedScores = completedScores.reduce((a, b) => a + b, 0)
+          
+          // Average = (sum of scores) / (number of completed subjects)
+          averageScore = Math.round(sumCompletedScores / completedSubjects)
+        }
+        
+        // Get overall remark based on average score
+        let overallRemark = 'Not graded'
+        if (completedSubjects > 0) {
+          if (averageScore >= 80) overallRemark = 'Excellent'
+          else if (averageScore >= 70) overallRemark = 'Very Good'
+          else if (averageScore >= 60) overallRemark = 'Good'
+          else if (averageScore >= 50) overallRemark = 'Satisfactory'
+          else if (averageScore >= 45) overallRemark = 'Average'
+          else if (averageScore > 0) overallRemark = 'Fair'
+        }
+        
+        const studentClass = student.class || className || ''
         
         return {
           id: student.id,
           name: student.display_name || student.full_name || 'Student',
-          admission_number: student.vin_id || '—',
+          admission_number: student.admission_number || '—',
           vin_id: student.vin_id || '—',
           class: studentClass,
-          class_id: student.class_id || selectedClass,
           subjectMap,
           totalScore,
           averageScore,
-          grade: completedSubjects > 0 ? getOverallGrade(averageScore) : '-',
+          overallRemark: overallRemark,
           completedSubjects,
           totalSubjects: PRIMARY_SUBJECTS.length,
-          expectedSubjects: subjectNames,
           hasAllSubjects: completedSubjects === PRIMARY_SUBJECTS.length,
-          meetsMinimum: completedSubjects >= PRIMARY_SUBJECTS.length * 0.6,
+          meetsMinimum: completedSubjects >= 20,
           reportCardStatus: reportCardStatusMap[student.id] || null,
           reportCardId: reportCardIdMap[student.id] || null,
           photo_url: student.photo_url || null
@@ -459,10 +432,25 @@ export default function BroadSheetPage() {
       })
 
       setStudents(records)
-      console.log(`✅ [BroadSheet] Processed ${records.length} student records`)
+      console.log(`✅ Processed ${records.length} student records`)
+      
+      // Log sample student's subjects
+      if (records.length > 0) {
+        const sample = records[0]
+        const subjectsWithScores = Object.keys(sample.subjectMap)
+          .filter(key => sample.subjectMap[key].total > 0)
+          .map(key => ({ subject: key, total: sample.subjectMap[key].total }))
+        console.log('📝 Sample student subjects with scores:', {
+          name: sample.name,
+          completed: sample.completedSubjects,
+          averageScore: sample.averageScore,
+          overallRemark: sample.overallRemark,
+          subjectsWithScores: subjectsWithScores
+        })
+      }
       
     } catch (error) {
-      console.error('❌ [BroadSheet] Error loading broad sheet:', error)
+      console.error('Error loading broad sheet:', error)
       toast.error('Failed to load broad sheet')
       setLoadError(true)
     } finally {
@@ -494,7 +482,7 @@ export default function BroadSheetPage() {
     const ready = students.filter(s => s.meetsMinimum && s.hasAllSubjects)
     
     if (ready.length === 0) {
-      toast.warning('No students meet the minimum subject requirement.')
+      toast.warning('No students meet the minimum subject requirement (20 out of 22 subjects).')
       return
     }
 
@@ -510,10 +498,9 @@ export default function BroadSheetPage() {
             const score = student.subjectMap[sub.name]
             return {
               name: sub.name,
-              ca: score.ca1 + score.ca2,
+              ca: score.ca,
               exam: score.exam,
               total: score.total,
-              grade: score.grade,
               remark: score.remark
             }
           })
@@ -522,11 +509,18 @@ export default function BroadSheetPage() {
           const sortedAverages = [...allAverages].sort((a, b) => b - a)
           const position = sortedAverages.findIndex(avg => avg === student.averageScore) + 1
 
+          const termMap: Record<string, string> = {
+            'first': 'First',
+            'second': 'Second',
+            'third': 'Third'
+          }
+          const dbTerm = termMap[selectedTerm] || 'First'
+
           const { data: existingCards } = await supabase
             .from('report_cards')
             .select('id')
             .eq('student_id', student.id)
-            .eq('term', selectedTerm)
+            .eq('term', dbTerm)
             .eq('academic_year', selectedYear)
 
           if (existingCards && existingCards.length > 0) {
@@ -534,7 +528,7 @@ export default function BroadSheetPage() {
               .from('report_cards')
               .delete()
               .eq('student_id', student.id)
-              .eq('term', selectedTerm)
+              .eq('term', dbTerm)
               .eq('academic_year', selectedYear)
           }
 
@@ -543,7 +537,7 @@ export default function BroadSheetPage() {
             student_name: student.name,
             student_vin: student.vin_id || 'N/A',
             student_admission_number: student.admission_number || 'N/A',
-            term: selectedTerm,
+            term: dbTerm,
             academic_year: selectedYear,
             class: student.class || selectedClass,
             class_teacher: profile?.full_name || 'Class Teacher',
@@ -551,6 +545,7 @@ export default function BroadSheetPage() {
             school_name: 'VINCOLLINS SCHOOLS',
             total_score: student.totalScore || 0,
             average_score: student.averageScore || 0,
+            overall_remark: student.overallRemark,
             class_highest: allAverages.length > 0 ? Math.max(...allAverages) : 0,
             class_lowest: allAverages.length > 0 ? Math.min(...allAverages) : 0,
             class_average: allAverages.length > 0 ? Math.round(allAverages.reduce((a, b) => a + b, 0) / allAverages.length) : 0,
@@ -613,6 +608,13 @@ export default function BroadSheetPage() {
     
     setPublishing(true)
     try {
+      const termMap: Record<string, string> = {
+        'first': 'First',
+        'second': 'Second',
+        'third': 'Third'
+      }
+      const dbTerm = termMap[selectedTerm] || 'First'
+
       const { error } = await supabase
         .from('report_cards')
         .update({ 
@@ -620,7 +622,7 @@ export default function BroadSheetPage() {
           published_at: new Date().toISOString() 
         })
         .in('student_id', gen.map(s => s.id))
-        .eq('term', selectedTerm)
+        .eq('term', dbTerm)
         .eq('academic_year', selectedYear)
         .eq('status', 'generated')
       
@@ -639,17 +641,17 @@ export default function BroadSheetPage() {
   // ─── Export CSV ────────────────────────────────────────────────────────────
   const handleExportCSV = () => {
     if (!students.length) { toast.error('No data to export'); return }
-    const headers = ['Student Name', 'Admission No', ...PRIMARY_SUBJECTS.map(s => s.name), 'Total', 'Average', 'Grade', 'Status']
+    const headers = ['Student Name', 'Admission No', ...PRIMARY_SUBJECTS.map(s => s.name), 'Total', 'Average', 'Remark', 'Status']
     const rows = students.map(s => [
       s.name, 
-      s.admission_number, 
+      s.admission_number,
       ...PRIMARY_SUBJECTS.map(sub => {
         const sc = s.subjectMap[sub.name]; 
-        return sc && sc.total > 0 ? `${sc.total}(${sc.grade})` : '—' 
+        return sc && sc.total > 0 ? `${sc.total}(${sc.remark})` : '—' 
       }), 
       s.totalScore, 
       `${s.averageScore}%`, 
-      s.grade, 
+      s.overallRemark, 
       s.reportCardStatus || 'None'
     ])
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n')
@@ -696,7 +698,7 @@ export default function BroadSheetPage() {
     )
   }, [students, searchQuery])
 
-  // ── Loading ──────────────────────────────────────────────────────────────
+  // ─── Loading ──────────────────────────────────────────────────────────────
   if (isLoadingTerm || (loading && students.length === 0 && !loadError)) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -764,7 +766,7 @@ export default function BroadSheetPage() {
         <div className="no-print grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
           <StatCard label="Total Students" value={stats.total} icon={Users} accent="bg-slate-500" />
           <StatCard label="All Subjects Submitted" value={stats.complete} icon={CheckCircle2} accent="bg-emerald-500" />
-          <StatCard label="Ready for Report" value={stats.readyForReport} icon={FileText} accent="bg-violet-500" />
+          <StatCard label="Ready for Report (20+ Subjects)" value={stats.readyForReport} icon={FileText} accent="bg-violet-500" />
           <StatCard label="Generated" value={stats.generated} icon={FileText} accent="bg-amber-500" sub="not yet visible" />
           <StatCard label="Published" value={stats.published} icon={Send} accent="bg-teal-500" sub="visible to students" />
         </div>
@@ -806,8 +808,11 @@ export default function BroadSheetPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {[2023, 2024, 2025, 2026].map(y => (
-                      <SelectItem key={y} value={y.toString()}>{y}/{y + 1}</SelectItem>
+                    {Array.from({ length: 10 }, (_, i) => {
+                      const year = new Date().getFullYear() - 5 + i
+                      return `${year}/${year + 1}`
+                    }).map(y => (
+                      <SelectItem key={y} value={y}>{y}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -816,7 +821,7 @@ export default function BroadSheetPage() {
                 <Label className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide">Search</Label>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                  <Input placeholder="Search by name or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                  <Input placeholder="Search by name or admission number..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                     className="pl-8 h-9 text-sm bg-slate-50 dark:bg-slate-800" />
                   {searchQuery && (
                     <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2">
@@ -873,16 +878,16 @@ export default function BroadSheetPage() {
                     Student
                   </th>
                   <th className="px-3 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[90px]">
-                    Admission
+                    Admission No
                   </th>
                   {PRIMARY_SUBJECTS.map(subject => (
                     <th key={subject.id} className="px-2 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] whitespace-nowrap min-w-[56px]">
-                      <span className="block">{getDisplaySubjectName(subject.name)}</span>
+                      <span className="block">{SUBJECT_DISPLAY_NAMES[subject.name] || subject.name}</span>
                     </th>
                   ))}
                   <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Total</th>
                   <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Avg</th>
-                  <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Grade</th>
+                  <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Remark</th>
                   <th className="no-print px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[80px]">Report</th>
                   <th className="no-print px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[60px]">View</th>
                 </tr>
@@ -891,7 +896,7 @@ export default function BroadSheetPage() {
               <tbody>
                 {displayedStudents.length === 0 ? (
                   <tr>
-                    <td colSpan={PRIMARY_SUBJECTS.length + 6} className="text-center py-16">
+                    <td colSpan={PRIMARY_SUBJECTS.length + 7} className="text-center py-16">
                       <div className="inline-flex p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-3">
                         <Users className="h-8 w-8 text-slate-400" />
                       </div>
@@ -915,6 +920,11 @@ export default function BroadSheetPage() {
                               <AlertTriangle className="h-2.5 w-2.5" /> {student.completedSubjects}/{student.totalSubjects}
                             </span>
                           )}
+                          {student.completedSubjects >= 20 && student.hasAllSubjects && (
+                            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded-full mt-0.5">
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Ready
+                            </span>
+                          )}
                         </div>
                       </td>
 
@@ -927,8 +937,8 @@ export default function BroadSheetPage() {
                             {score && score.total > 0 ? (
                               <div className="flex flex-col items-center gap-0.5">
                                 <span className="font-bold text-xs text-slate-800 dark:text-slate-100">{score.total}</span>
-                                <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded-full', gradeChipClass(score.grade))}>
-                                  {score.grade}
+                                <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded-full', getRemarkColor(score.remark))}>
+                                  {score.remark}
                                 </span>
                               </div>
                             ) : (
@@ -939,13 +949,17 @@ export default function BroadSheetPage() {
                       })}
 
                       <td className="px-3 py-3 text-center font-bold text-sm text-slate-800 dark:text-slate-100">{student.totalScore || '—'}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-sm text-slate-700 dark:text-slate-200">{student.averageScore > 0 ? `${student.averageScore}%` : '—'}</td>
+                      <td className="px-3 py-3 text-center font-semibold text-sm text-slate-700 dark:text-slate-200">
+                        {student.averageScore > 0 ? `${student.averageScore}%` : '—'}
+                      </td>
                       <td className="px-3 py-3 text-center">
-                        {student.grade !== '-' ? (
-                          <span className={cn('text-xs font-bold px-2 py-1 rounded-full', overallChipClass(student.grade))}>
-                            {student.grade}
+                        {student.overallRemark !== 'Not graded' ? (
+                          <span className={cn('text-xs font-bold px-2 py-1 rounded-full', getRemarkColor(student.overallRemark))}>
+                            {student.overallRemark}
                           </span>
-                        ) : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600">—</span>
+                        )}
                       </td>
 
                       <td className="no-print px-3 py-3 text-center">

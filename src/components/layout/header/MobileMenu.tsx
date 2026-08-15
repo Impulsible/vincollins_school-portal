@@ -142,14 +142,20 @@ export const MobileMenu = memo(function MobileMenu({
   const fullName = getFullName(user)
   const userInitials = getInitials(user)
 
+  // ✅ Get avatar URL from either avatar or photo_url
   const getAvatarUrl = () => {
     if (avatarError) return undefined
     if (user?.avatar) return user.avatar
+    if (user?.photo_url) return user.photo_url
     return undefined
   }
 
   const avatarUrl = getAvatarUrl()
   const currentRole = getRoleConfig(user?.role)
+
+  // Log for debugging
+  console.log('🔍 [MobileMenu] user:', user)
+  console.log('🔍 [MobileMenu] avatarUrl:', avatarUrl)
 
   const isDashboardPage =
     pathname?.startsWith('/admin') ||
@@ -188,7 +194,6 @@ export const MobileMenu = memo(function MobileMenu({
   // ─── Sign Out Handlers ────────────────────────────────────────────────────
   const handleSignOutClick = () => {
     onClose()
-    // Small delay to let the drawer close before dialog opens
     setTimeout(() => {
       setSignOutDialogOpen(true)
     }, 150)

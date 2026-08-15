@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 
 import type { ElementType, ReactNode } from 'react'
@@ -11,9 +12,10 @@ import {
   Clock,
   FileText,
   NotebookPen,
+  Sparkles,
+  TrendingUp,
   Users,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
 
@@ -91,63 +93,57 @@ interface OverviewTabProps {
 const getInitials = (name: string) => {
   if (!name) return 'U'
   const parts = name.trim().split(/\s+/)
-  if (parts.length >= 2) {
-    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
-  }
+  if (parts.length >= 2) return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
   return parts[0]?.[0]?.toUpperCase() || 'U'
 }
 
-const getDisplayName = (classmate: Classmate) =>
-  classmate.display_name ||
-  classmate.full_name ||
-  [classmate.first_name, classmate.last_name].filter(Boolean).join(' ') ||
-  'Friend'
+const getDisplayName = (c: Classmate) =>
+  c.display_name || c.full_name || [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Friend'
 
-const formatCount = (value?: number | null) =>
-  typeof value === 'number' ? value.toLocaleString() : '—'
+const AVATAR_GRADIENTS = [
+  'from-rose-500 to-pink-600',
+  'from-orange-500 to-amber-600',
+  'from-emerald-500 to-teal-600',
+  'from-blue-500 to-cyan-600',
+  'from-violet-500 to-purple-600',
+  'from-indigo-500 to-blue-600',
+  'from-fuchsia-500 to-pink-600',
+  'from-lime-500 to-green-600',
+]
 
-const formatPercent = (value?: number | null) =>
-  typeof value === 'number' ? `${value}%` : '—'
-
-const formatDate = (value?: string) => {
-  if (!value) return 'No date'
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-
-  return new Intl.DateTimeFormat('en-NG', {
-    month: 'short',
-    day: 'numeric',
-  }).format(date)
+const getAvatarGradient = (name: string) => {
+  const hash = (name || 'x').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  return AVATAR_GRADIENTS[hash % AVATAR_GRADIENTS.length]
 }
 
-const getAssignmentStatusColor = (status?: string) => {
-  switch (status) {
-    case 'completed':
-      return 'bg-emerald-100 text-emerald-700 border-emerald-200'
-    case 'submitted':
-      return 'bg-cyan-100 text-cyan-700 border-cyan-200'
-    case 'pending':
-      return 'bg-amber-100 text-amber-700 border-amber-200'
-    default:
-      return 'bg-slate-100 text-slate-600 border-slate-200'
-  }
+const formatCount = (v?: number | null) =>
+  typeof v === 'number' ? v.toLocaleString() : '—'
+
+const formatPercent = (v?: number | null) =>
+  typeof v === 'number' ? `${v}%` : '—'
+
+const formatDate = (v?: string) => {
+  if (!v) return null
+  const d = new Date(v)
+  if (Number.isNaN(d.getTime())) return v
+  return new Intl.DateTimeFormat('en-NG', { month: 'short', day: 'numeric' }).format(d)
 }
 
-const getAssignmentStatusIcon = (status?: string) => {
+const getStatusStyle = (status?: string) => {
   switch (status) {
     case 'completed':
-      return <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+      return { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200', icon: CheckCircle2, iconColor: 'text-emerald-600', dot: 'bg-emerald-500' }
     case 'submitted':
-      return <Clock className="h-4 w-4 text-cyan-600" />
+      return { bg: 'bg-cyan-50', text: 'text-cyan-700', ring: 'ring-cyan-200', icon: Clock, iconColor: 'text-cyan-600', dot: 'bg-cyan-500' }
     case 'pending':
-      return <AlertCircle className="h-4 w-4 text-amber-600" />
+      return { bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200', icon: AlertCircle, iconColor: 'text-amber-600', dot: 'bg-amber-500' }
     default:
-      return <Clock className="h-4 w-4 text-slate-500" />
+      return { bg: 'bg-slate-50', text: 'text-slate-600', ring: 'ring-slate-200', icon: Clock, iconColor: 'text-slate-500', dot: 'bg-slate-400' }
   }
 }
 
 // ── Reusable UI ────────────────────────────────────────────────────────────────
-function SurfaceCard({
+function Card({
   children,
   className,
   delay = 0,
@@ -158,11 +154,11 @@ function SurfaceCard({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.25 }}
+      transition={{ delay, duration: 0.3, ease: 'easeOut' }}
       className={cn(
-        'rounded-2xl border border-slate-200 bg-white shadow-sm',
+        'rounded-2xl border border-slate-200/70 bg-white shadow-sm',
         className
       )}
     >
@@ -175,357 +171,491 @@ function SectionHeader({
   icon: Icon,
   title,
   description,
-  onViewAll,
-  viewAllLabel = 'View all',
+  action,
+  accent = 'text-slate-700',
+  accentBg = 'bg-slate-100',
 }: {
   icon: ElementType
   title: string
   description?: string
-  onViewAll?: () => void
-  viewAllLabel?: string
+  action?: ReactNode
+  accent?: string
+  accentBg?: string
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex items-start gap-3">
-        <div className="rounded-xl bg-slate-100 p-2">
-          <Icon className="h-4 w-4 text-slate-700" />
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2.5 min-w-0">
+        <div className={cn('rounded-xl p-2 shrink-0', accentBg)}>
+          <Icon className={cn('h-4 w-4', accent)} />
         </div>
-        <div>
-          <h3 className="text-base font-semibold text-slate-900">{title}</h3>
-          {description ? (
-            <p className="mt-0.5 text-sm text-slate-500">{description}</p>
-          ) : null}
+        <div className="min-w-0">
+          <h3 className="text-sm sm:text-base font-bold text-slate-900 truncate leading-tight">
+            {title}
+          </h3>
+          {description && (
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-0.5 truncate">
+              {description}
+            </p>
+          )}
         </div>
       </div>
-
-      {onViewAll ? (
-        <button
-          type="button"
-          onClick={onViewAll}
-          className="inline-flex shrink-0 items-center gap-1 text-sm font-medium text-slate-500 transition hover:text-slate-900"
-        >
-          {viewAllLabel}
-          <ArrowRight className="h-4 w-4" />
-        </button>
-      ) : null}
+      {action}
     </div>
+  )
+}
+
+function ViewAllButton({ onClick, label = 'View all' }: { onClick: () => void; label?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group inline-flex shrink-0 items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 transition-all hover:bg-slate-100 hover:text-slate-900"
+    >
+      <span className="whitespace-nowrap">{label}</span>
+      <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+    </button>
   )
 }
 
 function EmptyState({
+  icon: Icon,
   title,
   description,
 }: {
+  icon: ElementType
   title: string
   description: string
 }) {
   return (
-    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center">
-      <p className="text-sm font-medium text-slate-700">{title}</p>
-      <p className="mt-1 text-sm text-slate-500">{description}</p>
+    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 px-4 py-10 text-center">
+      <div className="mx-auto w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center mb-3">
+        <Icon className="h-5 w-5 text-slate-400" />
+      </div>
+      <p className="text-sm font-bold text-slate-700">{title}</p>
+      <p className="mt-1 text-xs text-slate-500 max-w-xs mx-auto">{description}</p>
     </div>
   )
 }
 
-function SummaryCard({
-  icon: Icon,
-  title,
-  value,
-  subtitle,
-  tone,
-  delay = 0,
-}: {
+// ── Stat Tile ──────────────────────────────────────────────────────────────
+interface StatTileConfig {
   icon: ElementType
   title: string
   value: string
   subtitle: string
-  tone: string
-  delay?: number
-}) {
+  gradient: string
+  iconBg: string
+  iconColor: string
+  trend?: 'up' | 'down' | 'neutral'
+}
+
+function StatTile({
+  icon: Icon,
+  title,
+  value,
+  subtitle,
+  gradient,
+  iconBg,
+  iconColor,
+  delay = 0,
+}: StatTileConfig & { delay?: number }) {
   return (
-    <SurfaceCard delay={delay}>
-      <div className="p-5">
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.3, ease: 'easeOut' }}
+      className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white shadow-sm hover:shadow-md hover:border-slate-300 transition-all"
+    >
+      {/* Decorative gradient blob */}
+      <div className={cn(
+        'absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-10 blur-2xl transition-opacity group-hover:opacity-20',
+        gradient
+      )} />
+
+      <div className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-slate-500">{title}</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-900">
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              {title}
+            </p>
+            <p className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 leading-none">
               {value}
             </p>
-            <p className="mt-1 text-sm text-slate-500">{subtitle}</p>
+            <p className="mt-1.5 text-[11px] sm:text-xs text-slate-500 truncate">
+              {subtitle}
+            </p>
           </div>
-          <div className={cn('shrink-0 rounded-xl p-2.5', tone)}>
-            <Icon className="h-5 w-5" />
+          <div className={cn('shrink-0 rounded-xl p-2 sm:p-2.5', iconBg)}>
+            <Icon className={cn('h-4 w-4 sm:h-5 sm:w-5', iconColor)} />
           </div>
         </div>
       </div>
-    </SurfaceCard>
+    </motion.div>
   )
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
+// ── Progress Ring (for completion rate) ────────────────────────────────────
+function ProgressRing({ value, size = 44 }: { value: number; size?: number }) {
+  const stroke = 4
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+  const dash = (value / 100) * circumference
+
+  return (
+    <svg width={size} height={size} className="shrink-0 -rotate-90">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        strokeWidth={stroke}
+        className="stroke-slate-200 fill-none"
+      />
+      <motion.circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        strokeWidth={stroke}
+        strokeLinecap="round"
+        className="stroke-emerald-500 fill-none"
+        initial={{ strokeDasharray: `0 ${circumference}` }}
+        animate={{ strokeDasharray: `${dash} ${circumference}` }}
+        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
+      />
+    </svg>
+  )
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Main Component
+// ═══════════════════════════════════════════════════════════════════════════════
 export function OverviewTab({
   profile,
   stats,
   bannerStats,
   handleTabChange,
+  router,
   attendanceSummary,
 }: OverviewTabProps) {
   const recentAssignments = stats.recentAssignments || []
   const recentNotes = stats.recentNotes || []
   const classmates = stats.classmates || []
   const displayClassmates = classmates.slice(0, 8)
-
   const classLabel = [profile.class, profile.class_arm].filter(Boolean).join(' ')
 
   const presentDays = attendanceSummary?.presentDays ?? null
   const absentDays = attendanceSummary?.absentDays ?? null
-
   const totalAttendanceDays =
     typeof presentDays === 'number' && typeof absentDays === 'number'
       ? presentDays + absentDays
       : null
 
   const attendanceRate =
-    typeof totalAttendanceDays === 'number' &&
-    totalAttendanceDays > 0 &&
-    typeof presentDays === 'number'
+    typeof totalAttendanceDays === 'number' && totalAttendanceDays > 0 && typeof presentDays === 'number'
       ? Math.round((presentDays / totalAttendanceDays) * 100)
       : attendanceSummary?.attendanceRate ?? null
 
   const attendanceSubtitle =
     typeof presentDays === 'number' || typeof absentDays === 'number'
-      ? `${formatCount(presentDays)} present • ${formatCount(absentDays)} absent`
+      ? `${formatCount(presentDays)} present · ${formatCount(absentDays)} absent`
       : 'Recorded by teachers'
 
   return (
-    <div className="space-y-6">
-      {/* Top Summary */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
+    <div className="space-y-4 sm:space-y-6">
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* HERO: Progress + Quick Summary                                     */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <Card className="overflow-hidden">
+        <div className="relative p-5 sm:p-6 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
+          {/* Decorative blobs */}
+          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-3xl" />
+          <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
+
+          <div className="relative flex items-center gap-4 sm:gap-5">
+            <ProgressRing value={bannerStats.completionRate} size={64} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1.5">
+                <Sparkles className="h-3.5 w-3.5 text-white/70" />
+                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-white/70">
+                  Term Progress
+                </p>
+              </div>
+              <p className="mt-1 text-2xl sm:text-3xl font-extrabold leading-tight">
+                {formatPercent(bannerStats.completionRate)} complete
+              </p>
+              <p className="mt-0.5 text-xs sm:text-sm text-white/80 truncate">
+                {bannerStats.completedAssignments} of {bannerStats.totalAssignments} tasks done
+                {bannerStats.pendingAssignments > 0 && ` · ${bannerStats.pendingAssignments} pending`}
+              </p>
+            </div>
+            <button
+              onClick={() => handleTabChange('assignments')}
+              className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-3 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors"
+            >
+              View tasks
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* STAT TILES                                                          */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-3">
+        <StatTile
           icon={BarChart3}
           title="Attendance"
           value={formatPercent(attendanceRate)}
           subtitle={attendanceSubtitle}
-          tone="bg-emerald-50 text-emerald-600"
-          delay={0}
+          gradient="bg-emerald-500"
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
+          delay={0.05}
         />
-
-        <SummaryCard
+        <StatTile
           icon={FileText}
-          title="My Assignments"
+          title="Assignments"
           value={formatPercent(bannerStats.completionRate)}
-          subtitle={`${formatCount(bannerStats.completedAssignments)} of ${formatCount(bannerStats.totalAssignments)} done`}
-          tone="bg-blue-50 text-blue-600"
-          delay={0.04}
+          subtitle={`${formatCount(bannerStats.completedAssignments)}/${formatCount(bannerStats.totalAssignments)} done`}
+          gradient="bg-blue-500"
+          iconBg="bg-blue-50"
+          iconColor="text-blue-600"
+          delay={0.1}
         />
-
-        <SummaryCard
+        <StatTile
           icon={AlertCircle}
           title="To Do"
           value={formatCount(bannerStats.pendingAssignments)}
-          subtitle="Tasks waiting for you"
-          tone="bg-amber-50 text-amber-600"
-          delay={0.08}
+          subtitle="Tasks pending"
+          gradient="bg-amber-500"
+          iconBg="bg-amber-50"
+          iconColor="text-amber-600"
+          delay={0.15}
         />
-
-        <SummaryCard
+        <StatTile
           icon={Users}
-          title="My Friends"
+          title="Classmates"
           value={formatCount(bannerStats.totalClassmates)}
-          subtitle={classLabel ? `Friends in ${classLabel}` : 'Friends in your class'}
-          tone="bg-violet-50 text-violet-600"
-          delay={0.12}
+          subtitle={classLabel || 'Your class'}
+          gradient="bg-violet-500"
+          iconBg="bg-violet-50"
+          iconColor="text-violet-600"
+          delay={0.2}
         />
       </div>
 
-      {/* Main Content */}
-      <div className="grid gap-6 xl:grid-cols-[1.35fr_1fr]">
-        {/* Recent Assignments */}
-        <SurfaceCard delay={0.16}>
-          <div className="p-6">
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* TASKS + NOTES                                                       */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <div className="grid gap-4 sm:gap-6 xl:grid-cols-[1.35fr_1fr]">
+
+        {/* Recent Tasks */}
+        <Card delay={0.25}>
+          <div className="p-4 sm:p-5">
             <SectionHeader
               icon={FileText}
               title="Recent Tasks"
               description="Your latest assignments and deadlines"
-              onViewAll={() => handleTabChange('assignments')}
+              accent="text-blue-600"
+              accentBg="bg-blue-50"
+              action={<ViewAllButton onClick={() => handleTabChange('assignments')} />}
             />
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-4 sm:mt-5 space-y-2">
               {recentAssignments.length > 0 ? (
-                recentAssignments.slice(0, 4).map((assignment) => (
-                  <div
-                    key={assignment.id}
-                    className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition-colors hover:bg-slate-50"
-                  >
-                    <div className="mt-0.5 shrink-0">
-                      {getAssignmentStatusIcon(assignment.status)}
-                    </div>
+                recentAssignments.slice(0, 4).map((a, idx) => {
+                  const s = getStatusStyle(a.status)
+                  const Icon = s.icon
+                  return (
+                    <motion.button
+                      key={a.id}
+                      type="button"
+                      onClick={() => handleTabChange('assignments')}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 + idx * 0.04 }}
+                      className="group w-full flex items-start gap-3 rounded-xl border border-slate-200/70 bg-white p-3 text-left transition-all hover:border-slate-300 hover:shadow-sm hover:bg-slate-50/50 active:scale-[0.99]"
+                    >
+                      <div className={cn('shrink-0 rounded-lg p-1.5', s.bg)}>
+                        <Icon className={cn('h-3.5 w-3.5', s.iconColor)} />
+                      </div>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-slate-900">
-                            {assignment.title}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-bold text-slate-900 leading-tight truncate">
+                            {a.title}
                           </p>
-
-                          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                            <span>{assignment.subject}</span>
-
-                            {assignment.due_date ? (
-                              <>
-                                <span className="text-slate-300">•</span>
-                                <span className="inline-flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {formatDate(assignment.due_date)}
-                                </span>
-                              </>
-                            ) : null}
-
-                            {typeof assignment.score === 'number' ? (
-                              <>
-                                <span className="text-slate-300">•</span>
-                                <span>Score: {assignment.score}%</span>
-                              </>
-                            ) : null}
-                          </div>
+                          <span className={cn(
+                            'shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold capitalize',
+                            s.bg,
+                            s.text
+                          )}>
+                            <span className={cn('w-1.5 h-1.5 rounded-full', s.dot)} />
+                            {a.status || 'pending'}
+                          </span>
                         </div>
 
-                        <Badge
-                          className={cn(
-                            'shrink-0 border text-xs font-medium capitalize',
-                            getAssignmentStatusColor(assignment.status)
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                          <span className="font-medium">{a.subject}</span>
+                          {a.due_date && (
+                            <>
+                              <span className="text-slate-300">·</span>
+                              <span className="inline-flex items-center gap-0.5">
+                                <Calendar className="h-2.5 w-2.5" />
+                                {formatDate(a.due_date)}
+                              </span>
+                            </>
                           )}
-                        >
-                          {assignment.status || 'pending'}
-                        </Badge>
+                          {typeof a.score === 'number' && (
+                            <>
+                              <span className="text-slate-300">·</span>
+                              <span className="font-semibold text-emerald-600">{a.score}%</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                ))
+                    </motion.button>
+                  )
+                })
               ) : (
                 <EmptyState
+                  icon={FileText}
                   title="No tasks yet"
-                  description="Your assignments will appear here when available."
+                  description="Your assignments will appear here when your teachers post them."
                 />
               )}
             </div>
           </div>
-        </SurfaceCard>
+        </Card>
 
         {/* Recent Notes */}
-        <SurfaceCard delay={0.2}>
-          <div className="p-6">
+        <Card delay={0.3}>
+          <div className="p-4 sm:p-5">
             <SectionHeader
               icon={NotebookPen}
               title="Recent Notes"
-              description="New class notes and learning materials"
-              onViewAll={() => handleTabChange('notes')}
+              description="New class materials"
+              accent="text-violet-600"
+              accentBg="bg-violet-50"
+              action={<ViewAllButton onClick={() => handleTabChange('notes')} />}
             />
 
-            <div className="mt-6 space-y-3">
+            <div className="mt-4 sm:mt-5 space-y-2">
               {recentNotes.length > 0 ? (
-                recentNotes.slice(0, 4).map((note) => (
-                  <div
+                recentNotes.slice(0, 4).map((note, idx) => (
+                  <motion.button
                     key={note.id}
-                    className="rounded-xl border border-slate-200 bg-slate-50/60 p-4 transition-colors hover:bg-slate-50"
+                    type="button"
+                    onClick={() => handleTabChange('notes')}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.35 + idx * 0.04 }}
+                    className="group w-full flex items-start gap-3 rounded-xl border border-slate-200/70 bg-white p-3 text-left transition-all hover:border-slate-300 hover:shadow-sm hover:bg-slate-50/50 active:scale-[0.99]"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="shrink-0 rounded-lg bg-violet-100 p-2">
-                        <NotebookPen className="h-4 w-4 text-violet-600" />
-                      </div>
+                    <div className="shrink-0 rounded-lg bg-violet-50 p-1.5">
+                      <NotebookPen className="h-3.5 w-3.5 text-violet-600" />
+                    </div>
 
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {note.title}
-                        </p>
-
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                          <span>{note.subject || 'General'}</span>
-
-                          {note.created_at ? (
-                            <>
-                              <span className="text-slate-300">•</span>
-                              <span className="inline-flex items-center gap-1">
-                                <Calendar className="h-3 w-3" />
-                                {formatDate(note.created_at)}
-                              </span>
-                            </>
-                          ) : null}
-                        </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold text-slate-900 leading-tight truncate">
+                        {note.title}
+                      </p>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+                        <span className="font-medium">{note.subject || 'General'}</span>
+                        {note.created_at && (
+                          <>
+                            <span className="text-slate-300">·</span>
+                            <span className="inline-flex items-center gap-0.5">
+                              <Calendar className="h-2.5 w-2.5" />
+                              {formatDate(note.created_at)}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  </div>
+                  </motion.button>
                 ))
               ) : (
                 <EmptyState
+                  icon={NotebookPen}
                   title="No notes yet"
                   description="Notes will appear here when they are available."
                 />
               )}
             </div>
           </div>
-        </SurfaceCard>
+        </Card>
       </div>
 
-      {/* Friends Preview */}
-      <SurfaceCard delay={0.24}>
-        <div className="p-6">
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      {/* CLASSMATES                                                          */}
+      {/* ═══════════════════════════════════════════════════════════════════ */}
+      <Card delay={0.35}>
+        <div className="p-4 sm:p-5">
           <SectionHeader
             icon={Users}
-            title="My Friends"
-            description={
-              classLabel
-                ? `Friends in ${classLabel}`
-                : 'Friends in your class'
+            title="My Classmates"
+            description={classLabel ? `Friends in ${classLabel}` : 'Friends in your class'}
+            accent="text-violet-600"
+            accentBg="bg-violet-50"
+            action={
+              <ViewAllButton
+                onClick={() => router.push('/pupil/classmates')}
+                label={`See all${bannerStats.totalClassmates ? ` (${bannerStats.totalClassmates})` : ''}`}
+              />
             }
-            onViewAll={() => handleTabChange('classmates')}
-            viewAllLabel={`See all (${bannerStats.totalClassmates})`}
           />
 
-          <div className="mt-6">
+          <div className="mt-4 sm:mt-5">
             {displayClassmates.length > 0 ? (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                {displayClassmates.map((classmate) => {
-                  const displayName = getDisplayName(classmate)
-
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                {displayClassmates.map((c, idx) => {
+                  const name = getDisplayName(c)
                   return (
-                    <div
-                      key={classmate.id}
-                      className="flex items-center gap-3 rounded-xl border border-slate-200 bg-slate-50/60 p-3 transition-colors hover:bg-slate-50"
+                    <motion.button
+                      key={c.id}
+                      type="button"
+                      onClick={() => router.push('/pupil/classmates')}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.4 + idx * 0.03 }}
+                      className="group flex items-center gap-2.5 rounded-xl border border-slate-200/70 bg-white p-2.5 transition-all hover:border-slate-300 hover:shadow-sm hover:bg-slate-50/50 active:scale-[0.98] text-left"
                     >
-                      <Avatar className="h-10 w-10 shrink-0">
-                        {classmate.photo_url ? (
-                          <AvatarImage
-                            src={classmate.photo_url}
-                            alt={displayName}
-                          />
-                        ) : null}
-                        <AvatarFallback className="bg-slate-200 text-sm font-semibold text-slate-700">
-                          {getInitials(displayName)}
+                      <Avatar className="h-9 w-9 shrink-0 ring-2 ring-white shadow-sm">
+                        {c.photo_url && <AvatarImage src={c.photo_url} alt={name} />}
+                        <AvatarFallback
+                          className={cn(
+                            'text-white text-xs font-bold bg-gradient-to-br',
+                            getAvatarGradient(name)
+                          )}
+                        >
+                          {getInitials(name)}
                         </AvatarFallback>
                       </Avatar>
 
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {displayName}
+                        <p className="truncate text-xs sm:text-sm font-bold text-slate-900 leading-tight">
+                          {name}
                         </p>
-                        <p className="truncate text-xs text-slate-500">
-                          {classmate.class || 'Friend'}
+                        <p className="truncate text-[10px] sm:text-[11px] text-slate-500 mt-0.5">
+                          {c.class || 'Classmate'}
                         </p>
                       </div>
-                    </div>
+                    </motion.button>
                   )
                 })}
               </div>
             ) : (
               <EmptyState
-                title="No friends yet"
-                description="Your friends will appear here when available."
+                icon={Users}
+                title="No classmates yet"
+                description="Your classmates will appear here once they've been added."
               />
             )}
           </div>
         </div>
-      </SurfaceCard>
+      </Card>
     </div>
   )
 }

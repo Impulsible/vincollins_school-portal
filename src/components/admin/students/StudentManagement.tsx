@@ -1,76 +1,38 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { supabase } from '@/lib/supabase/client'
 import {
-  Search,
-  UserPlus,
-  GraduationCap,
-  Mail,
-  Phone,
-  Calendar,
-  MapPin,
-  Loader2,
-  Trash2,
-  Edit2,
-  Eye,
-  Users,
-  UserCheck,
-  UserX,
-  RefreshCw,
-  Fingerprint,
-  MoreVertical,
-  LayoutGrid,
-  List,
-  Filter,
-  X,
-  UserCog,
-  Shield,
-  Sparkles,
-  ChevronDown,
+  Search, UserPlus, GraduationCap, Mail, Phone, MapPin,
+  Loader2, Trash2, Edit2, Eye, Users, UserCheck, UserX,
+  RefreshCw, Fingerprint, MoreVertical, LayoutGrid, List,
+  X, UserCog, Shield, Sparkles, Calendar, ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogHeader, DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog'
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useUser, getRoleColors } from '@/contexts/UserContext'
 
@@ -84,6 +46,7 @@ export interface Student {
   email: string
   role: 'student'
   class?: string
+  class_arm?: string
   phone?: string
   address?: string
   is_active: boolean
@@ -96,7 +59,6 @@ export interface Student {
   date_of_birth?: string
   gender?: string
   photo_url?: string
-  password_changed?: boolean
   first_name?: string
   last_name?: string
   middle_name?: string
@@ -133,653 +95,611 @@ const CLASSES = [
   { id: 'primary_5', name: 'Primary 5', code: 'P5' },
 ] as const
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-const getInitials = (name: string) => {
-  if (!name) return '?'
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2)
+const EMPTY_FORM: StudentFormData = {
+  first_name: '', middle_name: '', last_name: '',
+  class: '', phone: '', address: '',
+  admission_year: new Date().getFullYear().toString(),
+  admission_number: '', gender: '', date_of_birth: '',
+  guardian_name: '', guardian_phone: '', guardian_email: '', email: '',
 }
 
-// Deterministic hue from name → colourful, consistent avatar backgrounds
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+const getInitials = (name: string) =>
+  name ? name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2) : '?'
+
+const GRADIENTS = [
+  'from-rose-500 to-pink-600', 'from-orange-500 to-amber-600',
+  'from-emerald-500 to-teal-600', 'from-blue-500 to-cyan-600',
+  'from-violet-500 to-purple-600', 'from-indigo-500 to-blue-600',
+  'from-fuchsia-500 to-pink-600', 'from-lime-500 to-green-600',
+]
+
 const getAvatarGradient = (name: string) => {
-  const gradients = [
-    'from-rose-500 to-pink-600',
-    'from-orange-500 to-amber-600',
-    'from-emerald-500 to-teal-600',
-    'from-blue-500 to-cyan-600',
-    'from-violet-500 to-purple-600',
-    'from-indigo-500 to-blue-600',
-    'from-fuchsia-500 to-pink-600',
-    'from-lime-500 to-green-600',
-  ]
-  const hash = name.split('').reduce((a, c) => a + c.charCodeAt(0), 0)
-  return gradients[hash % gradients.length]
+  const hash = (name || 'x').split('').reduce((a, c) => a + c.charCodeAt(0), 0)
+  return GRADIENTS[hash % GRADIENTS.length]
 }
 
 const getClassCode = (className?: string) => {
   if (!className) return '?'
-  const found = CLASSES.find((c) => c.name === className)
-  return found?.code || className.slice(0, 2).toUpperCase()
+  return CLASSES.find((c) => c.name === className)?.code ?? className.slice(0, 2).toUpperCase()
 }
 
-// ── Props ──
-interface StudentManagementProps {
-  students: Student[]
-  onRefresh: () => Promise<void>
-  loading?: boolean
+const buildFullName = (f: StudentFormData) =>
+  [f.first_name, f.middle_name, f.last_name].filter(Boolean).join(' ')
+
+// ── Small reusable pieces ──────────────────────────────────────────────────────
+
+function StatCard({ label, value, icon: Icon, color }: {
+  label: string; value: number; icon: React.ElementType; color: string
+}) {
+  return (
+    <Card className="relative overflow-hidden border border-slate-200/60 shadow-sm bg-white">
+      <div className={cn('absolute inset-y-0 left-0 w-1', color)} />
+      <CardContent className="p-2.5 pl-3.5 sm:p-3 sm:pl-4 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-[9px] sm:text-[10px] font-bold uppercase tracking-wider text-slate-400 truncate">{label}</p>
+          <p className="text-lg sm:text-xl font-extrabold text-slate-900 leading-tight">{value}</p>
+        </div>
+        <div className={cn('p-1.5 sm:p-2 rounded-lg shrink-0 opacity-90', color)}>
+          <Icon className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-white" />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+function StatusBadge({ active }: { active: boolean }) {
+  return active ? (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+      Active
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500 whitespace-nowrap">
+      <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+      Inactive
+    </span>
+  )
+}
+
+function ClassBadge({ className, accent }: { className?: string; accent: string }) {
+  if (!className) return <span className="text-xs text-slate-400">—</span>
+  return (
+    <span
+      className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-extrabold text-white whitespace-nowrap"
+      style={{ background: `linear-gradient(135deg, ${accent}, ${accent}bb)` }}
+    >
+      {getClassCode(className)}
+    </span>
+  )
+}
+
+function StudentAvatar({ student, size = 'md' }: { student: Student; size?: 'sm' | 'md' | 'lg' }) {
+  const sizes = { sm: 'h-8 w-8', md: 'h-9 w-9 sm:h-10 sm:w-10', lg: 'h-16 w-16' }
+  const textSizes = { sm: 'text-[10px]', md: 'text-xs', lg: 'text-lg' }
+  return (
+    <Avatar className={cn(sizes[size], 'shadow-sm ring-1 ring-white shrink-0')}>
+      <AvatarImage src={student.photo_url || undefined} />
+      <AvatarFallback className={cn('text-white font-bold bg-gradient-to-br', getAvatarGradient(student.full_name), textSizes[size])}>
+        {getInitials(student.full_name)}
+      </AvatarFallback>
+    </Avatar>
+  )
+}
+
+function ActionMenu({ student, onView, onEdit, onToggle, onDelete }: {
+  student: Student
+  onView: () => void
+  onEdit: () => void
+  onToggle: () => void
+  onDelete: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-lg shrink-0">
+          <MoreVertical className="h-4 w-4" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-44 rounded-xl bg-white border border-slate-200 shadow-xl">
+        <DropdownMenuItem onClick={onView} className="cursor-pointer text-xs">
+          <Eye className="mr-2 h-3.5 w-3.5" /> View Profile
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onEdit} className="cursor-pointer text-xs">
+          <Edit2 className="mr-2 h-3.5 w-3.5" /> Edit
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={onToggle} className="cursor-pointer text-xs">
+          {student.is_active
+            ? <><UserX className="mr-2 h-3.5 w-3.5" /> Deactivate</>
+            : <><UserCheck className="mr-2 h-3.5 w-3.5" /> Activate</>}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={onDelete} className="cursor-pointer text-xs text-red-600 focus:text-red-600">
+          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
+function FormSection({ title, icon: Icon, accent, children }: {
+  title: string; icon: React.ElementType; accent: string; children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-2">
+        <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ backgroundColor: `${accent}20` }}>
+          <Icon className="w-3 h-3" style={{ color: accent }} />
+        </div>
+        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 whitespace-nowrap">{title}</p>
+        <div className="flex-1 h-px bg-slate-100" />
+      </div>
+      <div className="space-y-2.5">{children}</div>
+    </div>
+  )
+}
+
+function Field({ label, id, helper, children }: {
+  label: string; id: string; helper?: string; children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id} className="text-xs font-semibold text-slate-600">{label}</Label>
+      {children}
+      {helper && <p className="text-[10px] text-slate-400">{helper}</p>}
+    </div>
+  )
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════════
 
-export function StudentManagement({
-  students,
-  onRefresh,
-  loading = false,
-}: StudentManagementProps) {
+export function StudentManagement() {
   const { user } = useUser()
-  const roleColors = getRoleColors(user?.role)
-  const accent = roleColors.primary
+  const accent = getRoleColors(user?.role).primary
 
-  const [searchQuery, setSearchQuery] = useState('')
-  const [classFilter, setClassFilter] = useState<string>('all')
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
-  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  // ── State ──────────────────────────────────────────────────────────────────
+  const [students, setStudents] = useState<Student[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [classFilter, setClassFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('cards')
+
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null)
+  const [modal, setModal] = useState<'none' | 'create' | 'edit' | 'detail' | 'delete'>('none')
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [editFormData, setEditFormData] = useState<Partial<Student>>({})
 
-  const [formData, setFormData] = useState<StudentFormData>({
-    first_name: '',
-    middle_name: '',
-    last_name: '',
-    class: '',
-    phone: '',
-    address: '',
-    admission_year: new Date().getFullYear().toString(),
-    admission_number: '',
-    gender: '',
-    date_of_birth: '',
-    guardian_name: '',
-    guardian_phone: '',
-    guardian_email: '',
-    email: '',
-  })
+  const [createForm, setCreateForm] = useState<StudentFormData>(EMPTY_FORM)
+  const [editForm, setEditForm] = useState<Partial<Student>>({})
 
-  // ── Filtered list ─────────────────────────────────────────────────────────
-  const filteredStudents = useMemo(() => {
-    return students.filter((student) => {
-      const matchesSearch =
-        student.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.vin_id?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        student.admission_number?.toLowerCase().includes(searchQuery.toLowerCase())
+  // Force cards view on mobile — much better UX than tables
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(min-width: 640px)')
+    const apply = () => setViewMode(mq.matches ? 'table' : 'cards')
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
 
-      const matchesClass = classFilter === 'all' || student.class === classFilter
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && student.is_active) ||
-        (statusFilter === 'inactive' && !student.is_active)
+  // ── Data ───────────────────────────────────────────────────────────────────
+  const fetchStudents = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+      let query = supabase.from('profiles').select('*').eq('role', 'pupil').order('display_name')
+      if ((user?.role === 'teacher' || user?.role === 'staff') && user?.class) {
+        query = query.eq('class', user.class)
+      }
+      const { data, error } = await query
+      if (error) throw error
+      setStudents(
+        (data ?? []).map((p: any): Student => ({
+          id: p.id, vin_id: p.vin_id || '', full_name: p.full_name || p.display_name || 'Unknown',
+          display_name: p.display_name || p.full_name || 'Unknown', email: p.email || '',
+          role: 'student', class: p.class || '', class_arm: p.class_arm || '',
+          phone: p.phone || '', address: p.address || '', is_active: p.is_active ?? true,
+          created_at: p.created_at || new Date().toISOString(),
+          admission_number: p.admission_number || '', admission_year: p.admission_year || '',
+          guardian_name: p.guardian_name || '', guardian_phone: p.guardian_phone || '',
+          guardian_email: p.guardian_email || '', date_of_birth: p.date_of_birth || '',
+          gender: p.gender || '', photo_url: p.photo_url || '',
+          first_name: p.first_name || '', last_name: p.last_name || '', middle_name: p.middle_name || '',
+        }))
+      )
+    } catch (e: any) {
+      setError(e.message || 'Failed to load pupils')
+      toast.error(e.message || 'Failed to load pupils')
+    } finally {
+      setLoading(false)
+    }
+  }, [user])
 
-      return matchesSearch && matchesClass && matchesStatus
+  useEffect(() => { fetchStudents() }, [fetchStudents])
+
+  // ── Derived ────────────────────────────────────────────────────────────────
+  const filtered = useMemo(() => students.filter((s) => {
+    const q = search.toLowerCase()
+    const matchSearch = !q || s.full_name?.toLowerCase().includes(q) ||
+      s.vin_id?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q) ||
+      s.admission_number?.toLowerCase().includes(q)
+    const matchClass = classFilter === 'all' || s.class === classFilter
+    const matchStatus = statusFilter === 'all' ||
+      (statusFilter === 'active' && s.is_active) || (statusFilter === 'inactive' && !s.is_active)
+    return matchSearch && matchClass && matchStatus
+  }), [students, search, classFilter, statusFilter])
+
+  const stats = useMemo(() => ({
+    total: students.length,
+    active: students.filter((s) => s.is_active).length,
+    inactive: students.filter((s) => !s.is_active).length,
+    classes: new Set(students.map((s) => s.class).filter(Boolean)).size,
+  }), [students])
+
+  const activeFilters = (classFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+  const closeModal = () => { setModal('none'); setSelectedStudent(null) }
+
+  const openEdit = (s: Student) => {
+    setSelectedStudent(s)
+    setEditForm({
+      full_name: s.full_name, first_name: s.first_name, last_name: s.last_name,
+      class: s.class, gender: s.gender, phone: s.phone, address: s.address,
+      guardian_name: s.guardian_name, guardian_phone: s.guardian_phone,
+      guardian_email: s.guardian_email, admission_number: s.admission_number, is_active: s.is_active,
     })
-  }, [students, searchQuery, classFilter, statusFilter])
+    setModal('edit')
+  }
 
-  const activeFilterCount =
-    (classFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)
-
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleCreateStudent = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // ── Validate required fields ─────────────────────────────────────────
+    if (!createForm.first_name.trim()) {
+      toast.error('First name is required')
+      return
+    }
+    if (!createForm.last_name.trim()) {
+      toast.error('Last name is required')
+      return
+    }
+    if (!createForm.class) {
+      toast.error('Please select a class')
+      return
+    }
+    if (!createForm.admission_number.trim()) {
+      toast.error('Admission number is required')
+      return
+    }
+
+    // ── Check duplicate admission number ─────────────────────────────────
+    const admNo = createForm.admission_number.trim().toUpperCase()
+    const duplicate = students.find(
+      (s) => s.admission_number?.toUpperCase() === admNo
+    )
+    if (duplicate) {
+      toast.error(`Admission number "${admNo}" already exists for ${duplicate.full_name}`)
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      const studentData = {
-        ...formData,
-        role: 'student',
-        full_name: `${formData.first_name} ${
-          formData.middle_name ? formData.middle_name + ' ' : ''
-        }${formData.last_name}`.trim(),
-        display_name: `${formData.first_name} ${
-          formData.middle_name ? formData.middle_name + ' ' : ''
-        }${formData.last_name}`.trim(),
-      }
-      const response = await fetch('/api/admin/users', {
+      const fullName = buildFullName(createForm)
+      const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(studentData),
+        body: JSON.stringify({
+          ...createForm,
+          admission_number: admNo,
+          role: 'pupil',
+          full_name: fullName,
+          display_name: fullName,
+        }),
       })
-      const data = await response.json()
-      if (!response.ok) throw new Error(data.error || 'Failed to create student')
-
-      toast.success(`Student enrolled! VIN: ${data.credentials?.vin_id || 'N/A'}`)
-      setIsCreateModalOpen(false)
-      resetForm()
-      await onRefresh()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to create student')
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to create student')
+      toast.success(`Enrolled! VIN: ${data.credentials?.vin_id || 'N/A'}`)
+      setCreateForm(EMPTY_FORM)
+      closeModal()
+      await fetchStudents()
+    } catch (e: any) {
+      toast.error(e.message)
     } finally {
       setIsSubmitting(false)
     }
-  }
-
-  const handleEdit = (student: Student) => {
-    setSelectedStudent(student)
-    setEditFormData({
-      full_name: student.full_name,
-      first_name: student.first_name || '',
-      last_name: student.last_name || '',
-      class: student.class,
-      gender: student.gender,
-      phone: student.phone,
-      address: student.address,
-      guardian_name: student.guardian_name,
-      guardian_phone: student.guardian_phone,
-      guardian_email: student.guardian_email,
-      admission_number: student.admission_number,
-      is_active: student.is_active,
-    })
-    setIsEditModalOpen(true)
   }
 
   const handleSaveEdit = async () => {
     if (!selectedStudent) return
+
+    // ── Validate required fields ─────────────────────────────────────────
+    if (!editForm.admission_number?.trim()) {
+      toast.error('Admission number is required')
+      return
+    }
+
+    // ── Check duplicate admission number (excluding self) ────────────────
+    const admNo = editForm.admission_number.trim().toUpperCase()
+    const duplicate = students.find(
+      (s) =>
+        s.id !== selectedStudent.id &&
+        s.admission_number?.toUpperCase() === admNo
+    )
+    if (duplicate) {
+      toast.error(`Admission number "${admNo}" already exists for ${duplicate.full_name}`)
+      return
+    }
+
+    setIsSubmitting(true)
     try {
-      setIsSubmitting(true)
-      const response = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: selectedStudent.id, ...editFormData }),
+        body: JSON.stringify({
+          id: selectedStudent.id,
+          ...editForm,
+          admission_number: admNo,
+        }),
       })
-      const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error || 'Failed to update student')
-      toast.success('Student updated successfully!')
-      setIsEditModalOpen(false)
-      setSelectedStudent(null)
-      await onRefresh()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update student')
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || 'Update failed')
+      toast.success('Student updated!')
+      closeModal()
+      await fetchStudents()
+    } catch (e: any) {
+      toast.error(e.message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleDelete = (student: Student) => {
-    setSelectedStudent(student)
-    setIsDeleteDialogOpen(true)
-  }
-
-  const handleConfirmDelete = async () => {
+  const handleDelete = async () => {
     if (!selectedStudent) return
+    setIsSubmitting(true)
     try {
-      setIsSubmitting(true)
-      const response = await fetch(
-        `/api/admin/users?id=${selectedStudent.id}`,
-        { method: 'DELETE' }
-      )
-      const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error || 'Failed to delete student')
-      toast.success('Student deleted successfully!')
-      setIsDeleteDialogOpen(false)
-      setSelectedStudent(null)
-      await onRefresh()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to delete student')
+      const res = await fetch(`/api/admin/users?id=${selectedStudent.id}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error || 'Delete failed')
+      toast.success('Student deleted!')
+      closeModal()
+      await fetchStudents()
+    } catch (e: any) {
+      toast.error(e.message)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleToggleStatus = async (student: Student) => {
+  const handleToggleStatus = async (s: Student) => {
     try {
-      const response = await fetch('/api/admin/users', {
+      const res = await fetch('/api/admin/users', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: student.id, is_active: !student.is_active }),
+        body: JSON.stringify({ id: s.id, is_active: !s.is_active }),
       })
-      const result = await response.json()
-      if (!response.ok || !result.success)
-        throw new Error(result.error || 'Failed to update status')
-      toast.success(
-        `Student ${!student.is_active ? 'activated' : 'deactivated'}!`
-      )
-      await onRefresh()
-    } catch (error: any) {
-      toast.error(error.message || 'Failed to update status')
+      const data = await res.json()
+      if (!res.ok || !data.success) throw new Error(data.error)
+      toast.success(`Student ${!s.is_active ? 'activated' : 'deactivated'}!`)
+      await fetchStudents()
+    } catch (e: any) {
+      toast.error(e.message)
     }
   }
 
-  const resetForm = () => {
-    setFormData({
-      first_name: '',
-      middle_name: '',
-      last_name: '',
-      class: '',
-      phone: '',
-      address: '',
-      admission_year: new Date().getFullYear().toString(),
-      admission_number: '',
-      gender: '',
-      date_of_birth: '',
-      guardian_name: '',
-      guardian_phone: '',
-      guardian_email: '',
-      email: '',
-    })
-  }
+  const btnStyle = { background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }
 
-  const clearFilters = () => {
-    setClassFilter('all')
-    setStatusFilter('all')
-    setSearchQuery('')
+  // ── Error state ────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="bg-white rounded-2xl border border-red-100 p-8 sm:p-12 text-center space-y-4">
+        <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mx-auto">
+          <Shield className="w-6 h-6 text-red-400" />
+        </div>
+        <div>
+          <p className="font-bold text-slate-800">Failed to load pupils</p>
+          <p className="text-sm text-slate-400 mt-1 break-words">{error}</p>
+        </div>
+        <Button onClick={fetchStudents} variant="outline" className="rounded-xl gap-2">
+          <RefreshCw className="w-4 h-4" /> Retry
+        </Button>
+      </div>
+    )
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-5">
-      {/* ── Filter / Search Toolbar ───────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: -4 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-4"
-      >
-        <div className="flex flex-col lg:flex-row gap-3">
-          {/* Search */}
-          <div className="flex-1 relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+    <div className="space-y-3 sm:space-y-4">
+
+      {/* ── Stats ─────────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <StatCard label="Total" value={stats.total} icon={Users} color="bg-emerald-500" />
+        <StatCard label="Active" value={stats.active} icon={UserCheck} color="bg-blue-500" />
+        <StatCard label="Inactive" value={stats.inactive} icon={UserX} color="bg-slate-400" />
+        <StatCard label="Classes" value={stats.classes} icon={GraduationCap} color="bg-violet-500" />
+      </div>
+
+      {/* ── Toolbar ───────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-2.5 sm:p-3 space-y-2.5">
+        {/* Row 1: search + add */}
+        <div className="flex gap-2">
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
             <Input
-              placeholder="Search by name, VIN ID, admission number, or email…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 h-10 rounded-xl border-slate-200 focus-visible:ring-1"
-              style={
-                { ['--tw-ring-color' as any]: accent } as React.CSSProperties
-              }
+              placeholder="Search..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-8 h-10 rounded-xl border-slate-200 text-sm"
             />
-            {searchQuery && (
+            {search && (
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center"
               >
                 <X className="w-3 h-3 text-slate-500" />
               </button>
             )}
           </div>
+          <Button onClick={() => setModal('create')} size="sm"
+            className="h-10 rounded-xl gap-1.5 text-white shrink-0 font-semibold px-3" style={btnStyle}>
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden xs:inline sm:inline">Add</span>
+          </Button>
+        </div>
 
-          {/* Filters row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Select value={classFilter} onValueChange={setClassFilter}>
-              <SelectTrigger className="w-full sm:w-44 h-10 rounded-xl border-slate-200">
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-3.5 h-3.5 text-slate-400" />
-                  <SelectValue placeholder="Class" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                <SelectItem value="all">All Classes</SelectItem>
-                {CLASSES.map((cls) => (
-                  <SelectItem key={cls.id} value={cls.name}>
-                    {cls.name} ({cls.code})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {/* Row 2: filters */}
+        <div className="flex items-center gap-2 overflow-x-auto -mx-0.5 px-0.5 pb-0.5 scrollbar-none">
+          <Select value={classFilter} onValueChange={setClassFilter}>
+            <SelectTrigger className="h-8 rounded-lg border-slate-200 text-xs w-32 min-w-32 gap-1 shrink-0">
+              <GraduationCap className="w-3 h-3 text-slate-400 shrink-0" />
+              <SelectValue placeholder="Class" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+              <SelectItem value="all">All Classes</SelectItem>
+              {CLASSES.map((c) => (
+                <SelectItem key={c.id} value={c.name}>{c.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full sm:w-36 h-10 rounded-xl border-slate-200">
-                <div className="flex items-center gap-2">
-                  <UserCheck className="w-3.5 h-3.5 text-slate-400" />
-                  <SelectValue placeholder="Status" />
-                </div>
-              </SelectTrigger>
-              <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="h-8 rounded-lg border-slate-200 text-xs w-24 min-w-24 shrink-0">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+              <SelectItem value="all">All</SelectItem>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+            </SelectContent>
+          </Select>
 
-            {activeFilterCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="h-10 rounded-xl gap-1 text-slate-500 hover:text-red-600"
-              >
-                <X className="w-3.5 h-3.5" />
-                Clear
-              </Button>
-            )}
+          {activeFilters > 0 && (
+            <button
+              type="button"
+              onClick={() => { setClassFilter('all'); setStatusFilter('all') }}
+              className="h-8 px-2 rounded-lg text-[10px] font-bold text-red-500 hover:bg-red-50 flex items-center gap-1 shrink-0"
+            >
+              <X className="w-3 h-3" /> Clear
+            </button>
+          )}
 
-            {/* View mode toggle */}
-            <div className="flex items-center bg-slate-100 rounded-xl p-0.5 h-10">
-              <button
-                onClick={() => setViewMode('table')}
-                className={cn(
-                  'px-3 h-9 rounded-lg flex items-center gap-1.5 transition-all text-xs font-semibold',
-                  viewMode === 'table'
-                    ? 'bg-white shadow-sm text-slate-800'
-                    : 'text-slate-500 hover:text-slate-700'
-                )}
-              >
-                <List className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Table</span>
-              </button>
-              <button
-                onClick={() => setViewMode('cards')}
-                className={cn(
-                  'px-3 h-9 rounded-lg flex items-center gap-1.5 transition-all text-xs font-semibold',
-                  viewMode === 'cards'
-                    ? 'bg-white shadow-sm text-slate-800'
-                    : 'text-slate-500 hover:text-slate-700'
-                )}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Cards</span>
-              </button>
+          <div className="ml-auto flex items-center gap-1.5 shrink-0">
+            <Button variant="ghost" size="sm" onClick={fetchStudents} disabled={loading}
+              className="h-8 w-8 p-0 rounded-lg">
+              <RefreshCw className={cn('w-3.5 h-3.5 text-slate-400', loading && 'animate-spin')} />
+            </Button>
+            <div className="hidden sm:flex bg-slate-100 rounded-lg p-0.5">
+              {(['table', 'cards'] as const).map((mode) => (
+                <button key={mode} type="button" onClick={() => setViewMode(mode)}
+                  className={cn('h-7 w-7 rounded-md flex items-center justify-center transition-all',
+                    viewMode === mode ? 'bg-white shadow-sm text-slate-700' : 'text-slate-400 hover:text-slate-600')}>
+                  {mode === 'table' ? <List className="w-3.5 h-3.5" /> : <LayoutGrid className="w-3.5 h-3.5" />}
+                </button>
+              ))}
             </div>
           </div>
         </div>
 
-        {/* Result count */}
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-          <p className="text-xs text-slate-500">
-            Showing{' '}
-            <span className="font-bold text-slate-700">
-              {filteredStudents.length}
-            </span>{' '}
-            of{' '}
-            <span className="font-bold text-slate-700">{students.length}</span>{' '}
-            students
-          </p>
-          {activeFilterCount > 0 && (
-            <span
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest"
-              style={{
-                backgroundColor: `${accent}15`,
-                color: accent,
-              }}
-            >
-              <Filter className="w-2.5 h-2.5" />
-              {activeFilterCount} filter{activeFilterCount > 1 ? 's' : ''}
+        {/* Row 3: result count */}
+        <p className="text-[11px] text-slate-400">
+          <span className="font-bold text-slate-600">{filtered.length}</span> of{' '}
+          <span className="font-bold text-slate-600">{students.length}</span> pupils
+          {activeFilters > 0 && (
+            <span className="text-violet-500 font-semibold">
+              {' '}· {activeFilters} filter{activeFilters > 1 ? 's' : ''}
             </span>
           )}
-        </div>
-      </motion.div>
+        </p>
+      </div>
 
       {/* ── Content ───────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait">
         {loading ? (
-          <motion.div
-            key="loading"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-16 text-center"
-          >
-            <Loader2
-              className="w-8 h-8 animate-spin mx-auto mb-3"
-              style={{ color: accent }}
-            />
-            <p className="text-sm font-semibold text-slate-600">
-              Loading students…
-            </p>
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-12 sm:p-16 flex flex-col items-center gap-3">
+            <Loader2 className="w-7 h-7 animate-spin" style={{ color: accent }} />
+            <p className="text-sm text-slate-400 font-medium">Loading pupils…</p>
           </motion.div>
-        ) : filteredStudents.length === 0 ? (
-          <motion.div
-            key="empty"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-16 text-center"
-          >
-            <div
-              className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center"
-              style={{ backgroundColor: `${accent}15` }}
-            >
-              <GraduationCap className="w-8 h-8" style={{ color: accent }} />
+
+        ) : filtered.length === 0 ? (
+          <motion.div key="empty" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-8 sm:p-16 text-center space-y-3">
+            <div className="w-12 h-12 rounded-xl mx-auto flex items-center justify-center"
+              style={{ backgroundColor: `${accent}15` }}>
+              <GraduationCap className="w-6 h-6" style={{ color: accent }} />
             </div>
-            <h3 className="text-base font-bold text-slate-800 mb-1">
-              No students found
-            </h3>
-            <p className="text-sm text-slate-500 max-w-sm mx-auto mb-6">
-              {searchQuery || activeFilterCount > 0
-                ? 'Try adjusting your search or filters.'
-                : "Click 'Add Student' to enrol your first pupil."}
-            </p>
-            {(searchQuery || activeFilterCount > 0) && (
-              <Button
-                onClick={clearFilters}
-                variant="outline"
-                className="rounded-xl gap-2"
-              >
-                <X className="w-4 h-4" />
-                Clear filters
+            <div>
+              <p className="font-bold text-slate-700">No pupils found</p>
+              <p className="text-sm text-slate-400 mt-0.5">
+                {search || activeFilters > 0 ? 'Try adjusting your filters.' : 'Add your first pupil to get started.'}
+              </p>
+            </div>
+            {(search || activeFilters > 0) && (
+              <Button variant="outline" onClick={() => { setSearch(''); setClassFilter('all'); setStatusFilter('all') }}
+                className="rounded-xl gap-2 text-sm">
+                <X className="w-3.5 h-3.5" /> Clear filters
               </Button>
             )}
           </motion.div>
+
         ) : viewMode === 'table' ? (
-          // ── TABLE VIEW ────────────────────────────────────────────────
-          <motion.div
-            key="table"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden"
-          >
+          /* ── TABLE VIEW ─────────────────────────────────────────────────── */
+          <motion.div key="table" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[640px]">
                 <thead>
-                  <tr className="border-b border-slate-100 bg-slate-50/50">
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                      Student
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 hidden md:table-cell">
-                      Admission No.
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 hidden lg:table-cell">
-                      VIN ID
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 hidden lg:table-cell">
-                      Contact
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                      Class
-                    </th>
-                    <th className="text-left p-4 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-                      Status
-                    </th>
-                    <th className="text-right p-4 w-[60px]" />
+                  <tr className="border-b border-slate-100 bg-slate-50/80">
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left">Student</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left">Adm. No.</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left hidden md:table-cell">VIN</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left">Class</th>
+                    <th className="p-3 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 text-left">Status</th>
+                    <th className="p-3 w-12" />
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudents.map((student, idx) => (
-                    <motion.tr
-                      key={student.id}
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
+                  {filtered.map((s, idx) => (
+                    <motion.tr key={s.id}
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
                       transition={{ delay: Math.min(idx * 0.02, 0.3) }}
-                      className="border-b border-slate-50 hover:bg-slate-50/60 transition-colors group"
-                    >
-                      {/* Name + avatar */}
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10 shadow-sm">
-                            <AvatarImage
-                              src={student.photo_url || undefined}
-                            />
-                            <AvatarFallback
-                              className={cn(
-                                'text-white font-bold text-xs bg-gradient-to-br',
-                                getAvatarGradient(student.full_name || 'A')
-                              )}
-                            >
-                              {getInitials(
-                                student.full_name || student.display_name || ''
-                              )}
-                            </AvatarFallback>
-                          </Avatar>
+                      className="border-b border-slate-50 hover:bg-slate-50/70 transition-colors group">
+                      <td className="p-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <StudentAvatar student={s} />
                           <div className="min-w-0">
-                            <p className="font-bold text-slate-800 text-sm leading-tight truncate">
-                              {student.full_name ||
-                                student.display_name ||
-                                'Unknown'}
+                            <p className="font-bold text-sm text-slate-800 truncate leading-tight">
+                              {s.full_name || 'Unknown'}
                             </p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              {student.gender && (
-                                <span className="text-[10px] text-slate-400 font-medium">
-                                  {student.gender === 'male'
-                                    ? '♂'
-                                    : student.gender === 'female'
-                                    ? '♀'
-                                    : '⚧'}{' '}
-                                  {student.gender}
-                                </span>
-                              )}
-                              <span className="text-xs text-slate-400 md:hidden truncate">
-                                · {student.admission_number || 'No adm.#'}
-                              </span>
-                            </div>
+                            <p className="text-[10px] text-slate-400 truncate">{s.email || 'No email'}</p>
                           </div>
                         </div>
                       </td>
-
-                      {/* Admission # */}
-                      <td className="p-4 hidden md:table-cell">
-                        <code className="text-xs font-mono bg-slate-100 text-slate-700 px-2 py-1 rounded-md font-semibold">
-                          {student.admission_number || 'N/A'}
+                      <td className="p-3">
+                        <code className="text-[11px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded whitespace-nowrap">
+                          {s.admission_number || '—'}
                         </code>
                       </td>
-
-                      {/* VIN ID */}
-                      <td className="p-4 hidden lg:table-cell">
-                        <code
-                          className="text-xs font-mono px-2 py-1 rounded-md font-bold"
-                          style={{
-                            backgroundColor: `${accent}12`,
-                            color: accent,
-                          }}
-                        >
-                          {student.vin_id || 'N/A'}
+                      <td className="p-3 hidden md:table-cell">
+                        <code className="text-[11px] font-mono font-bold px-1.5 py-0.5 rounded whitespace-nowrap"
+                          style={{ backgroundColor: `${accent}12`, color: accent }}>
+                          {s.vin_id || '—'}
                         </code>
                       </td>
-
-                      {/* Contact */}
-                      <td className="p-4 hidden lg:table-cell">
-                        <div className="text-xs text-slate-600 truncate max-w-[180px]">
-                          {student.email || 'No email'}
-                        </div>
-                        {student.phone && (
-                          <div className="text-[10px] text-slate-400 mt-0.5">
-                            {student.phone}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Class */}
-                      <td className="p-4">
-                        {student.class ? (
-                          <div className="inline-flex items-center gap-2">
-                            <span
-                              className="w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-[10px] text-white shadow-sm"
-                              style={{
-                                background: `linear-gradient(135deg, ${accent}, ${accent}bb)`,
-                              }}
-                            >
-                              {getClassCode(student.class)}
-                            </span>
-                            <span className="text-xs font-semibold text-slate-700 hidden xl:inline">
-                              {student.class}
-                            </span>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="p-4">
-                        {student.is_active !== false ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-500">
-                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                            Inactive
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="p-4 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 w-8 p-0 rounded-lg opacity-60 group-hover:opacity-100 hover:bg-slate-200"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-48 rounded-xl bg-white border border-slate-200 shadow-xl"
-                          >
-                            <DropdownMenuLabel className="text-[10px] uppercase tracking-widest text-slate-400">
-                              Actions
-                            </DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedStudent(student)
-                                setIsDetailModalOpen(true)
-                              }}
-                              className="cursor-pointer"
-                            >
-                              <Eye className="mr-2 h-4 w-4" />
-                              View details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleEdit(student)}
-                              className="cursor-pointer"
-                            >
-                              <Edit2 className="mr-2 h-4 w-4" />
-                              Edit student
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => handleToggleStatus(student)}
-                              className="cursor-pointer"
-                            >
-                              {student.is_active !== false ? (
-                                <>
-                                  <UserX className="mr-2 h-4 w-4" />
-                                  Deactivate
-                                </>
-                              ) : (
-                                <>
-                                  <UserCheck className="mr-2 h-4 w-4" />
-                                  Activate
-                                </>
-                              )}
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              onClick={() => handleDelete(student)}
-                              className="text-red-600 cursor-pointer focus:text-red-600"
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+                      <td className="p-3"><ClassBadge className={s.class} accent={accent} /></td>
+                      <td className="p-3"><StatusBadge active={s.is_active} /></td>
+                      <td className="p-3 text-right">
+                        <ActionMenu student={s}
+                          onView={() => { setSelectedStudent(s); setModal('detail') }}
+                          onEdit={() => openEdit(s)}
+                          onToggle={() => handleToggleStatus(s)}
+                          onDelete={() => { setSelectedStudent(s); setModal('delete') }}
+                        />
                       </td>
                     </motion.tr>
                   ))}
@@ -787,175 +707,73 @@ export function StudentManagement({
               </table>
             </div>
           </motion.div>
+
         ) : (
-          // ── CARD VIEW ─────────────────────────────────────────────────
-          <motion.div
-            key="cards"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"
-          >
-            {filteredStudents.map((student, idx) => (
-              <motion.div
-                key={student.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
+          /* ── CARD VIEW ──────────────────────────────────────────────────── */
+          <motion.div key="cards" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
+            {filtered.map((s, idx) => (
+              <motion.div key={s.id}
+                initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(idx * 0.03, 0.4) }}
-                className="group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden"
-              >
-                {/* Top gradient */}
-                <div
-                  className={cn(
-                    'h-1.5 w-full bg-gradient-to-r',
-                    getAvatarGradient(student.full_name || 'A')
-                  )}
-                />
+                className="group bg-white rounded-2xl border border-slate-200/60 shadow-sm hover:shadow-md active:scale-[0.99] transition-all overflow-hidden">
 
-                <div className="p-5">
-                  {/* Avatar + name */}
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="relative shrink-0">
-                      <Avatar className="h-12 w-12 shadow-md">
-                        <AvatarImage src={student.photo_url || undefined} />
-                        <AvatarFallback
-                          className={cn(
-                            'text-white font-bold text-sm bg-gradient-to-br',
-                            getAvatarGradient(student.full_name || 'A')
-                          )}
-                        >
-                          {getInitials(student.full_name || '')}
-                        </AvatarFallback>
-                      </Avatar>
-                      {student.is_active !== false && (
-                        <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-400 border-2 border-white" />
-                      )}
-                    </div>
+                <div className={cn('h-1 w-full bg-gradient-to-r', getAvatarGradient(s.full_name))} />
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-sm font-bold text-slate-800 truncate leading-tight">
-                        {student.full_name || 'Unknown'}
-                      </h3>
-                      <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                        {student.email}
-                      </p>
-                    </div>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 w-7 p-0 rounded-lg opacity-40 group-hover:opacity-100"
-                        >
-                          <MoreVertical className="w-3.5 h-3.5" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent 
-                        align="end" 
-                        className="w-44 rounded-xl bg-white border border-slate-200 shadow-xl"
-                      >
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedStudent(student)
-                            setIsDetailModalOpen(true)
-                          }}
-                        >
-                          <Eye className="mr-2 h-3.5 w-3.5" /> View
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEdit(student)}>
-                          <Edit2 className="mr-2 h-3.5 w-3.5" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => handleToggleStatus(student)}
-                        >
-                          {student.is_active !== false ? (
-                            <>
-                              <UserX className="mr-2 h-3.5 w-3.5" />
-                              Deactivate
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="mr-2 h-3.5 w-3.5" />
-                              Activate
-                            </>
-                          )}
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleDelete(student)}
-                          className="text-red-600 focus:text-red-600"
-                        >
-                          <Trash2 className="mr-2 h-3.5 w-3.5" /> Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-
-                  {/* Details grid */}
-                  <div className="space-y-2 pt-3 border-t border-slate-100">
-                    {student.class && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400 font-medium">Class</span>
-                        <span className="inline-flex items-center gap-1.5">
-                          <span
-                            className="w-5 h-5 rounded-md flex items-center justify-center font-extrabold text-[9px] text-white"
-                            style={{
-                              background: `linear-gradient(135deg, ${accent}, ${accent}bb)`,
-                            }}
-                          >
-                            {getClassCode(student.class)}
-                          </span>
-                          <span className="text-slate-700 font-semibold">
-                            {student.class}
-                          </span>
-                        </span>
-                      </div>
-                    )}
-                    {student.admission_number && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400 font-medium">
-                          Adm. No.
-                        </span>
-                        <code className="font-mono font-bold text-slate-700 text-[10px]">
-                          {student.admission_number}
-                        </code>
-                      </div>
-                    )}
-                    {student.vin_id && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-400 font-medium">VIN</span>
-                        <code
-                          className="font-mono font-bold text-[10px]"
-                          style={{ color: accent }}
-                        >
-                          {student.vin_id}
-                        </code>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bottom actions */}
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100">
+                <div className="p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-2 mb-3">
                     <button
-                      onClick={() => {
-                        setSelectedStudent(student)
-                        setIsDetailModalOpen(true)
-                      }}
-                      className="text-xs font-semibold hover:underline transition-colors"
-                      style={{ color: accent }}
+                      type="button"
+                      onClick={() => { setSelectedStudent(s); setModal('detail') }}
+                      className="flex items-center gap-2.5 min-w-0 flex-1 text-left"
                     >
-                      View profile →
+                      <div className="relative shrink-0">
+                        <StudentAvatar student={s} />
+                        {s.is_active && (
+                          <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white" />
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-bold text-slate-800 truncate leading-tight">{s.full_name}</p>
+                        <p className="text-[10px] text-slate-400 truncate">{s.email || 'No email'}</p>
+                      </div>
                     </button>
-                    {student.is_active !== false ? (
-                      <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest">
-                        ● Active
-                      </span>
-                    ) : (
-                      <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-                        ○ Inactive
-                      </span>
+                    <ActionMenu student={s}
+                      onView={() => { setSelectedStudent(s); setModal('detail') }}
+                      onEdit={() => openEdit(s)}
+                      onToggle={() => handleToggleStatus(s)}
+                      onDelete={() => { setSelectedStudent(s); setModal('delete') }}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 border-t border-slate-100 pt-2.5">
+                    <div className="flex items-center justify-between gap-2 text-xs">
+                      <span className="text-slate-400 shrink-0">Class</span>
+                      <ClassBadge className={s.class} accent={accent} />
+                    </div>
+                    {s.admission_number && (
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-slate-400 shrink-0">Adm.</span>
+                        <code className="font-mono text-[10px] font-bold text-slate-600 truncate">{s.admission_number}</code>
+                      </div>
                     )}
+                    {s.vin_id && (
+                      <div className="flex items-center justify-between gap-2 text-xs">
+                        <span className="text-slate-400 shrink-0">VIN</span>
+                        <code className="font-mono text-[10px] font-bold truncate" style={{ color: accent }}>{s.vin_id}</code>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between gap-2 pt-1.5">
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedStudent(s); setModal('detail') }}
+                        className="text-[11px] font-semibold hover:underline flex items-center gap-0.5"
+                        style={{ color: accent }}
+                      >
+                        View profile <ChevronRight className="w-3 h-3" />
+                      </button>
+                      <StatusBadge active={s.is_active} />
+                    </div>
                   </div>
                 </div>
               </motion.div>
@@ -965,758 +783,440 @@ export function StudentManagement({
       </AnimatePresence>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Create Student Modal                                                */}
+      {/* CREATE MODAL                                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl flex flex-col bg-white">
-          {/* Header */}
-          <div
-            className="p-6 pb-5 relative overflow-hidden shrink-0"
-            style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)` }}
-          >
-            <div
-              className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-20 blur-3xl"
-              style={{ backgroundColor: accent }}
-            />
-            <DialogHeader className="relative">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  }}
-                >
-                  <UserPlus className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl font-extrabold text-slate-900 text-left">
-                    Enrol New Student
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500 mt-0.5 text-left">
-                    Fill in the details below to register a new pupil
-                  </DialogDescription>
-                </div>
+      <Dialog open={modal === 'create'} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent
+          className="p-0 gap-0 border-0 shadow-2xl bg-white flex flex-col
+                     w-screen h-[100dvh] max-w-full rounded-none
+                     sm:w-[calc(100vw-2rem)] sm:h-auto sm:max-w-2xl sm:max-h-[90vh] sm:rounded-2xl"
+        >
+          <DialogHeader className="px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-100 shrink-0 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={btnStyle}>
+                <UserPlus className="w-4 h-4 text-white" />
               </div>
-            </DialogHeader>
-          </div>
+              <div className="flex-1 min-w-0 text-left">
+                <DialogTitle className="text-base font-extrabold text-slate-900 leading-tight">Enrol New Student</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5">Fill in the details below</DialogDescription>
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center shrink-0"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+          </DialogHeader>
 
-          <form onSubmit={handleCreateStudent} className="flex flex-col overflow-hidden flex-1">
-            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-              <FormSection title="Personal Information" icon={Users} accent={accent}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <FormField label="First Name *" htmlFor="first_name">
-                    <Input
-                      id="first_name"
-                      value={formData.first_name}
-                      onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
-                      required
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </FormField>
-                  <FormField label="Middle Name" htmlFor="middle_name">
-                    <Input
-                      id="middle_name"
-                      value={formData.middle_name}
-                      onChange={(e) => setFormData({ ...formData, middle_name: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </FormField>
-                  <FormField label="Last Name *" htmlFor="last_name">
-                    <Input
-                      id="last_name"
-                      value={formData.last_name}
-                      onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
-                      required
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </FormField>
+          <form onSubmit={handleCreate} className="flex flex-col overflow-hidden flex-1">
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-5">
+
+              <FormSection title="Personal" icon={Users} accent={accent}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <Field label="First Name *" id="fn">
+                    <Input id="fn" value={createForm.first_name} required
+                      onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                  <Field label="Middle Name" id="mn">
+                    <Input id="mn" value={createForm.middle_name}
+                      onChange={(e) => setCreateForm({ ...createForm, middle_name: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                  <Field label="Last Name *" id="ln">
+                    <Input id="ln" value={createForm.last_name} required
+                      onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <FormField label="Gender" htmlFor="gender">
-                    <Select value={formData.gender} onValueChange={(v) => setFormData({ ...formData, gender: v })}>
-                      <SelectTrigger className="rounded-xl border-slate-200 h-10">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <Field label="Gender" id="gnd">
+                    <Select value={createForm.gender} onValueChange={(v) => setCreateForm({ ...createForm, gender: v })}>
+                      <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
+                      <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
                         <SelectItem value="male">Male</SelectItem>
                         <SelectItem value="female">Female</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
                     </Select>
-                  </FormField>
-                  <FormField label="Date of Birth" htmlFor="dob">
-                    <Input
-                      id="dob"
-                      type="date"
-                      value={formData.date_of_birth}
-                      onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </FormField>
-                  <FormField label="Phone" htmlFor="phone">
-                    <Input
-                      id="phone"
-                      type="tel"
-                      value={formData.phone}
-                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </FormField>
+                  </Field>
+                  <Field label="Date of Birth" id="dob">
+                    <Input id="dob" type="date" value={createForm.date_of_birth}
+                      onChange={(e) => setCreateForm({ ...createForm, date_of_birth: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                  <Field label="Phone" id="ph">
+                    <Input id="ph" type="tel" value={createForm.phone}
+                      onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
                 </div>
-                <FormField label="Address" htmlFor="address">
-                  <Input
-                    id="address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="rounded-xl border-slate-200 h-10"
-                  />
-                </FormField>
+                <Field label="Address" id="addr">
+                  <Input id="addr" value={createForm.address}
+                    onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
               </FormSection>
 
-              <FormSection title="Academic Information" icon={GraduationCap} accent={accent}>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <FormField label="Class *" htmlFor="class">
-                    <Select value={formData.class} onValueChange={(v) => setFormData({ ...formData, class: v })} required>
-                      <SelectTrigger className="rounded-xl border-slate-200 h-10">
+              <FormSection title="Academic" icon={GraduationCap} accent={accent}>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <Field label="Class *" id="cls">
+                    <Select value={createForm.class} onValueChange={(v) => setCreateForm({ ...createForm, class: v })}>
+                      <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
-                      <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
+                      <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
                         {CLASSES.map((c) => (
-                          <SelectItem key={c.id} value={c.name}>
-                            {c.name} ({c.code})
-                          </SelectItem>
+                          <SelectItem key={c.id} value={c.name}>{c.name} ({c.code})</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
-                  </FormField>
-                  <FormField label="Admission Year" htmlFor="year">
+                  </Field>
+                  <Field label="Admission Year" id="yr">
+                    <Input id="yr" value={createForm.admission_year}
+                      onChange={(e) => setCreateForm({ ...createForm, admission_year: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                  <Field
+                    label="Admission No. *"
+                    id="ano"
+                    helper="Must be unique"
+                  >
                     <Input
-                      id="year"
-                      value={formData.admission_year}
-                      onChange={(e) => setFormData({ ...formData, admission_year: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
+                      id="ano"
+                      value={createForm.admission_number}
+                      required
+                      placeholder="e.g. PUP001"
+                      onChange={(e) => setCreateForm({ ...createForm, admission_number: e.target.value.toUpperCase() })}
+                      className="h-10 rounded-xl border-slate-200 text-sm font-mono"
                     />
-                  </FormField>
-                  <FormField label="Admission No." htmlFor="adm_no">
-                    <Input
-                      id="adm_no"
-                      value={formData.admission_number}
-                      onChange={(e) => setFormData({ ...formData, admission_number: e.target.value })}
-                      placeholder="Auto-generated"
-                      className="rounded-xl border-slate-200 h-10 font-mono"
-                    />
-                  </FormField>
+                  </Field>
                 </div>
               </FormSection>
 
-              <FormSection title="Guardian Information" icon={UserCog} accent={accent}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <FormField label="Guardian Name" htmlFor="g_name">
-                    <Input
-                      id="g_name"
-                      value={formData.guardian_name}
-                      onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </FormField>
-                  <FormField label="Guardian Phone" htmlFor="g_phone">
-                    <Input
-                      id="g_phone"
-                      value={formData.guardian_phone}
-                      onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
-                      className="rounded-xl border-slate-200 h-10"
-                    />
-                  </FormField>
+              <FormSection title="Guardian" icon={UserCog} accent={accent}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  <Field label="Guardian Name" id="gn">
+                    <Input id="gn" value={createForm.guardian_name}
+                      onChange={(e) => setCreateForm({ ...createForm, guardian_name: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
+                  <Field label="Guardian Phone" id="gp">
+                    <Input id="gp" value={createForm.guardian_phone}
+                      onChange={(e) => setCreateForm({ ...createForm, guardian_phone: e.target.value })}
+                      className="h-10 rounded-xl border-slate-200 text-sm" />
+                  </Field>
                 </div>
-                <FormField label="Guardian Email" htmlFor="g_email">
-                  <Input
-                    id="g_email"
-                    type="email"
-                    value={formData.guardian_email}
-                    onChange={(e) => setFormData({ ...formData, guardian_email: e.target.value })}
-                    className="rounded-xl border-slate-200 h-10"
-                  />
-                </FormField>
+                <Field label="Guardian Email" id="ge">
+                  <Input id="ge" type="email" value={createForm.guardian_email}
+                    onChange={(e) => setCreateForm({ ...createForm, guardian_email: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
               </FormSection>
 
-              <FormSection title="Account Details" icon={Shield} accent={accent}>
-                <FormField
-                  label="Student Email"
-                  htmlFor="email"
-                  helper="This email will be used for the student's login account"
-                >
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="student@example.com"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="rounded-xl border-slate-200 h-10"
-                  />
-                </FormField>
+              <FormSection title="Account" icon={Shield} accent={accent}>
+                <Field label="Student Email" id="em" helper="Used for login credentials">
+                  <Input id="em" type="email" placeholder="student@example.com" value={createForm.email}
+                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
               </FormSection>
             </div>
 
-            {/* Footer */}
-            <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex-row justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateModalOpen(false)}
-                disabled={isSubmitting}
-                className="rounded-xl border-slate-200 font-semibold"
-              >
-                Cancel
+            <div className="px-4 py-3 sm:px-5 border-t border-slate-100 bg-slate-50/80 backdrop-blur shrink-0
+                            flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+              <Button type="button" variant="outline" onClick={closeModal} disabled={isSubmitting}
+                className="h-10 rounded-xl text-sm font-semibold flex-1 sm:flex-initial">Cancel</Button>
+              <Button type="submit" disabled={isSubmitting}
+                className="h-10 rounded-xl gap-2 text-white text-sm font-semibold flex-1 sm:flex-initial" style={btnStyle}>
+                {isSubmitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Enrolling…</>
+                  : <><UserPlus className="w-3.5 h-3.5" /> Enrol</>}
               </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-xl gap-2 text-white shadow-md font-semibold"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  boxShadow: `0 8px 20px -6px ${accent}55`,
-                }}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Enrolling…
-                  </>
-                ) : (
-                  <>
-                    <UserPlus className="w-4 h-4" />
-                    Enrol Student
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
+            </div>
           </form>
         </DialogContent>
       </Dialog>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Edit Student Modal                                                  */}
+      {/* EDIT MODAL                                                          */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] p-0 overflow-hidden rounded-2xl border-0 shadow-2xl flex flex-col bg-white">
-          <div
-            className="p-6 pb-5 relative overflow-hidden shrink-0"
-            style={{ background: `linear-gradient(135deg, ${accent}15, ${accent}05)` }}
-          >
-            <div
-              className="absolute -top-8 -right-8 w-40 h-40 rounded-full opacity-20 blur-3xl"
-              style={{ backgroundColor: accent }}
-            />
-            <DialogHeader className="relative">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg shrink-0"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  }}
-                >
-                  <Edit2 className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <DialogTitle className="text-xl font-extrabold text-slate-900 text-left">
-                    Edit Student
-                  </DialogTitle>
-                  <DialogDescription className="text-xs text-slate-500 mt-0.5 text-left">
-                    Update {selectedStudent?.full_name || 'this student'}&apos;s information
-                  </DialogDescription>
-                </div>
+      <Dialog open={modal === 'edit'} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent
+          className="p-0 gap-0 border-0 shadow-2xl bg-white flex flex-col
+                     w-screen h-[100dvh] max-w-full rounded-none
+                     sm:w-[calc(100vw-2rem)] sm:h-auto sm:max-w-xl sm:max-h-[90vh] sm:rounded-2xl"
+        >
+          <DialogHeader className="px-4 py-3 sm:px-5 sm:py-4 border-b border-slate-100 shrink-0 space-y-0">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={btnStyle}>
+                <Edit2 className="w-4 h-4 text-white" />
               </div>
-            </DialogHeader>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="First Name" htmlFor="e_first">
-                <Input
-                  id="e_first"
-                  value={editFormData.first_name || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, first_name: e.target.value })}
-                  className="rounded-xl border-slate-200 h-10"
-                />
-              </FormField>
-              <FormField label="Last Name" htmlFor="e_last">
-                <Input
-                  id="e_last"
-                  value={editFormData.last_name || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, last_name: e.target.value })}
-                  className="rounded-xl border-slate-200 h-10"
-                />
-              </FormField>
+              <div className="flex-1 min-w-0 text-left">
+                <DialogTitle className="text-base font-extrabold text-slate-900 leading-tight">Edit Student</DialogTitle>
+                <DialogDescription className="text-xs text-slate-400 mt-0.5 truncate">
+                  {selectedStudent?.full_name}
+                </DialogDescription>
+              </div>
+              <button
+                type="button"
+                onClick={closeModal}
+                className="w-8 h-8 rounded-lg hover:bg-slate-100 flex items-center justify-center shrink-0"
+              >
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
             </div>
-            <FormField label="Full Name" htmlFor="e_full">
-              <Input
-                id="e_full"
-                value={editFormData.full_name || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, full_name: e.target.value })}
-                className="rounded-xl border-slate-200 h-10"
-              />
-            </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Class" htmlFor="e_class">
-                <Select
-                  value={editFormData.class || ''}
-                  onValueChange={(v) => setEditFormData({ ...editFormData, class: v })}
-                >
-                  <SelectTrigger className="rounded-xl border-slate-200 h-10">
+          </DialogHeader>
+
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-2.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Field label="First Name" id="ef">
+                <Input id="ef" value={editForm.first_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+              <Field label="Last Name" id="el">
+                <Input id="el" value={editForm.last_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+            </div>
+            <Field label="Full Name" id="efn">
+              <Input id="efn" value={editForm.full_name || ''}
+                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                className="h-10 rounded-xl border-slate-200 text-sm" />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Field label="Class" id="ec">
+                <Select value={editForm.class || ''} onValueChange={(v) => setEditForm({ ...editForm, class: v })}>
+                  <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
+                  <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
                     {CLASSES.map((c) => (
-                      <SelectItem key={c.id} value={c.name}>
-                        {c.name} ({c.code})
-                      </SelectItem>
+                      <SelectItem key={c.id} value={c.name}>{c.name} ({c.code})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </FormField>
-              <FormField label="Gender" htmlFor="e_gender">
-                <Select
-                  value={editFormData.gender || ''}
-                  onValueChange={(v) => setEditFormData({ ...editFormData, gender: v })}
-                >
-                  <SelectTrigger className="rounded-xl border-slate-200 h-10">
+              </Field>
+              <Field label="Gender" id="eg">
+                <Select value={editForm.gender || ''} onValueChange={(v) => setEditForm({ ...editForm, gender: v })}>
+                  <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
-                  <SelectContent className="bg-white border border-slate-200 shadow-xl rounded-xl">
+                  <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
                     <SelectItem value="male">Male</SelectItem>
                     <SelectItem value="female">Female</SelectItem>
                     <SelectItem value="other">Other</SelectItem>
                   </SelectContent>
                 </Select>
-              </FormField>
+              </Field>
             </div>
-            <FormField label="Phone" htmlFor="e_phone">
-              <Input
-                id="e_phone"
-                value={editFormData.phone || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
-                className="rounded-xl border-slate-200 h-10"
-              />
-            </FormField>
-            <FormField label="Address" htmlFor="e_address">
-              <Input
-                id="e_address"
-                value={editFormData.address || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
-                className="rounded-xl border-slate-200 h-10"
-              />
-            </FormField>
-            <div className="grid grid-cols-2 gap-3">
-              <FormField label="Guardian Name" htmlFor="e_gname">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Field label="Phone" id="eph">
+                <Input id="eph" value={editForm.phone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+              <Field label="Admission No. *" id="ean" helper="Must be unique">
                 <Input
-                  id="e_gname"
-                  value={editFormData.guardian_name || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, guardian_name: e.target.value })}
-                  className="rounded-xl border-slate-200 h-10"
+                  id="ean"
+                  value={editForm.admission_number || ''}
+                  required
+                  onChange={(e) => setEditForm({ ...editForm, admission_number: e.target.value.toUpperCase() })}
+                  className="h-10 rounded-xl border-slate-200 text-sm font-mono"
                 />
-              </FormField>
-              <FormField label="Guardian Phone" htmlFor="e_gphone">
-                <Input
-                  id="e_gphone"
-                  value={editFormData.guardian_phone || ''}
-                  onChange={(e) => setEditFormData({ ...editFormData, guardian_phone: e.target.value })}
-                  className="rounded-xl border-slate-200 h-10"
-                />
-              </FormField>
+              </Field>
             </div>
-            <FormField label="Guardian Email" htmlFor="e_gemail">
-              <Input
-                id="e_gemail"
-                type="email"
-                value={editFormData.guardian_email || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, guardian_email: e.target.value })}
-                className="rounded-xl border-slate-200 h-10"
-              />
-            </FormField>
-            <FormField label="Admission Number" htmlFor="e_adm">
-              <Input
-                id="e_adm"
-                value={editFormData.admission_number || ''}
-                onChange={(e) => setEditFormData({ ...editFormData, admission_number: e.target.value })}
-                className="rounded-xl border-slate-200 h-10 font-mono"
-              />
-            </FormField>
+            <Field label="Address" id="ead">
+              <Input id="ead" value={editForm.address || ''}
+                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                className="h-10 rounded-xl border-slate-200 text-sm" />
+            </Field>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <Field label="Guardian Name" id="egn">
+                <Input id="egn" value={editForm.guardian_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, guardian_name: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+              <Field label="Guardian Phone" id="egp">
+                <Input id="egp" value={editForm.guardian_phone || ''}
+                  onChange={(e) => setEditForm({ ...editForm, guardian_phone: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+            </div>
+            <Field label="Guardian Email" id="ege">
+              <Input id="ege" type="email" value={editForm.guardian_email || ''}
+                onChange={(e) => setEditForm({ ...editForm, guardian_email: e.target.value })}
+                className="h-10 rounded-xl border-slate-200 text-sm" />
+            </Field>
           </div>
 
-          <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex-row justify-end gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsEditModalOpen(false)}
-              className="rounded-xl border-slate-200 font-semibold"
-            >
-              Cancel
+          <div className="px-4 py-3 sm:px-5 border-t border-slate-100 bg-slate-50/80 backdrop-blur shrink-0
+                          flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+            <Button variant="outline" onClick={closeModal}
+              className="h-10 rounded-xl text-sm font-semibold flex-1 sm:flex-initial">Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={isSubmitting}
+              className="h-10 rounded-xl gap-2 text-white text-sm font-semibold flex-1 sm:flex-initial" style={btnStyle}>
+              {isSubmitting ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Saving…</> : 'Save Changes'}
             </Button>
-            <Button
-              onClick={handleSaveEdit}
-              disabled={isSubmitting}
-              className="rounded-xl gap-2 text-white shadow-md font-semibold"
-              style={{
-                background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-              }}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving…
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Detail Modal                                                        */}
+      {/* DETAIL MODAL                                                        */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Dialog open={isDetailModalOpen} onOpenChange={setIsDetailModalOpen}>
-        <DialogContent className="max-w-2xl p-0 overflow-hidden rounded-2xl border-0 shadow-2xl max-h-[90vh] flex flex-col bg-white">
+      <Dialog open={modal === 'detail'} onOpenChange={(o) => !o && closeModal()}>
+        <DialogContent
+          className="p-0 gap-0 border-0 shadow-2xl bg-white flex flex-col
+                     w-screen h-[100dvh] max-w-full rounded-none
+                     sm:w-[calc(100vw-2rem)] sm:h-auto sm:max-w-lg sm:max-h-[90vh] sm:rounded-2xl"
+        >
           {selectedStudent && (
             <>
-              {/* Hero */}
-              <div
-                className="p-6 pb-16 relative overflow-hidden shrink-0"
-                style={{
-                  background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                }}
-              >
-                <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-2xl" />
-                <div className="absolute -bottom-4 -left-4 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
+              <div className="p-4 pb-14 sm:p-5 sm:pb-12 relative overflow-hidden shrink-0"
+                style={{ background: `linear-gradient(135deg, ${accent}, ${accent}cc)` }}>
+                <div className="absolute -top-6 -right-6 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
 
-                <DialogHeader className="relative">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">
-                        Student Profile
-                      </span>
-                      <DialogTitle className="text-xl font-extrabold text-white mt-1 text-left">
+                <DialogHeader className="relative space-y-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1 min-w-0 text-left">
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">Student Profile</span>
+                      <DialogTitle className="text-base sm:text-lg font-extrabold text-white mt-0.5 truncate">
                         {selectedStudent.full_name}
                       </DialogTitle>
-                      <div className="flex items-center gap-2 mt-2 flex-wrap">
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 text-[10px] font-bold text-white uppercase tracking-widest">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          Student
+                      <DialogDescription className="sr-only">Profile details for {selectedStudent.full_name}</DialogDescription>
+                      <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-[10px] font-bold text-white">
+                          <Sparkles className="w-2.5 h-2.5" /> Student
                         </span>
-                        {selectedStudent.is_active !== false ? (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-emerald-400/20 backdrop-blur-sm border border-emerald-300/30 text-[10px] font-bold text-white">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-300 animate-pulse" />
-                            Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-white/15 border border-white/20 text-[10px] font-bold text-white/80">
-                            <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
-                            Inactive
-                          </span>
-                        )}
+                        <StatusBadge active={selectedStudent.is_active} />
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={closeModal}
+                      className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-white" />
+                    </button>
                   </div>
                 </DialogHeader>
               </div>
 
-              {/* Avatar overlap */}
-              <div className="relative flex-1 overflow-y-auto">
-                <div className="absolute -top-10 left-6">
-                  <Avatar className="h-20 w-20 ring-4 ring-white shadow-2xl">
-                    <AvatarImage src={selectedStudent.photo_url || undefined} />
-                    <AvatarFallback
-                      className={cn(
-                        'text-white font-extrabold text-xl bg-gradient-to-br',
-                        getAvatarGradient(selectedStudent.full_name)
-                      )}
-                    >
-                      {getInitials(selectedStudent.full_name)}
-                    </AvatarFallback>
-                  </Avatar>
+              <div className="relative flex-1 overflow-y-auto overscroll-contain">
+                <div className="absolute -top-8 left-4 sm:left-5">
+                  <StudentAvatar student={selectedStudent} size="lg" />
                 </div>
 
-                <div className="pt-14 px-6 pb-6 space-y-5">
-                  {/* Meta row */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <MetaTile
-                      icon={Fingerprint}
-                      label="Admission No."
-                      value={selectedStudent.admission_number || 'N/A'}
-                    />
-                    <MetaTile
-                      icon={Shield}
-                      label="VIN ID"
-                      value={selectedStudent.vin_id || 'N/A'}
-                      accent={accent}
-                    />
-                    <MetaTile
-                      icon={GraduationCap}
-                      label="Class"
-                      value={selectedStudent.class || 'Not assigned'}
-                    />
+                <div className="pt-12 px-4 pb-5 sm:px-5 space-y-3">
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { icon: Fingerprint, label: 'Adm.', value: selectedStudent.admission_number || 'N/A' },
+                      { icon: Shield, label: 'VIN', value: selectedStudent.vin_id || 'N/A', colored: true },
+                      { icon: GraduationCap, label: 'Class', value: selectedStudent.class || '—' },
+                    ].map(({ icon: Icon, label, value, colored }) => (
+                      <div key={label} className="bg-slate-50 rounded-xl p-2 sm:p-2.5">
+                        <div className="flex items-center gap-1 mb-1">
+                          <Icon className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400 truncate">{label}</span>
+                        </div>
+                        <p className="text-[11px] font-bold font-mono truncate"
+                          style={{ color: colored ? accent : '#334155' }}>{value}</p>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* Contact */}
-                  <SectionBlock title="Contact" icon={Mail}>
-                    <DetailRow label="Email" value={selectedStudent.email} icon={Mail} />
-                    {selectedStudent.phone && (
-                      <DetailRow label="Phone" value={selectedStudent.phone} icon={Phone} />
-                    )}
-                    {selectedStudent.address && (
-                      <DetailRow label="Address" value={selectedStudent.address} icon={MapPin} />
-                    )}
-                  </SectionBlock>
-
-                  {/* Guardian */}
-                  {selectedStudent.guardian_name && (
-                    <SectionBlock title="Guardian" icon={UserCog}>
-                      <DetailRow label="Name" value={selectedStudent.guardian_name} />
-                      {selectedStudent.guardian_phone && (
-                        <DetailRow
-                          label="Phone"
-                          value={selectedStudent.guardian_phone}
-                          icon={Phone}
-                        />
-                      )}
-                      {selectedStudent.guardian_email && (
-                        <DetailRow
-                          label="Email"
-                          value={selectedStudent.guardian_email}
-                          icon={Mail}
-                        />
-                      )}
-                    </SectionBlock>
-                  )}
-
-                  {/* Meta */}
-                  <SectionBlock title="Enrolment" icon={Calendar}>
-                    <DetailRow
-                      label="Joined"
-                      value={new Date(selectedStudent.created_at).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
-                    />
-                    {selectedStudent.admission_year && (
-                      <DetailRow
-                        label="Admission Year"
-                        value={selectedStudent.admission_year}
-                      />
-                    )}
-                    {selectedStudent.gender && (
-                      <DetailRow label="Gender" value={selectedStudent.gender} />
-                    )}
-                  </SectionBlock>
+                  {[
+                    {
+                      title: 'Contact', icon: Mail, rows: [
+                        { label: 'Email', value: selectedStudent.email || 'Not provided', icon: Mail },
+                        selectedStudent.phone && { label: 'Phone', value: selectedStudent.phone, icon: Phone },
+                        selectedStudent.address && { label: 'Address', value: selectedStudent.address, icon: MapPin },
+                      ].filter(Boolean) as { label: string; value: string; icon: React.ElementType }[]
+                    },
+                    selectedStudent.guardian_name && {
+                      title: 'Guardian', icon: UserCog, rows: [
+                        { label: 'Name', value: selectedStudent.guardian_name },
+                        selectedStudent.guardian_phone && { label: 'Phone', value: selectedStudent.guardian_phone, icon: Phone },
+                        selectedStudent.guardian_email && { label: 'Email', value: selectedStudent.guardian_email, icon: Mail },
+                      ].filter(Boolean) as { label: string; value: string; icon?: React.ElementType }[]
+                    },
+                    {
+                      title: 'Enrolment', icon: Calendar, rows: [
+                        { label: 'Joined', value: new Date(selectedStudent.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) },
+                        selectedStudent.admission_year && { label: 'Year', value: selectedStudent.admission_year },
+                        selectedStudent.gender && { label: 'Gender', value: selectedStudent.gender },
+                      ].filter(Boolean) as { label: string; value: string }[]
+                    },
+                  ].filter(Boolean).map((section: any) => (
+                    <div key={section.title} className="bg-slate-50 rounded-xl p-3">
+                      <div className="flex items-center gap-1.5 mb-2.5">
+                        <section.icon className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400">{section.title}</p>
+                      </div>
+                      <div className="space-y-2">
+                        {section.rows.map((row: any) => (
+                          <div key={row.label} className="flex items-start justify-between gap-3 text-xs">
+                            <span className="text-slate-400 shrink-0 flex items-center gap-1">
+                              {row.icon && <row.icon className="w-3 h-3" />}
+                              {row.label}
+                            </span>
+                            <span className="text-slate-700 font-semibold text-right break-all min-w-0">{row.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <DialogFooter className="px-6 py-4 border-t border-slate-100 bg-slate-50/50 shrink-0 flex-row justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDetailModalOpen(false)}
-                  className="rounded-xl border-slate-200 font-semibold"
-                >
-                  Close
+              <div className="px-4 py-3 sm:px-5 border-t border-slate-100 bg-slate-50/80 backdrop-blur shrink-0
+                              flex gap-2 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:pb-3">
+                <Button variant="outline" onClick={closeModal}
+                  className="h-10 rounded-xl text-sm font-semibold flex-1 sm:flex-initial">Close</Button>
+                <Button onClick={() => { closeModal(); openEdit(selectedStudent) }}
+                  className="h-10 rounded-xl gap-2 text-white text-sm font-semibold flex-1 sm:flex-initial" style={btnStyle}>
+                  <Edit2 className="w-3.5 h-3.5" /> Edit
                 </Button>
-                <Button
-                  onClick={() => {
-                    setIsDetailModalOpen(false)
-                    handleEdit(selectedStudent)
-                  }}
-                  className="rounded-xl gap-2 text-white shadow-md font-semibold"
-                  style={{
-                    background: `linear-gradient(135deg, ${accent}, ${accent}cc)`,
-                  }}
-                >
-                  <Edit2 className="w-4 h-4" />
-                  Edit Student
-                </Button>
-              </DialogFooter>
+              </div>
             </>
           )}
         </DialogContent>
       </Dialog>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* Delete Confirmation                                                 */}
+      {/* DELETE DIALOG                                                       */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent className="rounded-2xl border-0 shadow-2xl bg-white">
+      <AlertDialog open={modal === 'delete'} onOpenChange={(o) => !o && closeModal()}>
+        <AlertDialogContent className="rounded-2xl border-0 shadow-2xl bg-white w-[calc(100vw-2rem)] max-w-sm">
           <AlertDialogHeader>
-            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center mb-2">
-              <Trash2 className="w-5 h-5 text-red-500" />
+            <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2">
+              <Trash2 className="w-4 h-4 text-red-500" />
             </div>
-            <AlertDialogTitle className="text-lg font-extrabold text-slate-800">
-              Delete student?
-            </AlertDialogTitle>
-            <AlertDialogDescription className="text-slate-500">
-              This will permanently delete
-              {selectedStudent && (
-                <span className="font-bold text-slate-700">
-                  {' '}
-                  {selectedStudent.full_name}
-                </span>
-              )}{' '}
-              and all associated data including reports, attendance, and results.
-              This action cannot be undone.
+            <AlertDialogTitle className="text-base font-extrabold text-slate-800">Delete student?</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm text-slate-500 break-words">
+              This will permanently delete{' '}
+              <span className="font-bold text-slate-700">{selectedStudent?.full_name}</span>{' '}
+              and all associated data. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="rounded-xl border-slate-200 font-semibold">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="rounded-xl bg-red-600 hover:bg-red-700 font-semibold gap-2"
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Deleting…
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4" />
-                  Yes, delete
-                </>
-              )}
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel onClick={closeModal}
+              className="rounded-xl font-semibold text-sm mt-0 h-10 flex-1 sm:flex-initial">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} disabled={isSubmitting}
+              className="rounded-xl bg-red-600 hover:bg-red-700 font-semibold text-sm gap-2 h-10 flex-1 sm:flex-initial">
+              {isSubmitting
+                ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Deleting…</>
+                : <><Trash2 className="w-3.5 h-3.5" /> Delete</>}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Sub-components
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function FormSection({
-  title,
-  icon: Icon,
-  accent,
-  children,
-}: {
-  title: string
-  icon: React.ElementType
-  accent: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center gap-2">
-        <div
-          className="w-6 h-6 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: `${accent}15` }}
-        >
-          <Icon className="w-3 h-3" style={{ color: accent }} />
-        </div>
-        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-          {title}
-        </p>
-        <div className="flex-1 h-px bg-slate-100" />
-      </div>
-      <div className="space-y-3">{children}</div>
-    </div>
-  )
-}
-
-function FormField({
-  label,
-  htmlFor,
-  helper,
-  children,
-}: {
-  label: string
-  htmlFor: string
-  helper?: string
-  children: React.ReactNode
-}) {
-  return (
-    <div className="space-y-1.5">
-      <Label htmlFor={htmlFor} className="text-xs font-semibold text-slate-700">
-        {label}
-      </Label>
-      {children}
-      {helper && <p className="text-[10px] text-slate-400 mt-1">{helper}</p>}
-    </div>
-  )
-}
-
-function MetaTile({
-  icon: Icon,
-  label,
-  value,
-  accent,
-}: {
-  icon: React.ElementType
-  label: string
-  value: string
-  accent?: string
-}) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3">
-      <div className="flex items-center gap-1.5 mb-1">
-        <Icon className="w-3 h-3 text-slate-400" />
-        <span className="text-[9px] font-bold uppercase tracking-widest text-slate-400">
-          {label}
-        </span>
-      </div>
-      <p
-        className="text-xs font-bold font-mono truncate"
-        style={{ color: accent || '#1e293b' }}
-      >
-        {value}
-      </p>
-    </div>
-  )
-}
-
-function SectionBlock({
-  title,
-  icon: Icon,
-  children,
-}: {
-  title: string
-  icon: React.ElementType
-  children: React.ReactNode
-}) {
-  return (
-    <div className="bg-slate-50 rounded-2xl p-4">
-      <div className="flex items-center gap-2 mb-3">
-        <Icon className="w-3.5 h-3.5 text-slate-400" />
-        <p className="text-[10px] font-extrabold uppercase tracking-widest text-slate-500">
-          {title}
-        </p>
-      </div>
-      <div className="space-y-2">{children}</div>
-    </div>
-  )
-}
-
-function DetailRow({
-  label,
-  value,
-  icon: Icon,
-}: {
-  label: string
-  value: string
-  icon?: React.ElementType
-}) {
-  return (
-    <div className="flex items-start justify-between gap-3 text-xs">
-      <span className="text-slate-400 font-medium shrink-0 flex items-center gap-1.5">
-        {Icon && <Icon className="w-3 h-3" />}
-        {label}
-      </span>
-      <span className="text-slate-700 font-semibold text-right break-all">
-        {value}
-      </span>
     </div>
   )
 }
