@@ -37,13 +37,13 @@ export default function ScoresPage() {
 
         if (profileError) {
           console.error('Error fetching profile:', profileError)
-          // Fallback: use user data
+          // Fallback: use user data - FIXED: user.full_name instead of user.name
           setStaffProfile({
             id: user.id,
-            full_name: user.full_name || user.name || '',
+            full_name: user.full_name || '',
             first_name: user.first_name || '',
             last_name: user.last_name || '',
-            display_name: user.full_name || user.name || '',
+            display_name: user.full_name || '',
             role: user.role || 'staff',
           })
         } else if (profileData) {
@@ -60,25 +60,25 @@ export default function ScoresPage() {
             avatar_url: profileData.avatar_url || null,
           })
         } else {
-          // Fallback: use user data
+          // Fallback: use user data - FIXED: user.full_name instead of user.name
           setStaffProfile({
             id: user.id,
-            full_name: user.full_name || user.name || '',
+            full_name: user.full_name || '',
             first_name: user.first_name || '',
             last_name: user.last_name || '',
-            display_name: user.full_name || user.name || '',
+            display_name: user.full_name || '',
             role: user.role || 'staff',
           })
         }
       } catch (error) {
         console.error('Error in fetchStaffProfile:', error)
-        // Fallback: use user data
+        // Fallback: use user data - FIXED: user.full_name instead of user.name
         setStaffProfile({
           id: user.id,
-          full_name: user.full_name || user.name || '',
+          full_name: user.full_name || '',
           first_name: user.first_name || '',
           last_name: user.last_name || '',
-          display_name: user.full_name || user.name || '',
+          display_name: user.full_name || '',
           role: user.role || 'staff',
         })
       } finally {
