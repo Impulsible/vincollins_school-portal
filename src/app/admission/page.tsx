@@ -39,9 +39,9 @@ const CLASSES = [
 ]
 
 const HIGHLIGHTS = [
-  { icon: Users, label: 'Students', value: '500+', color: 'text-blue-300' },
-  { icon: Award, label: 'Years', value: '20+', color: 'text-amber-300' },
-  { icon: SchoolIcon, label: 'Campuses', value: '3', color: 'text-emerald-300' },
+  { icon: Users, label: 'Students', value: '300+', color: 'text-blue-300' },
+  { icon: Award, label: 'Years', value: '8+', color: 'text-amber-300' },
+  { icon: SchoolIcon, label: 'Campuses', value: '4', color: 'text-emerald-300' },
 ]
 
 const BENEFITS = [
@@ -664,7 +664,7 @@ export default function AdmissionPage() {
               >
                 <Sparkles className="h-3 w-3 text-emerald-300" />
                 <span className="text-[11px] font-bold text-emerald-200 uppercase tracking-widest">
-                  Admissions Open · 2026/2027
+                  Admissions Open · Apply Now
                 </span>
               </motion.div>
 
@@ -718,7 +718,7 @@ export default function AdmissionPage() {
                   <div className="w-px h-3 bg-white/20" />
                   <div className="flex items-center gap-1.5">
                     <Star className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
-                    <span className="text-xs font-medium">Since 2004</span>
+                    <span className="text-xs font-medium">Since 2020</span>
                   </div>
                 </div>
               </motion.div>
