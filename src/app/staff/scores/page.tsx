@@ -37,7 +37,7 @@ export default function ScoresPage() {
 
         if (profileError) {
           console.error('Error fetching profile:', profileError)
-          // Fallback: use user data - FIXED: user.full_name instead of user.name
+          // Fallback: use user data
           setStaffProfile({
             id: user.id,
             full_name: user.full_name || '',
@@ -60,7 +60,7 @@ export default function ScoresPage() {
             avatar_url: profileData.avatar_url || null,
           })
         } else {
-          // Fallback: use user data - FIXED: user.full_name instead of user.name
+          // Fallback: use user data
           setStaffProfile({
             id: user.id,
             full_name: user.full_name || '',
@@ -72,7 +72,7 @@ export default function ScoresPage() {
         }
       } catch (error) {
         console.error('Error in fetchStaffProfile:', error)
-        // Fallback: use user data - FIXED: user.full_name instead of user.name
+        // Fallback: use user data
         setStaffProfile({
           id: user.id,
           full_name: user.full_name || '',
@@ -95,7 +95,6 @@ export default function ScoresPage() {
 
   // ─── Handle Scores Saved ──────────────────────────────────────────────
   const handleScoresSaved = () => {
-    console.log('✅ Scores saved, refreshing...')
     setRefreshKey(prev => prev + 1)
     toast.success('Scores updated successfully')
   }
@@ -150,13 +149,6 @@ export default function ScoresPage() {
     )
   }
 
-  // ─── Debug Log ──────────────────────────────────────────────────────────
-  console.log('🔍 ScoresPage - Staff Profile:', {
-    id: staffProfile.id,
-    full_name: staffProfile.full_name,
-    hasId: !!staffProfile.id
-  })
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -193,6 +185,12 @@ export default function ScoresPage() {
           staffProfile={staffProfile}
           onScoresSaved={handleScoresSaved}
         />
+
+        {/* ─── Footer ────────────────────────────────────────────────────────── */}
+        <div className="text-center text-xs text-slate-400 pt-4 mt-6 border-t border-slate-200/50">
+          <p>Vincollins Schools Staff • Score Management</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
+        </div>
 
       </div>
     </div>

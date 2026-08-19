@@ -10,7 +10,8 @@ import {
   LayoutDashboard, Users, GraduationCap,
   Briefcase, MessageSquare, FileCheck, BarChart3,
   UserCog, School, NotebookPen, Calendar,
-  Megaphone, Settings, Award, Eye, FileSpreadsheet
+  Megaphone, Settings, Award, Eye, FileSpreadsheet,
+  Calculator, CalendarCheck
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -36,13 +37,12 @@ const pupilNavigation: NavigationItem[] = [
   { name: 'Profile', href: '/pupil/profile', icon: UserCog },
 ]
 
-// ─── Teacher Navigation ──────────────────────────────────────────────────────
+// ─── Teacher/Staff Navigation (Dashboard, Scores, Attendance, Analytics) ────
 const teacherNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
-  { name: 'My Classes', href: '/staff/classes', icon: School },
-  { name: 'Students', href: '/staff/students', icon: Users },
+  { name: 'Scores', href: '/staff/scores', icon: Calculator },
+  { name: 'Attendance', href: '/staff/attendance', icon: CalendarCheck },
   { name: 'Analytics', href: '/staff/analytics', icon: BarChart3 },
-  { name: 'Report Cards', href: '/staff/report-cards', icon: FileCheck },
 ]
 
 // ─── Admin Navigation (UPDATED: 4 Items Only) ──────────────────────────────

@@ -15,6 +15,8 @@ import AdminLoading from '@/components/admin/AdminLoading'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
 import { useUser, getRoleColors } from '@/contexts/UserContext'
+import { Home, ChevronRight } from 'lucide-react'
+import Link from 'next/link'
 
 interface AdminProfile {
   id: string
@@ -32,7 +34,7 @@ interface AdminProfile {
 // ─── Route Maps ───────────────────────────────────────────────────────────────
 const routeToTabMap: Record<string, string> = {
   '/admin': 'overview',
-  '/admin/broad-sheet': 'broad-sheet',
+  '/admin/broadsheet': 'broadsheet',
   '/admin/students': 'students',
   '/admin/staff': 'staff',
   '/admin/report-cards': 'report-cards',
@@ -44,7 +46,7 @@ const routeToTabMap: Record<string, string> = {
 
 const tabToRouteMap: Record<string, string> = {
   overview: '/admin',
-  'broad-sheet': '/admin/broad-sheet',
+  broadsheet: '/admin/broadsheet',
   students: '/admin/students',
   staff: '/admin/staff',
   'report-cards': '/admin/report-cards',
@@ -103,6 +105,69 @@ const pageVariants: Variants = {
 // ─── Sidebar widths ───────────────────────────────────────────────────────────
 const SIDEBAR_EXPANDED = 256
 const SIDEBAR_COLLAPSED = 72
+
+// ─── Breadcrumb Component ─────────────────────────────────────────────────────
+function AdminBreadcrumb({ pathname }: { pathname: string }) {
+  // Don't show breadcrumb on the main admin page
+  if (pathname === '/admin' || pathname === '/admin/') return null
+
+  // Generate breadcrumb items from pathname
+  const segments = pathname.split('/').filter(Boolean)
+  
+  // Remove 'admin' from the segments for display
+  const displaySegments = segments.slice(1) // Skip 'admin'
+  
+  if (displaySegments.length === 0) return null
+
+  // Map segment to a readable label
+  const getLabel = (segment: string): string => {
+    const map: Record<string, string> = {
+      'broadsheet': 'Broadsheet',
+      'students': 'Students',
+      'staff': 'Staff',
+      'report-cards': 'Report Cards',
+      'inquiries': 'Inquiries',
+      'announcements': 'Announcements',
+      'promotions': 'Promotions',
+      'settings': 'Settings',
+    }
+    return map[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ')
+  }
+
+  return (
+    <nav className="flex items-center gap-1.5 text-xs sm:text-sm mb-5 lg:mb-6 px-1 overflow-x-auto whitespace-nowrap scrollbar-none">
+      <Link 
+        href="/admin" 
+        className="flex items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors"
+      >
+        <Home className="h-3.5 w-3.5" />
+        <span className="sr-only sm:not-sr-only">Dashboard</span>
+      </Link>
+
+      {displaySegments.map((segment, index) => {
+        const isLast = index === displaySegments.length - 1
+        const href = `/admin/${displaySegments.slice(0, index + 1).join('/')}`
+        const label = getLabel(segment)
+
+        return (
+          <div key={segment} className="flex items-center gap-1.5">
+            <ChevronRight className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
+            {isLast ? (
+              <span className="font-medium text-slate-700">{label}</span>
+            ) : (
+              <Link 
+                href={href}
+                className="text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                {label}
+              </Link>
+            )}
+          </div>
+        )
+      })}
+    </nav>
+  )
+}
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -336,7 +401,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-slate-100/60 to-transparent pointer-events-none z-0" />
 
             <div className="relative z-10 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              <PathBreadcrumb pathname={pathname || '/admin'} />
+              {/* Breadcrumb Navigation */}
+              <AdminBreadcrumb pathname={pathname || '/admin'} />
 
               <AnimatePresence mode="wait">
                 <motion.div
@@ -358,59 +424,5 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           Pass whatever props your MobileBottomNav actually expects below. */}
       <MobileBottomNav />
     </div>
-  )
-}
-
-// ─── Breadcrumb Component ─────────────────────────────────────────────────────
-function PathBreadcrumb({ pathname }: { pathname: string }) {
-  const segments = pathname.replace('/admin', '').split('/').filter(Boolean)
-
-  const crumbs = [
-    { label: 'Admin', href: '/admin' },
-    ...segments.map((seg, i) => ({
-      label: seg
-        .split('-')
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(' '),
-      href: '/admin/' + segments.slice(0, i + 1).join('/'),
-    })),
-  ]
-
-  if (crumbs.length <= 1) return null
-
-  return (
-    <motion.nav
-      initial={{ opacity: 0, y: -6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="flex items-center gap-1.5 mb-5 text-xs text-slate-400 font-medium"
-      aria-label="Breadcrumb"
-    >
-      {crumbs.map((crumb, idx) => {
-        const isLast = idx === crumbs.length - 1
-        return (
-          <span key={crumb.href} className="flex items-center gap-1.5">
-            {isLast ? (
-              <span className="text-slate-600 font-semibold">{crumb.label}</span>
-            ) : (
-              <>
-                <a href={crumb.href} className="hover:text-[#0A2472] transition-colors">
-                  {crumb.label}
-                </a>
-                <svg
-                  className="w-3 h-3 text-slate-300"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                </svg>
-              </>
-            )}
-          </span>
-        )
-      })}
-    </motion.nav>
   )
 }

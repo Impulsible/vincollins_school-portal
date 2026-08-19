@@ -441,7 +441,11 @@ function UserSectionComponent({
                   {isDashboardPage && (
                     <div className="py-1">
                       <Link 
-                        href={user?.role === 'pupil' ? '/pupil/profile' : '/staff/settings'}
+                        href={
+                          user?.role === 'admin' ? '/admin/profile' :
+                          user?.role === 'teacher' ? '/staff/profile' :
+                          '/pupil/profile'
+                        }
                         className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
                         onClick={() => setProfileOpen(false)}
                       >
@@ -449,7 +453,11 @@ function UserSectionComponent({
                         My Profile
                       </Link>
                       <Link 
-                        href={user?.role === 'pupil' ? '/pupil/settings' : '/staff/settings'}
+                        href={
+                          user?.role === 'admin' ? '/admin/settings' :
+                          user?.role === 'teacher' ? '/staff/settings' :
+                          '/pupil/settings'
+                        }
                         className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-3"
                         onClick={() => setProfileOpen(false)}
                       >

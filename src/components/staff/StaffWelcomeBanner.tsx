@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -68,7 +69,7 @@ export interface StaffWelcomeBannerProps {
 
 const STORAGE_KEY = 'staff_session_start'
 
-// Personalized Quotes
+// Personalized Quotes (kept as they are not database data)
 const quotes = {
   morning: [
     { text: "Every student can learn, just not on the same day, or in the same way.", author: "George Evans" },
@@ -151,6 +152,8 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
   const [sessionStart, setSessionStart] = useState<Date | null>(null)
   const [activeTab, setActiveTab] = useState<string>('assignments')
+  
+  // ─── Database-fetched data ──────────────────────────────────────────────────
   const [assignments, setAssignments] = useState<any[]>([])
   const [classes, setClasses] = useState<any[]>([])
   const [pupils, setPupils] = useState<any[]>([])
@@ -178,97 +181,100 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
     return () => window.removeEventListener('beforeunload', handleClear)
   }, [])
 
-  // ─── Fetch Data ──────────────────────────────────────────────────────────────
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!profile?.id) {
-        setLoading(false)
-        return
-      }
-
-      try {
-        setLoading(true)
-
-        // Fetch assignments
-        const { data: assignmentData } = await supabase
-          .from('assignments')
-          .select('*')
-          .eq('teacher_id', profile.id)
-          .order('created_at', { ascending: false })
-          .limit(5)
-
-        setAssignments(assignmentData || [])
-
-        // Fetch pupils
-        const { data: pupilData } = await supabase
-          .from('profiles')
-          .select('id, full_name, class, class_arm, role')
-          .in('role', ['student', 'pupil'])
-
-        setPupils(pupilData || [])
-
-        // Build class data
-        if (pupilData) {
-          const classMap = new Map<string, { pupils: any[]; scores: number[] }>()
-          pupilData.forEach((p: any) => {
-            const key = p.class || 'Unassigned'
-            if (!classMap.has(key)) {
-              classMap.set(key, { pupils: [], scores: [] })
-            }
-            classMap.get(key)!.pupils.push(p)
-          })
-
-          const pupilIds = pupilData.map((p: any) => p.id)
-          let scoresData: any[] = []
-          if (pupilIds.length > 0) {
-            const { data } = await supabase
-              .from('primary_scores')
-              .select('student_id, total_score')
-              .in('student_id', pupilIds)
-            scoresData = data || []
-          }
-
-          const classData: any[] = []
-          classMap.forEach((data, className) => {
-            const pupilIdsInClass = data.pupils.map((p: any) => p.id)
-            const classScores = scoresData.filter((s: any) => pupilIdsInClass.includes(s.student_id))
-            
-            const avgScore = classScores.length > 0
-              ? Math.round(classScores.reduce((acc: number, s: any) => acc + (s.total_score || 0), 0) / classScores.length)
-              : 0
-
-            const pendingGrading = data.pupils.filter((p: any) => {
-              const pupilScores = scoresData.filter((s: any) => s.student_id === p.id)
-              return pupilScores.length === 0 || pupilScores.some((s: any) => !s.total_score)
-            }).length
-
-            classData.push({
-              id: className,
-              class_name: className,
-              class_arm: data.pupils[0]?.class_arm || undefined,
-              pupil_count: data.pupils.length,
-              average_score: avgScore,
-              pending_grading: pendingGrading,
-            })
-          })
-
-          classData.sort((a, b) => a.class_name.localeCompare(b.class_name))
-          setClasses(classData)
-
-          if (scoresData.length > 0) {
-            const total = scoresData.reduce((acc: number, s: any) => acc + (s.total_score || 0), 0)
-            setPerformance(Math.round(total / scoresData.length))
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setLoading(false)
-      }
+  // ─── Fetch Data from Database ──────────────────────────────────────────────
+  const fetchData = useCallback(async () => {
+    if (!profile?.id) {
+      setLoading(false)
+      return
     }
 
-    fetchData()
+    try {
+      setLoading(true)
+
+      // 1. Fetch assignments from database
+      const { data: assignmentData } = await supabase
+        .from('assignments')
+        .select('*')
+        .eq('teacher_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      setAssignments(assignmentData || [])
+
+      // 2. Fetch pupils from database
+      const { data: pupilData } = await supabase
+        .from('profiles')
+        .select('id, full_name, class, class_arm, role')
+        .in('role', ['student', 'pupil'])
+        .eq('is_active', true)
+
+      setPupils(pupilData || [])
+
+      // 3. Fetch scores from database
+      const pupilIds = (pupilData || []).map((p: any) => p.id)
+      let scoresData: any[] = []
+      if (pupilIds.length > 0) {
+        const { data } = await supabase
+          .from('primary_scores')
+          .select('student_id, total_score')
+          .in('student_id', pupilIds)
+        scoresData = data || []
+      }
+
+      // 4. Calculate class data from database
+      if (pupilData) {
+        const classMap = new Map<string, { pupils: any[]; scores: number[] }>()
+        pupilData.forEach((p: any) => {
+          const key = p.class || 'Unassigned'
+          if (!classMap.has(key)) {
+            classMap.set(key, { pupils: [], scores: [] })
+          }
+          classMap.get(key)!.pupils.push(p)
+        })
+
+        const classData: any[] = []
+        classMap.forEach((data, className) => {
+          const pupilIdsInClass = data.pupils.map((p: any) => p.id)
+          const classScores = scoresData.filter((s: any) => pupilIdsInClass.includes(s.student_id))
+          
+          const avgScore = classScores.length > 0
+            ? Math.round(classScores.reduce((acc: number, s: any) => acc + (s.total_score || 0), 0) / classScores.length)
+            : 0
+
+          const pendingGrading = data.pupils.filter((p: any) => {
+            const pupilScores = scoresData.filter((s: any) => s.student_id === p.id)
+            return pupilScores.length === 0 || pupilScores.some((s: any) => !s.total_score)
+          }).length
+
+          classData.push({
+            id: className,
+            class_name: className,
+            class_arm: data.pupils[0]?.class_arm || undefined,
+            pupil_count: data.pupils.length,
+            average_score: avgScore,
+            pending_grading: pendingGrading,
+          })
+        })
+
+        classData.sort((a, b) => a.class_name.localeCompare(b.class_name))
+        setClasses(classData)
+
+        // 5. Calculate overall performance from database
+        if (scoresData.length > 0) {
+          const total = scoresData.reduce((acc: number, s: any) => acc + (s.total_score || 0), 0)
+          setPerformance(Math.round(total / scoresData.length))
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+    } finally {
+      setLoading(false)
+    }
   }, [profile?.id])
+
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
 
   // ─── Computed Values ─────────────────────────────────────────────────────────
   const getGreeting = useCallback(() => {
@@ -375,25 +381,37 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
     performance: (
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-slate-800">Performance Overview</h3>
-        <div className="bg-gradient-to-br from-indigo-500 to-blue-700 rounded-xl p-4 text-white">
-          <p className="text-3xl font-bold">{performance}%</p>
-          <p className="text-sm text-white/80">Average Performance</p>
-        </div>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
+          </div>
+        ) : (
+          <div className="bg-gradient-to-br from-indigo-500 to-blue-700 rounded-xl p-4 text-white">
+            <p className="text-3xl font-bold">{performance}%</p>
+            <p className="text-sm text-white/80">Average Performance</p>
+          </div>
+        )}
       </div>
     ),
     pupils: (
       <div className="space-y-3">
         <h3 className="text-sm font-semibold text-slate-800">Total Pupils</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="p-3 rounded-xl bg-blue-50 text-center">
-            <p className="text-2xl font-bold text-blue-600">{totalPupils}</p>
-            <p className="text-xs text-slate-500">Total</p>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
           </div>
-          <div className="p-3 rounded-xl bg-emerald-50 text-center">
-            <p className="text-2xl font-bold text-emerald-600">{stats?.activeStudents || 0}</p>
-            <p className="text-xs text-slate-500">Active</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-xl bg-blue-50 text-center">
+              <p className="text-2xl font-bold text-blue-600">{totalPupils}</p>
+              <p className="text-xs text-slate-500">Total</p>
+            </div>
+            <div className="p-3 rounded-xl bg-emerald-50 text-center">
+              <p className="text-2xl font-bold text-emerald-600">{stats?.activeStudents || 0}</p>
+              <p className="text-xs text-slate-500">Active</p>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     ),
   }

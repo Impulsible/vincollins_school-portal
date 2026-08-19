@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/set-state-in-render */
 /* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/set-state-in-effect */
@@ -45,7 +46,6 @@ import {
   Eye,
   Sparkles,
   BarChart3,
-  Bug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -455,7 +455,6 @@ export default function PrimaryScoresTab({
   const [activeTab, setActiveTab] = useState("entry");
   const [isRestoring, setIsRestoring] = useState(true);
   const [isLoadingTerm, setIsLoadingTerm] = useState(true);
-  const [showDebug, setShowDebug] = useState(false);
 
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
@@ -479,7 +478,6 @@ export default function PrimaryScoresTab({
   const [checkingSubjects, setCheckingSubjects] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [deleteProgress, setDeleteProgress] = useState(0);
-  const [lastSaveResult, setLastSaveResult] = useState<string>("");
   const [staffError, setStaffError] = useState<string>("");
 
   const [showEditDialog, setShowEditDialog] = useState(false);
@@ -912,7 +910,6 @@ export default function PrimaryScoresTab({
     exam: number,
   ): ScoreInsert | null => {
     if (!isValidStaff || !staffProfile?.id) {
-      console.error("❌ Cannot build payload: Invalid staff profile");
       return null;
     }
     const total = ca + exam;
@@ -937,7 +934,6 @@ export default function PrimaryScoresTab({
 
   // ✅ Refresh all data after saving
   const refreshAllData = useCallback(async () => {
-    console.log("🔄 Refreshing all data...");
     if (selectedClass && selectedSubject && selectedTerm && selectedYear && students.length > 0) {
       await loadScores(selectedClass, selectedSubject, selectedTerm, selectedYear, students);
     }
@@ -948,55 +944,41 @@ export default function PrimaryScoresTab({
     if (onScoresSaved) {
       try {
         await onScoresSaved();
-        console.log("✅ Parent callback executed successfully");
       } catch (e) {
-        console.error("❌ Error in parent callback:", e);
+        console.error("Error in parent callback:", e);
       }
     }
-    console.log("✅ Refresh complete");
   }, [selectedClass, selectedSubject, selectedTerm, selectedYear, students, isValidStaff, staffProfile?.id, onScoresSaved, loadScores, checkSubjectsStatus]);
 
   const handleSaveSingle = async (studentId: string) => {
-    console.log("📝 handleSaveSingle called for:", studentId);
-    
     if (!isValidStaff || !staffProfile?.id) {
       const msg = "Missing teacher information. Please log in again.";
       toast.error(msg);
-      console.error("❌ No staff profile ID");
-      setLastSaveResult("❌ " + msg);
       return;
     }
     if (isLocked) {
       toast.error(
         `Locked by ${subjectsStatus[selectedSubject]?.otherTeacherName || "another teacher"}`,
       );
-      console.error("❌ Subject is locked");
       return;
     }
     const entry = scoreEntries[studentId];
-    if (!entry) {
-      console.error("❌ No entry found for student:", studentId);
-      return;
-    }
+    if (!entry) return;
     const ca = parseInt(entry.ca) || 0;
     const exam = parseInt(entry.exam) || 0;
     const total = ca + exam;
-    console.log(`📊 Scores - CA: ${ca}, Exam: ${exam}, Total: ${total}`);
     
     if (total === 0) {
       toast.info("No scores to save");
-      console.log("ℹ️ No scores to save (total is 0)");
       return;
     }
 
     setSaving(true);
-    setLastSaveResult("Saving...");
     try {
       const payload = buildPayload(studentId, ca, exam);
       if (!payload) {
         throw new Error("Failed to build payload - invalid staff");
       }
-      console.log("📦 Payload:", payload);
       
       const { data, error } = await supabase
         .from("primary_scores")
@@ -1004,12 +986,7 @@ export default function PrimaryScoresTab({
           onConflict: "student_id,subject,term,academic_year",
         });
       
-      if (error) {
-        console.error("❌ Supabase error:", error);
-        throw error;
-      }
-      
-      console.log("✅ Save successful:", data);
+      if (error) throw error;
 
       setSavedStatus((prev) => ({ ...prev, [studentId]: true }));
       setScoreEntries((prev) => ({
@@ -1018,61 +995,37 @@ export default function PrimaryScoresTab({
       }));
       
       const remark = getRemark(total);
-      const message = `✅ Saved: ${total}/100 (${remark})`;
-      setLastSaveResult(message);
-      toast.success(message);
+      toast.success(`✅ Saved: ${total}/100 (${remark})`);
       
       // ✅ Refresh all data after saving
       await refreshAllData();
       
     } catch (e: any) {
-      console.error("❌ Save failed:", e);
-      const errorMsg = `Failed: ${e.message}`;
-      setLastSaveResult(errorMsg);
-      toast.error(errorMsg);
+      toast.error(`Failed: ${e.message}`);
     } finally {
       setSaving(false);
     }
   };
 
   const handleSaveAll = async () => {
-    console.log("📝 handleSaveAll called");
-    console.log("📊 Current state:", {
-      selectedClass,
-      selectedSubject,
-      selectedTerm,
-      selectedYear,
-      studentsCount: students.length,
-      unsavedCount,
-      isLocked,
-      staffId: staffProfile?.id,
-      isValidStaff,
-      staffProfile: staffProfile ? "present" : "missing"
-    });
-    
     if (!isValidStaff || !staffProfile?.id) {
       const msg = "Missing teacher information. Please log in again.";
       toast.error(msg);
-      console.error("❌ No staff profile ID");
-      setLastSaveResult("❌ " + msg);
       return;
     }
     if (isLocked) {
       toast.error(
         `Locked by ${subjectsStatus[selectedSubject]?.otherTeacherName || "another teacher"}`,
       );
-      console.error("❌ Subject is locked");
       return;
     }
     
     if (unsavedCount === 0) {
       toast.info("No new scores to save");
-      console.log("ℹ️ No unsaved scores to save");
       return;
     }
     
     setSaving(true);
-    setLastSaveResult("Saving all...");
     let saved = 0,
       errors = 0;
     let totalSum = 0;
@@ -1091,10 +1044,8 @@ export default function PrimaryScoresTab({
         if (!payload) {
           errors++;
           failedStudents.push(student.full_name);
-          console.error(`❌ Failed to build payload for ${student.full_name}`);
           continue;
         }
-        console.log(`📦 Saving for ${student.full_name}:`, payload);
         
         const { error } = await supabase
           .from("primary_scores")
@@ -1104,19 +1055,15 @@ export default function PrimaryScoresTab({
         if (error) {
           errors++;
           failedStudents.push(student.full_name);
-          console.error(`❌ Failed to save ${student.full_name}:`, error);
           continue;
         }
         saved++;
         totalSum += total;
       }
       
-      console.log(`✅ Save complete - Saved: ${saved}, Errors: ${errors}`);
-      
       if (saved > 0) {
         const avgScore = Math.round(totalSum / saved);
         const message = `✅ Saved ${saved} score(s) (Avg: ${avgScore}/100)${errors > 0 ? `, ${errors} failed` : ""}`;
-        setLastSaveResult(message);
         toast.success(message);
         
         if (failedStudents.length > 0) {
@@ -1137,17 +1084,12 @@ export default function PrimaryScoresTab({
         await refreshAllData();
         
       } else if (errors > 0) {
-        const message = `❌ Failed to save ${errors} student(s)`;
-        setLastSaveResult(message);
-        toast.error(message);
+        toast.error(`❌ Failed to save ${errors} student(s)`);
       } else {
         toast.info("No new scores to save");
       }
     } catch (e: any) {
-      console.error("❌ Save all failed:", e);
-      const message = `Failed: ${e.message}`;
-      setLastSaveResult(message);
-      toast.error(message);
+      toast.error(`Failed: ${e.message}`);
     } finally {
       setSaving(false);
     }
@@ -1272,20 +1214,6 @@ export default function PrimaryScoresTab({
               <p className="text-sm text-amber-700 dark:text-amber-400">
                 {staffError || "Staff profile is not loaded properly. Save functionality is disabled."}
               </p>
-              <p className="text-xs text-amber-600 dark:text-amber-500 mt-1">
-                Staff data: {JSON.stringify(staffProfile || "null").substring(0, 100)}
-              </p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-2 border-amber-300 text-amber-700 hover:bg-amber-100"
-                onClick={() => {
-                  console.log("🔍 Staff profile debug:", staffProfile);
-                  toast.info("Check console for staff profile details");
-                }}
-              >
-                Debug Staff Profile
-              </Button>
             </div>
           </CardContent>
         </Card>
@@ -1322,15 +1250,6 @@ export default function PrimaryScoresTab({
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setShowDebug(!showDebug)}
-            className="h-9 gap-2 text-xs font-medium border-slate-200 dark:border-slate-700"
-          >
-            <Bug className="h-3.5 w-3.5" />
-            Debug
-          </Button>
-          <Button
             variant="outline"
             size="sm"
             onClick={handleRefresh}
@@ -1347,65 +1266,6 @@ export default function PrimaryScoresTab({
           </Button>
         </div>
       </div>
-
-      {/* ═══ Debug Panel ═══ */}
-      {showDebug && (
-        <Card className="border-2 border-yellow-400 bg-yellow-50/50 dark:bg-yellow-950/20">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <h3 className="font-bold text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
-                  <Bug className="h-4 w-4" />
-                  Debug Information
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs mt-3">
-                  <div className="space-y-1">
-                    <p className="font-semibold text-yellow-700 dark:text-yellow-300">Selection</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Class: {selectedClass || "❌"}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Subject: {selectedSubject || "❌"}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Term: {selectedTerm || "❌"}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Year: {selectedYear || "❌"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-yellow-700 dark:text-yellow-300">Data</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Students: {students.length}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Scores: {scores.length}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Unsaved: {unsavedCount}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Locked: {String(isLocked)}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-yellow-700 dark:text-yellow-300">Status</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Loading: {String(loading)}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Saving: {String(saving)}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Valid Staff: {String(isValidStaff)}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Staff ID: {staffProfile?.id || "❌"}</p>
-                    <p className="text-yellow-600 dark:text-yellow-400">Last Result: {lastSaveResult || "—"}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="font-semibold text-yellow-700 dark:text-yellow-300">Staff Profile</p>
-                    <p className="text-yellow-600 dark:text-yellow-400 text-[10px] break-all">
-                      {staffProfile ? JSON.stringify(staffProfile, null, 2).substring(0, 150) + "..." : "null"}
-                    </p>
-                  </div>
-                </div>
-                {lastSaveResult && (
-                  <div className="mt-3 p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded text-xs font-mono">
-                    Last Save Result: {lastSaveResult}
-                  </div>
-                )}
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowDebug(false)}
-                className="h-6 w-6 p-0"
-              >
-                ✕
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* ═══ Stats Cards ═══ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -2019,10 +1879,7 @@ export default function PrimaryScoresTab({
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => {
-                                console.log(`🔄 Save button clicked for ${student.full_name} (${student.id})`);
-                                handleSaveSingle(student.id);
-                              }}
+                              onClick={() => handleSaveSingle(student.id)}
                               disabled={saving || isLocked || total === 0 || !isValidStaff}
                               className={cn(
                                 "h-8 w-8 p-0 rounded-lg transition-all",

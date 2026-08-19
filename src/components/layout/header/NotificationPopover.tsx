@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-// src/components/layout/header/NotificationPopover.tsx - UPDATED (removed exam-related notifications)
+// src/components/layout/header/NotificationPopover.tsx - UPDATED (solid background)
 'use client'
 
 import { memo } from 'react'
@@ -85,10 +85,10 @@ export const NotificationPopover = memo(function NotificationPopover({
       <PopoverContent 
         align="end" 
         sideOffset={8}
-        className="w-[340px] sm:w-[380px] p-0 rounded-xl shadow-xl border border-gray-200/80 overflow-hidden"
+        className="w-[340px] sm:w-[380px] p-0 rounded-xl shadow-xl border border-gray-200 bg-white overflow-hidden" // ✅ Solid white background
       >
         {/* Header */}
-        <div className="px-4 py-3 border-b bg-white flex items-center justify-between">
+        <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between">
           <div>
             <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
             {unreadCount > 0 && (
@@ -113,13 +113,13 @@ export const NotificationPopover = memo(function NotificationPopover({
               <p className="text-[11px] text-gray-400 mt-0.5">You&apos;re all caught up!</p>
             </div>
           ) : (
-            <div className="divide-y divide-gray-50">
+            <div className="divide-y divide-gray-100">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={cn(
                     "px-4 py-2.5 hover:bg-gray-50 cursor-pointer group relative transition-colors",
-                    !notification.read && "bg-blue-50/30 hover:bg-blue-50/50"
+                    !notification.read && "bg-blue-50/50 hover:bg-blue-100" // ✅ Stronger background for unread
                   )}
                   onClick={() => handleNotificationClick(notification)}
                 >
@@ -172,7 +172,7 @@ export const NotificationPopover = memo(function NotificationPopover({
         </ScrollArea>
 
         {/* Footer */}
-        <div className="border-t bg-gray-50/80">
+        <div className="border-t border-gray-200 bg-white"> {/* ✅ Solid white background */}
           <Button
             variant="ghost"
             size="sm"

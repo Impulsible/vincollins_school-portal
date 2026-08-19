@@ -32,8 +32,8 @@ interface SchoolSettings {
   school_email?: string
 }
 
-// ✅ FIXED: Added 'pupil' to the type
-type UserRole = 'student' | 'teacher' | 'admin' | 'pupil'
+// ✅ FIXED: Only 3 roles (removed 'pupil')
+type UserRole = 'student' | 'teacher' | 'admin'
 
 // ─── Helper: Get First Name ──────────────────────────────────────────────────
 // Handles both "FirstName LastName" and "Surname FirstName" formats
@@ -79,23 +79,9 @@ const getFirstName = (fullName: string): string => {
 }
 
 // ── Role config ────────────────────────────────────────────────────────────────
-// ✅ FIXED: Added 'pupil' entry (duplicate of student)
+// ✅ FIXED: Only 3 roles (removed 'pupil')
 const ROLE_CONFIG = {
   student: {
-    icon: '🎒',
-    emoji: '🌟',
-    label: 'Pupil',
-    Icon: GraduationCap,
-    color: '#059669',
-    lightBg: '#ECFDF5',
-    gradientCSS: 'linear-gradient(135deg, #059669, #0d9488)',
-    greeting: 'Welcome back, superstar!',
-    infoBg: 'bg-emerald-50 border-emerald-200 text-emerald-700',
-    infoText: 'Access your lessons, results & report cards',
-    redirect: '/pupil',
-    description: 'Pupil portal',
-  },
-  pupil: {
     icon: '🎒',
     emoji: '🌟',
     label: 'Pupil',
@@ -156,11 +142,7 @@ interface SuccessModalProps {
 }
 
 function SuccessModal({ userName, role, redirectPath, onGo }: SuccessModalProps) {
-  // ✅ FIXED: Get config and use fallback if undefined
-  const config = ROLE_CONFIG[role]
-  // If config is undefined, use student as fallback
-  const finalConfig = config || ROLE_CONFIG.student
-  
+  const config = ROLE_CONFIG[role] || ROLE_CONFIG.student
   const firstName = getFirstName(userName)
   const [countdown, setCountdown] = useState(3)
 
@@ -185,7 +167,7 @@ function SuccessModal({ userName, role, redirectPath, onGo }: SuccessModalProps)
         transition={{ type: 'spring', stiffness: 360, damping: 30 }}
         className="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden"
       >
-        <div className="relative h-28 overflow-hidden" style={{ background: finalConfig.gradientCSS }}>
+        <div className="relative h-28 overflow-hidden" style={{ background: config.gradientCSS }}>
           <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full border-4 border-white/20" />
           <div className="absolute -bottom-10 -right-10 w-40 h-40 rounded-full border-4 border-white/10" />
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -195,7 +177,7 @@ function SuccessModal({ userName, role, redirectPath, onGo }: SuccessModalProps)
               transition={{ type: 'spring', stiffness: 200, damping: 15, delay: 0.15 }}
               className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-3xl border border-white/30 shadow-xl"
             >
-              {finalConfig.icon}
+              {config.icon}
             </motion.div>
           </div>
           <button
@@ -224,16 +206,16 @@ function SuccessModal({ userName, role, redirectPath, onGo }: SuccessModalProps)
               </span>
             </div>
             <h3 className="text-2xl font-bold text-gray-900 mb-1">
-              Hello, {firstName}! {finalConfig.emoji}
+              Hello, {firstName}! {config.emoji}
             </h3>
-            <p className="text-sm text-gray-400 mb-6">{finalConfig.greeting}</p>
+            <p className="text-sm text-gray-400 mb-6">{config.greeting}</p>
 
             <div className="relative w-14 h-14 mb-5">
               <svg className="w-14 h-14 -rotate-90" viewBox="0 0 56 56">
                 <circle cx="28" cy="28" r="24" fill="none" stroke="#f3f4f6" strokeWidth="4" />
                 <motion.circle
                   cx="28" cy="28" r="24" fill="none"
-                  stroke={finalConfig.color} strokeWidth="4" strokeLinecap="round"
+                  stroke={config.color} strokeWidth="4" strokeLinecap="round"
                   strokeDasharray={`${2 * Math.PI * 24}`}
                   initial={{ strokeDashoffset: 0 }}
                   animate={{ strokeDashoffset: 2 * Math.PI * 24 }}
@@ -241,14 +223,14 @@ function SuccessModal({ userName, role, redirectPath, onGo }: SuccessModalProps)
                 />
               </svg>
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold" style={{ color: finalConfig.color }}>{countdown}</span>
+                <span className="text-lg font-bold" style={{ color: config.color }}>{countdown}</span>
               </div>
             </div>
 
             <Button
               onClick={onGo}
               className="w-full h-12 text-sm font-bold rounded-2xl text-white shadow-lg hover:shadow-xl transition-all"
-              style={{ background: finalConfig.gradientCSS }}
+              style={{ background: config.gradientCSS }}
             >
               Go to Dashboard <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -331,7 +313,6 @@ export default function LoginPage() {
       admin: '/admin',
       teacher: '/staff',
       student: '/pupil',
-      pupil: '/pupil', // ✅ FIXED: Added pupil mapping
     }
     const path = redirectMap[user.role as string] || '/pupil'
     
@@ -488,7 +469,7 @@ export default function LoginPage() {
         const displayName = userRole === 'teacher'
           ? 'Teacher/Staff'
           : userRole === 'student'
-            ? 'Student'
+            ? 'Pupil'
             : userRole.charAt(0).toUpperCase() + userRole.slice(1)
         setError(`This account is registered as ${displayName}. Please select the correct tab above.`)
         await supabase.auth.signOut()
@@ -809,6 +790,7 @@ export default function LoginPage() {
                     I am a...
                   </label>
 
+                  {/* ✅ FIXED: grid-cols-3 for exactly 3 tabs */}
                   <div className="grid grid-cols-3 gap-2.5 mb-6">
                     {(Object.keys(ROLE_CONFIG) as UserRole[]).map((role) => {
                       const cfg = ROLE_CONFIG[role]

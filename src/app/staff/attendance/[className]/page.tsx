@@ -22,14 +22,14 @@ import { cn } from '@/lib/utils'
 
 interface Pupil {
   id: string
-  pupil_id: string
+  student_id: string  // ✅ Changed from pupil_id to student_id
   pupil_name: string
   photo_url?: string | null
   avatar_url?: string | null
 }
 
 interface AttendanceRecord {
-  pupil_id: string
+  student_id: string  // ✅ Changed from pupil_id to student_id
   date: string
   status: 'present' | 'absent' | null
   locked: boolean
@@ -116,8 +116,8 @@ function buildTermWeeks(startDate: Date, endDate: Date): Week[] {
   return weeks
 }
 
-function getRecord(records: AttendanceRecord[], pupilId: string, dateStr: string) {
-  return records.find(r => r.pupil_id === pupilId && r.date === dateStr)
+function getRecord(records: AttendanceRecord[], studentId: string, dateStr: string) {
+  return records.find(r => r.student_id === studentId && r.date === dateStr)
 }
 
 // ── Loading ───────────────────────────────────────────────────────────────────
@@ -340,23 +340,23 @@ export default function MarkAttendancePage() {
       setPupils(
         (pupilsData ?? []).map((p: any) => ({
           id: p.id,
-          pupil_id: p.id,
+          student_id: p.id,  // ✅ Changed from pupil_id to student_id
           pupil_name: p.display_name || 'Unknown',
           photo_url: p.photo_url || p.avatar_url || null,
         }))
       )
 
-      const pupilIds = (pupilsData ?? []).map((p: any) => p.id)
-      if (pupilIds.length > 0) {
+      const studentIds = (pupilsData ?? []).map((p: any) => p.id)
+      if (studentIds.length > 0) {
         const { data: recs } = await supabase
           .from('attendance_records')
-          .select('pupil_id, date, status, locked')
-          .in('pupil_id', pupilIds)
+          .select('student_id, date, status, locked')  // ✅ Changed from pupil_id to student_id
+          .in('student_id', studentIds)                // ✅ Changed from pupil_id to student_id
           .eq('term_code', termData.term_code)
           .eq('session_year', termData.session_year)
 
         const typedRecs: AttendanceRecord[] = (recs ?? []).map((r: any) => ({
-          pupil_id: r.pupil_id || r.student_id, 
+          student_id: r.student_id,  // ✅ Changed from pupil_id to student_id
           date: r.date,
           status: r.status, 
           locked: r.locked ?? false,
@@ -376,15 +376,15 @@ export default function MarkAttendancePage() {
 
   // ─── Handlers ────────────────────────────────────────────────────────────────
 
-  const handleCellChange = (pupilId: string, dateStr: string, status: 'present' | 'absent' | null) => {
+  const handleCellChange = (studentId: string, dateStr: string, status: 'present' | 'absent' | null) => {
     setRecords(prev => {
-      const existing = prev.find(r => r.pupil_id === pupilId && r.date === dateStr)
+      const existing = prev.find(r => r.student_id === studentId && r.date === dateStr)
       if (existing) {
-        if (status === null) return prev.filter(r => !(r.pupil_id === pupilId && r.date === dateStr))
-        return prev.map(r => r.pupil_id === pupilId && r.date === dateStr ? { ...r, status } : r)
+        if (status === null) return prev.filter(r => !(r.student_id === studentId && r.date === dateStr))
+        return prev.map(r => r.student_id === studentId && r.date === dateStr ? { ...r, status } : r)
       }
       if (status === null) return prev
-      return [...prev, { pupil_id: pupilId, date: dateStr, status, locked: false }]
+      return [...prev, { student_id: studentId, date: dateStr, status, locked: false }]
     })
   }
 
@@ -394,16 +394,15 @@ export default function MarkAttendancePage() {
     try {
       const dayRecords = pupils
         .map(p => {
-          const r = getRecord(records, p.pupil_id, dateStr)
-          return r ? { pupil_id: p.pupil_id, date: dateStr, status: r.status } : null
+          const r = getRecord(records, p.student_id, dateStr)
+          return r ? { student_id: p.student_id, date: dateStr, status: r.status } : null
         })
         .filter(Boolean)
 
       if (dayRecords.length > 0) {
         const { error } = await supabase.from('attendance_records').upsert(
           dayRecords.map(r => ({
-            pupil_id: r!.pupil_id,
-            student_id: r!.pupil_id, // For backwards compatibility
+            student_id: r!.student_id,  // ✅ Changed from pupil_id to student_id
             class_name: matchedClassName,
             term_code: termInfo.term_code,
             session_year: termInfo.session_year,
@@ -414,27 +413,9 @@ export default function MarkAttendancePage() {
             locked_at: new Date().toISOString(),
             locked_by: user.id,
           })),
-          { onConflict: 'pupil_id,date,term_code,session_year' }
+          { onConflict: 'student_id,date,term_code,session_year' }
         )
-        if (error) {
-          // Try with student_id if pupil_id fails
-          const { error: retryError } = await supabase.from('attendance_records').upsert(
-            dayRecords.map(r => ({
-              student_id: r!.pupil_id,
-              class_name: matchedClassName,
-              term_code: termInfo.term_code,
-              session_year: termInfo.session_year,
-              date: dateStr,
-              status: r!.status,
-              teacher_id: user.id,
-              locked: true,
-              locked_at: new Date().toISOString(),
-              locked_by: user.id,
-            })),
-            { onConflict: 'student_id,date,term_code,session_year' }
-          )
-          if (retryError) throw retryError
-        }
+        if (error) throw error
       }
 
       setLockedDates(prev => new Set([...prev, dateStr]))
@@ -450,8 +431,8 @@ export default function MarkAttendancePage() {
 
   const markAllForDay = (dateStr: string, status: 'present' | 'absent') => {
     pupils.forEach(p => {
-      const r = getRecord(records, p.pupil_id, dateStr)
-      if (!r || r.status === null) handleCellChange(p.pupil_id, dateStr, status)
+      const r = getRecord(records, p.student_id, dateStr)
+      if (!r || r.status === null) handleCellChange(p.student_id, dateStr, status)
     })
   }
 
@@ -461,9 +442,9 @@ export default function MarkAttendancePage() {
   const currentWeek = termWeeks[currentWeekIndex]
 
   const getDayStats = (dateStr: string) => ({
-    present: pupils.filter(p => getRecord(records, p.pupil_id, dateStr)?.status === 'present').length,
-    absent:  pupils.filter(p => getRecord(records, p.pupil_id, dateStr)?.status === 'absent').length,
-    unmarked: pupils.filter(p => !getRecord(records, p.pupil_id, dateStr)?.status).length,
+    present: pupils.filter(p => getRecord(records, p.student_id, dateStr)?.status === 'present').length,
+    absent:  pupils.filter(p => getRecord(records, p.student_id, dateStr)?.status === 'absent').length,
+    unmarked: pupils.filter(p => !getRecord(records, p.student_id, dateStr)?.status).length,
   })
 
   const getWeekStats = (week: Week) =>
@@ -476,8 +457,8 @@ export default function MarkAttendancePage() {
       }
     }, { totalPresent: 0, totalAbsent: 0, totalUnmarked: 0 })
 
-  const getPupilWeekCount = (pupilId: string, week: Week) =>
-    week.days.reduce((acc, d) => acc + (getRecord(records, pupilId, d.dateStr)?.status === 'present' ? 1 : 0), 0)
+  const getPupilWeekCount = (studentId: string, week: Week) =>
+    week.days.reduce((acc, d) => acc + (getRecord(records, studentId, d.dateStr)?.status === 'present' ? 1 : 0), 0)
 
   if (loading) return <LoadingScreen />
 
@@ -721,13 +702,13 @@ export default function MarkAttendancePage() {
             {/* Pupil rows */}
             <div className="divide-y divide-slate-50">
               {pupils.map((pupil, idx) => {
-                const weekCount = getPupilWeekCount(pupil.pupil_id, currentWeek)
+                const weekCount = getPupilWeekCount(pupil.student_id, currentWeek)
                 const weekPct   = Math.round((weekCount / 5) * 100)
                 const initials  = pupil.pupil_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
                 return (
                   <div
-                    key={pupil.pupil_id}
+                    key={pupil.student_id}
                     className="grid items-center hover:bg-slate-50/60 transition-colors group"
                     style={{ gridTemplateColumns: `minmax(180px,1fr) repeat(5, minmax(96px,1fr)) 90px` }}
                   >
@@ -752,7 +733,7 @@ export default function MarkAttendancePage() {
 
                     {/* Day cells */}
                     {currentWeek.days.map(day => {
-                      const record   = getRecord(records, pupil.pupil_id, day.dateStr)
+                      const record   = getRecord(records, pupil.student_id, day.dateStr)
                       const isLocked = lockedDates.has(day.dateStr) || (record?.locked ?? false)
                       const isFuture = day.dateStr > todayStr
 
@@ -769,7 +750,7 @@ export default function MarkAttendancePage() {
                             record={record}
                             isLocked={isLocked}
                             isFuture={isFuture}
-                            onChange={status => handleCellChange(pupil.pupil_id, day.dateStr, status)}
+                            onChange={status => handleCellChange(pupil.student_id, day.dateStr, status)}
                           />
                         </div>
                       )
@@ -946,6 +927,12 @@ export default function MarkAttendancePage() {
           <span className="ml-auto text-slate-300 italic hidden md:inline">
             Click to cycle: — → Present → Absent → —
           </span>
+        </div>
+
+        {/* ── Footer ────────────────────────────────────────────────────────── */}
+        <div className="text-center text-xs text-slate-400 pt-4 border-t border-slate-200/50">
+          <p>Vincollins Schools Staff • Mark Attendance</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
         </div>
       </div>
     </div>

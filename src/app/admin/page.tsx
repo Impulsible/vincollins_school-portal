@@ -1,19 +1,17 @@
-// app/admin/page.tsx
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-unused-vars */
+// app/admin/page.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useUser, getRoleColors } from '@/contexts/UserContext'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   Users, GraduationCap, Briefcase, Shield, UserPlus,
   FileText, Megaphone, ChevronRight, Settings,
-  RefreshCw, School, AlertCircle, TrendingUp,
-  ArrowUpRight, Zap, Calendar, BookOpen,
-  PieChart, BarChart3, Clock, Award,
+  RefreshCw, School, AlertCircle,
+  ArrowUpRight, Calendar,
+  BarChart3, Award, Sparkles,
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -24,122 +22,91 @@ import { cn } from '@/lib/utils'
 import { AdminBanner } from '@/components/admin/AdminBanner'
 import AdminLoading from '@/components/admin/AdminLoading'
 
-// ── Animation Variants ─────────────────────────────────────────────────────────
-const fadeInUp = {
-  hidden:  { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' as const } },
+// ── Types ────────────────────────────────────────────────────────────
+interface Stats {
+  totalPupils: number
+  totalStaff: number
+  totalAdmins: number
+  totalUsers: number
 }
-const fadeInRight = {
-  hidden:  { opacity: 0, x: 20 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.4, ease: 'easeOut' as const } },
+
+interface SchoolSettings {
+  school_name?: string
+  logo_path?: string
+  current_term?: string
+  current_session?: string
+}
+
+// ── Constants ────────────────────────────────────────────────────────
+const QUICK_ACTIONS = [
+  { icon: UserPlus, label: 'Enroll Pupil', href: '/admin/students/add', tone: 'emerald' },
+  { icon: Briefcase, label: 'Add Staff', href: '/admin/staff/add', tone: 'blue' },
+  { icon: FileText, label: 'Report Cards', href: '/admin/report-cards', tone: 'amber' },
+  { icon: Megaphone, label: 'Announcements', href: '/admin/announcements', tone: 'violet' },
+  { icon: School, label: 'Class Assignments', href: '/admin/teacher-classes', tone: 'cyan' },
+  { icon: Settings, label: 'Settings', href: '/admin/settings', tone: 'slate' },
+] as const
+
+const MANAGEMENT_TILES = [
+  {
+    href: '/admin/students',
+    icon: GraduationCap,
+    label: 'Student Registry',
+    desc: 'View, edit, and manage all enrolled pupils',
+    tone: 'emerald' as const,
+    statKey: 'totalPupils' as const,
+    statLabel: 'students',
+  },
+  {
+    href: '/admin/staff',
+    icon: Briefcase,
+    label: 'Staff Directory',
+    desc: 'Manage faculty profiles and assignments',
+    tone: 'blue' as const,
+    statKey: 'totalStaff' as const,
+    statLabel: 'staff',
+  },
+  {
+    href: '/admin/report-cards',
+    icon: Award,
+    label: 'Report Cards',
+    desc: 'Review, approve, and publish termly reports',
+    tone: 'amber' as const,
+    statKey: null,
+    statLabel: null,
+  },
+  {
+    href: '/admin/broad-sheet',
+    icon: BarChart3,
+    label: 'Broad Sheet',
+    desc: 'Class-wide performance analytics',
+    tone: 'violet' as const,
+    statKey: null,
+    statLabel: null,
+  },
+]
+
+// ── Tone Palette (single source of truth) ────────────────────────────
+const TONES = {
+  emerald: { icon: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', accent: 'bg-emerald-500', from: 'from-emerald-500', to: 'to-teal-600', hover: 'hover:border-emerald-200' },
+  blue: { icon: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', accent: 'bg-blue-500', from: 'from-blue-500', to: 'to-indigo-600', hover: 'hover:border-blue-200' },
+  amber: { icon: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', accent: 'bg-amber-500', from: 'from-amber-500', to: 'to-orange-600', hover: 'hover:border-amber-200' },
+  violet: { icon: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100', accent: 'bg-violet-500', from: 'from-violet-500', to: 'to-purple-600', hover: 'hover:border-violet-200' },
+  cyan: { icon: 'text-cyan-600', bg: 'bg-cyan-50', border: 'border-cyan-100', accent: 'bg-cyan-500', from: 'from-cyan-500', to: 'to-blue-600', hover: 'hover:border-cyan-200' },
+  slate: { icon: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', accent: 'bg-slate-500', from: 'from-slate-500', to: 'to-slate-600', hover: 'hover:border-slate-300' },
+} as const
+
+// ── Animations ───────────────────────────────────────────────────────
+const fadeInUp = {
+  hidden: { opacity: 0, y: 12 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3, ease: 'easeOut' as const } },
 }
 const stagger = {
-  hidden:  {},
-  visible: { transition: { staggerChildren: 0.07 } },
+  hidden: {},
+  visible: { transition: { staggerChildren: 0.05 } },
 }
 
-// ── Stat Card ──────────────────────────────────────────────────────────────────
-interface StatCardProps {
-  title: string
-  value: number
-  icon: React.ElementType
-  from: string
-  to: string
-  loading: boolean
-  subtitle: string
-  trend?: string
-}
-
-function StatCard({ title, value, icon: Icon, from, to, loading, subtitle, trend }: StatCardProps) {
-  return (
-    <motion.div variants={fadeInUp} className="group">
-      <div className={cn(
-        'relative overflow-hidden rounded-2xl p-5 h-full',
-        'bg-gradient-to-br text-white',
-        from, to,
-      )}>
-        <div className="absolute -top-6 -right-6 w-28 h-28 rounded-full bg-white/10" />
-        <div className="absolute -bottom-8 -right-2 w-20 h-20 rounded-full bg-white/5" />
-
-        <div className="relative z-10 flex flex-col h-full gap-3">
-          <div className="flex items-start justify-between">
-            <div className="bg-white/20 backdrop-blur-sm rounded-xl p-2.5">
-              <Icon className="h-5 w-5 text-white" />
-            </div>
-            {trend && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-bold
-                               bg-white/20 text-white px-2 py-1 rounded-full">
-                <TrendingUp className="h-3 w-3" />
-                {trend}
-              </span>
-            )}
-          </div>
-
-          <div>
-            {loading ? (
-              <div className="h-9 w-16 bg-white/20 rounded-xl animate-pulse" />
-            ) : (
-              <p className="text-4xl font-black tabular-nums leading-none">{value}</p>
-            )}
-            <p className="text-[11px] font-bold text-white/70 uppercase tracking-widest mt-1">
-              {title}
-            </p>
-          </div>
-
-          <p className="text-[11px] text-white/60 font-medium mt-auto">{subtitle}</p>
-        </div>
-      </div>
-    </motion.div>
-  )
-}
-
-// ── Quick Action ───────────────────────────────────────────────────────────────
-interface QuickActionProps {
-  icon: React.ElementType
-  label: string
-  description: string
-  href: string
-  iconColor: string
-  iconBg: string
-  accent: string
-}
-
-function QuickAction({ icon: Icon, label, description, href, iconColor, iconBg, accent }: QuickActionProps) {
-  return (
-    <Link href={href}>
-      <motion.div
-        variants={fadeInUp}
-        whileHover={{ y: -3 }}
-        whileTap={{ scale: 0.98 }}
-        className="group relative overflow-hidden rounded-2xl bg-white border border-slate-100
-                   hover:border-slate-200 hover:shadow-lg transition-all duration-300 p-4 h-full cursor-pointer"
-      >
-        <div
-          className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-          style={{ background: `radial-gradient(ellipse at top right, ${accent}08, transparent 70%)` }}
-        />
-        <div className="relative flex flex-col gap-3 h-full">
-          <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', iconBg)}>
-            <Icon className={cn('h-5 w-5', iconColor)} />
-          </div>
-          <div className="flex-1">
-            <p className="text-sm font-bold text-slate-800 group-hover:text-slate-900">{label}</p>
-            <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">{description}</p>
-          </div>
-          <div
-            className="self-end w-7 h-7 rounded-full flex items-center justify-center
-                       opacity-0 group-hover:opacity-100 transition-all duration-200"
-            style={{ backgroundColor: `${accent}15` }}
-          >
-            <ArrowUpRight className="h-3.5 w-3.5" style={{ color: accent }} />
-          </div>
-        </div>
-      </motion.div>
-    </Link>
-  )
-}
-
-// ── Section Header ─────────────────────────────────────────────────────────────
+// ── Section Header ───────────────────────────────────────────────────
 function SectionHeader({
   title,
   subtitle,
@@ -150,44 +117,192 @@ function SectionHeader({
   action?: React.ReactNode
 }) {
   return (
-    <motion.div variants={fadeInUp} className="flex items-center justify-between">
+    <div className="flex items-end justify-between gap-3 mb-3">
       <div>
-        <h2 className="text-base font-black text-slate-800 tracking-tight">{title}</h2>
+        <h2 className="text-sm font-black text-slate-800 tracking-tight">{title}</h2>
         {subtitle && <p className="text-[11px] text-slate-400 font-medium mt-0.5">{subtitle}</p>}
       </div>
       {action}
+    </div>
+  )
+}
+
+// ── Stat Card ────────────────────────────────────────────────────────
+function StatCard({
+  title,
+  value,
+  icon: Icon,
+  tone,
+  loading,
+  delay = 0,
+}: {
+  title: string
+  value: number
+  icon: React.ElementType
+  tone: keyof typeof TONES
+  loading: boolean
+  delay?: number
+}) {
+  const t = TONES[tone]
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.3 }}
+      className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/60 shadow-sm hover:shadow-md hover:border-slate-300 transition-all group"
+    >
+      <div className={cn('absolute top-0 left-0 right-0 h-0.5', t.accent)} />
+      <div className={cn('absolute -top-6 -right-6 w-20 h-20 rounded-full opacity-10 blur-xl group-hover:opacity-20 transition-opacity bg-gradient-to-br', t.from, t.to)} />
+
+      <div className="relative p-4">
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            {title}
+          </p>
+          <div className={cn('shrink-0 h-8 w-8 rounded-xl flex items-center justify-center', t.bg)}>
+            <Icon className={cn('h-4 w-4', t.icon)} />
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="h-8 w-16 bg-slate-100 rounded-lg animate-pulse" />
+        ) : (
+          <p className="text-3xl font-black text-slate-900 leading-none tracking-tight tabular-nums">
+            {value.toLocaleString()}
+          </p>
+        )}
+      </div>
     </motion.div>
   )
 }
 
-// ── User Breakdown Bar ─────────────────────────────────────────────────────────
-function UserBreakdown({
-  stats,
+// ── Quick Action Chip ────────────────────────────────────────────────
+function QuickActionChip({
+  icon: Icon,
+  label,
+  href,
+  tone,
+}: {
+  icon: React.ElementType
+  label: string
+  href: string
+  tone: keyof typeof TONES
+}) {
+  const t = TONES[tone]
+
+  return (
+    <Link href={href}>
+      <motion.div
+        whileHover={{ y: -2 }}
+        whileTap={{ scale: 0.98 }}
+        className={cn(
+          'group flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-white border transition-all cursor-pointer',
+          t.border, t.hover,
+          'hover:shadow-sm'
+        )}
+      >
+        <div className={cn('shrink-0 h-8 w-8 rounded-lg flex items-center justify-center', t.bg)}>
+          <Icon className={cn('h-4 w-4', t.icon)} />
+        </div>
+        <span className="text-xs font-bold text-slate-700 group-hover:text-slate-900 flex-1 truncate">
+          {label}
+        </span>
+        <ArrowUpRight className={cn('h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity', t.icon)} />
+      </motion.div>
+    </Link>
+  )
+}
+
+// ── Management Tile ──────────────────────────────────────────────────
+function ManagementTile({
+  href,
+  icon: Icon,
+  label,
+  desc,
+  tone,
+  stat,
+  statLabel,
   loading,
 }: {
-  stats: { totalPupils: number; totalStaff: number; totalAdmins: number; totalUsers: number }
+  href: string
+  icon: React.ElementType
+  label: string
+  desc: string
+  tone: keyof typeof TONES
+  stat: number | null
+  statLabel: string | null
   loading: boolean
 }) {
+  const t = TONES[tone]
+
+  return (
+    <Link href={href}>
+      <motion.div
+        variants={fadeInUp}
+        whileHover={{ y: -2 }}
+        className={cn(
+          'group bg-white rounded-2xl border border-slate-200/60 transition-all p-4 h-full cursor-pointer',
+          t.hover, 'hover:shadow-md'
+        )}
+      >
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className={cn('h-10 w-10 rounded-xl flex items-center justify-center', t.bg)}>
+            <Icon className={cn('h-5 w-5', t.icon)} />
+          </div>
+          {stat !== null && (
+            <div className="text-right">
+              {loading ? (
+                <div className="h-6 w-10 bg-slate-100 rounded animate-pulse" />
+              ) : (
+                <>
+                  <p className="text-xl font-black text-slate-800 tabular-nums leading-none">
+                    {stat.toLocaleString()}
+                  </p>
+                  {statLabel && (
+                    <p className="text-[9px] text-slate-400 font-semibold uppercase tracking-widest mt-0.5">
+                      {statLabel}
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+        <div>
+          <h3 className="text-sm font-bold text-slate-900 group-hover:text-slate-700 transition-colors">
+            {label}
+          </h3>
+          <p className="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-2">{desc}</p>
+        </div>
+        <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-100">
+          <span className={cn('text-[10px] font-bold uppercase tracking-widest', t.icon)}>
+            Open
+          </span>
+          <ArrowUpRight className={cn('h-3 w-3 transition-transform group-hover:translate-x-0.5', t.icon)} />
+        </div>
+      </motion.div>
+    </Link>
+  )
+}
+
+// ── User Breakdown ───────────────────────────────────────────────────
+function UserBreakdown({ stats, loading }: { stats: Stats; loading: boolean }) {
   const segments = useMemo(() => {
     const total = stats.totalUsers || 1
     return [
-      { label: 'Pupils', value: stats.totalPupils, pct: Math.round((stats.totalPupils / total) * 100), color: 'bg-emerald-500', icon: GraduationCap, bg: 'bg-emerald-50', text: 'text-emerald-600' },
-      { label: 'Staff',  value: stats.totalStaff,  pct: Math.round((stats.totalStaff / total) * 100),  color: 'bg-blue-500',    icon: Briefcase,     bg: 'bg-blue-50',    text: 'text-blue-600' },
-      { label: 'Admins', value: stats.totalAdmins, pct: Math.round((stats.totalAdmins / total) * 100), color: 'bg-amber-500',   icon: Shield,        bg: 'bg-amber-50',   text: 'text-amber-600' },
+      { label: 'Pupils', value: stats.totalPupils, pct: Math.round((stats.totalPupils / total) * 100), tone: 'emerald' as const },
+      { label: 'Staff', value: stats.totalStaff, pct: Math.round((stats.totalStaff / total) * 100), tone: 'blue' as const },
+      { label: 'Admins', value: stats.totalAdmins, pct: Math.round((stats.totalAdmins / total) * 100), tone: 'amber' as const },
     ]
   }, [stats])
 
   if (loading) {
     return (
-      <div className="space-y-3">
+      <div className="space-y-2">
+        <div className="h-2 w-full bg-slate-100 rounded-full animate-pulse" />
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-xl bg-slate-100 animate-pulse flex-shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3 w-20 bg-slate-100 rounded animate-pulse" />
-              <div className="h-2 w-full bg-slate-100 rounded animate-pulse" />
-            </div>
-          </div>
+          <div key={i} className="h-4 bg-slate-50 rounded animate-pulse" />
         ))}
       </div>
     )
@@ -196,11 +311,11 @@ function UserBreakdown({
   return (
     <div className="space-y-3">
       {/* Stacked bar */}
-      <div className="h-3 bg-slate-100 rounded-full overflow-hidden flex">
-        {segments.map(({ label, pct, color }) => (
+      <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
+        {segments.map(({ label, pct, tone }) => (
           <motion.div
             key={label}
-            className={cn('h-full first:rounded-l-full last:rounded-r-full', color)}
+            className={cn('h-full', TONES[tone].accent)}
             initial={{ width: 0 }}
             animate={{ width: `${pct}%` }}
             transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
@@ -209,20 +324,17 @@ function UserBreakdown({
       </div>
 
       {/* Legend */}
-      <div className="space-y-2">
-        {segments.map(({ label, value, pct, icon: Icon, bg, text }) => (
-          <div key={label} className="flex items-center gap-3">
-            <div className={cn('h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0', bg)}>
-              <Icon className={cn('h-4 w-4', text)} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between">
-                <span className="text-[12px] font-semibold text-slate-700">{label}</span>
-                <span className="text-[12px] font-bold text-slate-500 tabular-nums">
-                  {value} <span className="text-slate-400">({pct}%)</span>
-                </span>
-              </div>
-            </div>
+      <div className="space-y-1.5">
+        {segments.map(({ label, value, pct, tone }) => (
+          <div key={label} className="flex items-center gap-2">
+            <span className={cn('h-2 w-2 rounded-full shrink-0', TONES[tone].accent)} />
+            <span className="text-[11px] font-semibold text-slate-600 flex-1">{label}</span>
+            <span className="text-[11px] font-bold text-slate-800 tabular-nums">
+              {value.toLocaleString()}
+            </span>
+            <span className="text-[10px] font-medium text-slate-400 tabular-nums w-8 text-right">
+              {pct}%
+            </span>
           </div>
         ))}
       </div>
@@ -230,45 +342,23 @@ function UserBreakdown({
   )
 }
 
-// ── Term Info Panel ────────────────────────────────────────────────────────────
-function TermInfoPanel({ schoolSettings }: { schoolSettings: any }) {
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {[
-        { label: 'Current Term',    value: schoolSettings?.current_term    || '—', icon: Calendar, color: 'text-violet-600', bg: 'bg-violet-50' },
-        { label: 'Session',         value: schoolSettings?.current_session || '—', icon: Clock,    color: 'text-blue-600',   bg: 'bg-blue-50' },
-      ].map(({ label, value, icon: Icon, color, bg }) => (
-        <div key={label} className="bg-slate-50 rounded-xl p-3.5 border border-slate-100">
-          <div className="flex items-center gap-2 mb-1.5">
-            <div className={cn('h-5 w-5 rounded-md flex items-center justify-center', bg)}>
-              <Icon className={cn('h-3 w-3', color)} />
-            </div>
-            <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">
-              {label}
-            </p>
-          </div>
-          <p className="text-sm font-bold text-slate-700 truncate">{value}</p>
-        </div>
-      ))}
-    </div>
-  )
-}
-
-// ── Main Page ──────────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════
+// MAIN PAGE
+// ═══════════════════════════════════════════════════════════════════════
 export default function AdminDashboardPage() {
   const { user, loading: userLoading } = useUser()
-  const [stats, setStats] = useState({
+  const [stats, setStats] = useState<Stats>({
     totalPupils: 0,
     totalStaff: 0,
     totalAdmins: 0,
     totalUsers: 0,
   })
-  const [statsLoading,   setStatsLoading]   = useState(true)
-  const [schoolSettings, setSchoolSettings] = useState<any>(null)
-  const [isRefreshing,   setIsRefreshing]   = useState(false)
-  const [mounted,        setMounted]        = useState(false)
-  const [redirecting,    setRedirecting]    = useState(false)
-  const [error,          setError]          = useState<string | null>(null)
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [schoolSettings, setSchoolSettings] = useState<SchoolSettings | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  const [redirecting, setRedirecting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => { setMounted(true) }, [])
 
@@ -282,6 +372,7 @@ export default function AdminDashboardPage() {
   }, [mounted, user, userLoading, redirecting])
 
   const roleColors = getRoleColors(user?.role)
+  const primaryColor = roleColors?.primary || '#0A2472'
 
   const fetchSchoolSettings = useCallback(async () => {
     try {
@@ -298,15 +389,15 @@ export default function AdminDashboardPage() {
     try {
       setStatsLoading(true)
       setError(null)
-      const res    = await fetch('/api/admin/users')
+      const res = await fetch('/api/admin/users')
       const result = await res.json()
       if (!result.success) throw new Error(result.error)
       const users = result.data || []
       setStats({
         totalPupils: users.filter((u: any) => u.role === 'pupil' || u.role === 'student').length,
-        totalStaff:  users.filter((u: any) => u.role === 'staff'  || u.role === 'teacher').length,
+        totalStaff: users.filter((u: any) => u.role === 'staff' || u.role === 'teacher').length,
         totalAdmins: users.filter((u: any) => u.role === 'admin').length,
-        totalUsers:  users.length,
+        totalUsers: users.length,
       })
     } catch {
       setError('Failed to load statistics')
@@ -331,25 +422,12 @@ export default function AdminDashboardPage() {
     }
   }, [user, mounted, fetchStats, fetchSchoolSettings])
 
-  // Quick actions
-  const quickActions: QuickActionProps[] = [
-    { icon: UserPlus,  label: 'Enroll Pupil',    description: 'Register a new student',      href: '/admin/students/add',    iconColor: 'text-emerald-600', iconBg: 'bg-emerald-50', accent: '#059669' },
-    { icon: Briefcase, label: 'Add Staff',        description: 'Onboard a teacher or staff',  href: '/admin/staff/add',       iconColor: 'text-blue-600',    iconBg: 'bg-blue-50',    accent: '#2563EB' },
-    { icon: FileText,  label: 'Report Cards',     description: 'Generate and manage reports', href: '/admin/report-cards',    iconColor: 'text-amber-600',   iconBg: 'bg-amber-50',   accent: '#D97706' },
-    { icon: Megaphone, label: 'Announcements',    description: 'Broadcast updates to all',    href: '/admin/announcements',   iconColor: 'text-violet-600',  iconBg: 'bg-violet-50',  accent: '#7C3AED' },
-    { icon: School,    label: 'Teacher Classes',  description: 'Manage class assignments',    href: '/admin/teacher-classes', iconColor: 'text-cyan-600',    iconBg: 'bg-cyan-50',    accent: '#0891B2' },
-    { icon: Settings,  label: 'Settings',         description: 'School and system config',    href: '/admin/settings',        iconColor: 'text-rose-600',    iconBg: 'bg-rose-50',    accent: '#E11D48' },
-  ]
-
-  // ── Loading State ──────────────────────────────────────────────────────────────
+  // ── Loading State ────────────────────────────────────────────────────
   if (!mounted || userLoading || redirecting) {
     return (
-      <AdminLoading 
-        profile={user} 
-        onLogout={() => {
-          // Handle logout
-          window.location.href = '/auth/logout'
-        }} 
+      <AdminLoading
+        profile={user}
+        onLogout={() => { window.location.href = '/auth/logout' }}
       />
     )
   }
@@ -366,8 +444,7 @@ export default function AdminDashboardPage() {
             initial={{ opacity: 0, y: -16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -16 }}
-            className="fixed top-4 right-4 z-50 bg-white/95 backdrop-blur-md rounded-xl
-                       shadow-xl px-4 py-2.5 flex items-center gap-2.5 border border-slate-100"
+            className="fixed top-4 right-4 z-50 bg-white/95 backdrop-blur-md rounded-xl shadow-xl px-4 py-2.5 flex items-center gap-2.5 border border-slate-100"
           >
             <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-500" />
             <span className="text-xs font-semibold text-slate-600">Refreshing…</span>
@@ -379,293 +456,187 @@ export default function AdminDashboardPage() {
         variants={stagger}
         initial="hidden"
         animate="visible"
-        className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8"
+        className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6"
       >
 
-        {/* ── Banner ──────────────────────────────────────────────────────── */}
+        {/* ═══ Banner ═══════════════════════════════════════════════════ */}
         <motion.div variants={fadeInUp}>
           <AdminBanner
             userName={user?.full_name || user?.first_name || 'Admin'}
             termInfo={{
-              term:    schoolSettings?.current_term    || 'Not Set',
+              term: schoolSettings?.current_term || 'Not Set',
               session: schoolSettings?.current_session || 'Not Set',
             }}
-            onDismiss={() => {}}
+            onDismiss={() => { }}
           />
         </motion.div>
 
-        {/*
-          ══════════════════════════════════════════════════════════════════
-           MAIN GRID — 3-column on xl, 1 col mobile
-           Row 1: 4 stat cards (full width)
-           Row 2: Quick Actions (2 cols) + Right Panel (1 col)
-          ══════════════════════════════════════════════════════════════════
-        */}
-
-        {/* ── Row 1: Stats ───────────────────────────────────────────────── */}
+        {/* ═══ Row 1: Stats + Refresh ══════════════════════════════════ */}
         <section>
-          <SectionHeader
-            title="Overview"
-            subtitle="System-wide statistics"
-            action={
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={statsLoading || isRefreshing}
-                className="text-xs text-slate-500 hover:text-slate-700 gap-1.5 rounded-xl h-8"
-              >
-                <RefreshCw className={cn('w-3.5 h-3.5', (statsLoading || isRefreshing) && 'animate-spin')} />
-                Refresh
-              </Button>
-            }
-          />
+          <div className="flex items-end justify-between gap-3 mb-3">
+            <div>
+              <h2 className="text-sm font-black text-slate-800 tracking-tight">Overview</h2>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                System-wide user statistics
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={statsLoading || isRefreshing}
+              className="text-xs text-slate-500 hover:text-slate-700 gap-1.5 rounded-xl h-8"
+            >
+              <RefreshCw className={cn('w-3.5 h-3.5', (statsLoading || isRefreshing) && 'animate-spin')} />
+              Refresh
+            </Button>
+          </div>
 
           {error ? (
             <motion.div
               variants={fadeInUp}
-              className="mt-4 bg-red-50 border border-red-200 rounded-2xl p-8 text-center"
+              className="bg-red-50 border border-red-200 rounded-2xl p-6 text-center"
             >
-              <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
-              <p className="text-red-600 font-semibold mb-3">{error}</p>
+              <AlertCircle className="w-8 h-8 text-red-400 mx-auto mb-2" />
+              <p className="text-red-600 font-semibold mb-3 text-sm">{error}</p>
               <Button variant="outline" size="sm" onClick={handleRefresh} className="rounded-xl">
                 Try Again
               </Button>
             </motion.div>
           ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <StatCard title="Pupils" value={stats.totalPupils} icon={GraduationCap} tone="emerald" loading={statsLoading} delay={0.05} />
+              <StatCard title="Staff" value={stats.totalStaff} icon={Briefcase} tone="blue" loading={statsLoading} delay={0.1} />
+              <StatCard title="Admins" value={stats.totalAdmins} icon={Shield} tone="amber" loading={statsLoading} delay={0.15} />
+              <StatCard title="Total Users" value={stats.totalUsers} icon={Users} tone="violet" loading={statsLoading} delay={0.2} />
+            </div>
+          )}
+        </section>
+
+        {/* ═══ Row 2: Quick Actions ═══════════════════════════════════ */}
+        <section>
+          <SectionHeader
+            title="Quick Actions"
+            subtitle="Common tasks and shortcuts"
+          />
+          <motion.div
+            variants={stagger}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2"
+          >
+            {QUICK_ACTIONS.map(a => (
+              <motion.div key={a.href} variants={fadeInUp}>
+                <QuickActionChip {...a} />
+              </motion.div>
+            ))}
+          </motion.div>
+        </section>
+
+        {/* ═══ Row 3: Two-column layout ═══════════════════════════════ */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
+
+          {/* ─── LEFT: Management ────────────────────────────────────── */}
+          <section>
+            <SectionHeader
+              title="Management"
+              subtitle="Key administration areas"
+            />
             <motion.div
               variants={stagger}
               initial="hidden"
               animate="visible"
-              className="mt-4 grid grid-cols-2 lg:grid-cols-4 gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 gap-3"
             >
-              <StatCard
-                title="Total Pupils"
-                value={stats.totalPupils}
-                icon={GraduationCap}
-                from="from-emerald-500"
-                to="to-teal-600"
-                loading={statsLoading}
-                subtitle="Enrolled students"
-                trend="+12%"
-              />
-              <StatCard
-                title="Teachers & Staff"
-                value={stats.totalStaff}
-                icon={Briefcase}
-                from="from-blue-500"
-                to="to-indigo-600"
-                loading={statsLoading}
-                subtitle="Faculty members"
-                trend="+3%"
-              />
-              <StatCard
-                title="Administrators"
-                value={stats.totalAdmins}
-                icon={Shield}
-                from="from-amber-500"
-                to="to-orange-600"
-                loading={statsLoading}
-                subtitle="Full system access"
-              />
-              <StatCard
-                title="Total Users"
-                value={stats.totalUsers}
-                icon={Users}
-                from="from-violet-500"
-                to="to-purple-600"
-                loading={statsLoading}
-                subtitle="All registered accounts"
-                trend="+8%"
-              />
+              {MANAGEMENT_TILES.map(tile => (
+                <ManagementTile
+                  key={tile.href}
+                  href={tile.href}
+                  icon={tile.icon}
+                  label={tile.label}
+                  desc={tile.desc}
+                  tone={tile.tone}
+                  stat={tile.statKey ? stats[tile.statKey] : null}
+                  statLabel={tile.statLabel}
+                  loading={statsLoading}
+                />
+              ))}
             </motion.div>
-          )}
-        </section>
+          </section>
 
-        {/* ── Row 2: Two-column layout ─────────────────────────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+          {/* ─── RIGHT: School Info Panel ────────────────────────────── */}
+          <aside className="space-y-4">
 
-          {/* ── LEFT: Quick Actions (spans 2) ──────────────────────────────── */}
-          <div className="xl:col-span-2 space-y-6">
-
-            {/* Quick Actions */}
-            <section>
-              <SectionHeader
-                title="Quick Actions"
-                subtitle="Common tasks at your fingertips"
-              />
-              <motion.div
-                variants={stagger}
-                initial="hidden"
-                animate="visible"
-                className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3"
-              >
-                {quickActions.map(a => (
-                  <QuickAction key={a.href} {...a} />
-                ))}
-              </motion.div>
-            </section>
-
-            {/* Management shortcuts — wide cards */}
-            <section>
-              <SectionHeader
-                title="Management"
-                subtitle="Key administration areas"
-              />
-              <motion.div
-                variants={stagger}
-                initial="hidden"
-                animate="visible"
-                className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3"
-              >
-                {[
-                  {
-                    href: '/admin/students',
-                    icon: GraduationCap,
-                    label: 'Student Registry',
-                    desc: 'View all enrolled pupils, manage records, and track student data across classes.',
-                    stat: stats.totalPupils,
-                    statLabel: 'students',
-                    iconColor: 'text-emerald-600',
-                    iconBg: 'bg-emerald-50',
-                    accent: '#059669',
-                    loading: statsLoading,
-                  },
-                  {
-                    href: '/admin/staff',
-                    icon: Briefcase,
-                    label: 'Staff Directory',
-                    desc: 'Manage faculty profiles, assign roles, and oversee teaching staff.',
-                    stat: stats.totalStaff,
-                    statLabel: 'staff members',
-                    iconColor: 'text-blue-600',
-                    iconBg: 'bg-blue-50',
-                    accent: '#2563EB',
-                    loading: statsLoading,
-                  },
-                  {
-                    href: '/admin/report-cards',
-                    icon: Award,
-                    label: 'Report Cards',
-                    desc: 'Review, approve, and publish termly academic reports for all classes.',
-                    stat: null,
-                    statLabel: null,
-                    iconColor: 'text-amber-600',
-                    iconBg: 'bg-amber-50',
-                    accent: '#D97706',
-                    loading: false,
-                  },
-                  {
-                    href: '/admin/broad-sheet',
-                    icon: BarChart3,
-                    label: 'Broad Sheet',
-                    desc: 'Generate comprehensive result summaries and class-wide performance analytics.',
-                    stat: null,
-                    statLabel: null,
-                    iconColor: 'text-violet-600',
-                    iconBg: 'bg-violet-50',
-                    accent: '#7C3AED',
-                    loading: false,
-                  },
-                ].map(({ href, icon: Icon, label, desc, stat, statLabel, iconColor, iconBg, accent, loading }) => (
-                  <Link key={href} href={href}>
-                    <motion.div
-                      variants={fadeInUp}
-                      whileHover={{ y: -2 }}
-                      className="group bg-white rounded-2xl border border-slate-100 hover:border-slate-200
-                                 hover:shadow-lg transition-all duration-300 p-5 h-full cursor-pointer relative overflow-hidden"
-                    >
-                      <div
-                        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-                        style={{ background: `radial-gradient(ellipse at bottom left, ${accent}06, transparent 70%)` }}
-                      />
-
-                      <div className="relative space-y-3">
-                        <div className="flex items-start justify-between">
-                          <div className={cn('w-11 h-11 rounded-xl flex items-center justify-center', iconBg)}>
-                            <Icon className={cn('h-5 w-5', iconColor)} />
-                          </div>
-                          {stat !== null && (
-                            <div className="text-right">
-                              {loading ? (
-                                <div className="h-6 w-10 bg-slate-100 rounded-lg animate-pulse" />
-                              ) : (
-                                <p className="text-2xl font-black text-slate-800 tabular-nums leading-none">
-                                  {stat}
-                                </p>
-                              )}
-                              {statLabel && (
-                                <p className="text-[10px] text-slate-400 font-medium mt-0.5">{statLabel}</p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-slate-800">{label}</h3>
-                          <p className="text-[11px] text-slate-400 mt-1 leading-relaxed line-clamp-2">{desc}</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 pt-1">
-                          <span className="text-[11px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            style={{ color: accent }}>
-                            Open
-                          </span>
-                          <ArrowUpRight
-                            className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            style={{ color: accent }}
-                          />
-                        </div>
-                      </div>
-                    </motion.div>
-                  </Link>
-                ))}
-              </motion.div>
-            </section>
-          </div>
-
-          {/* ── RIGHT COLUMN ──────────────────────────────────────────────── */}
-          <div className="space-y-6">
-
-            {/* School card */}
-            <motion.div variants={fadeInRight}>
-              <div className="bg-white rounded-2xl border border-slate-100 overflow-hidden">
+            {/* School Info Card */}
+            <motion.div variants={fadeInUp}>
+              <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
+                {/* Header with logo */}
                 <div
-                  className="h-20 relative"
+                  className="relative h-20"
                   style={{
-                    background: `linear-gradient(135deg, ${roleColors?.primary || '#0A2472'} 0%, ${roleColors?.primary || '#0A2472'}cc 100%)`,
+                    background: `linear-gradient(135deg, ${primaryColor} 0%, ${primaryColor}cc 100%)`,
                   }}
                 >
-                  <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-10" />
-                  <div className="absolute -bottom-5 left-5">
-                    <div className="h-12 w-12 rounded-xl bg-white shadow-lg flex items-center justify-center overflow-hidden">
+                  <div
+                    className="absolute inset-0 opacity-[0.08]"
+                    style={{
+                      backgroundImage: `linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)`,
+                      backgroundSize: '20px 20px',
+                    }}
+                  />
+
+                  <div className="absolute -bottom-6 left-5">
+                    <div className="h-12 w-12 rounded-2xl bg-white shadow-lg flex items-center justify-center overflow-hidden ring-4 ring-white">
                       {schoolSettings?.logo_path ? (
                         <div className="relative h-full w-full">
-                          <Image src={schoolSettings.logo_path} alt="logo" fill className="object-contain p-1.5" />
+                          <Image src={schoolSettings.logo_path} alt="Logo" fill className="object-contain p-1.5" />
                         </div>
                       ) : (
-                        <GraduationCap className="h-6 w-6 text-slate-600" />
+                        <GraduationCap className="h-6 w-6" style={{ color: primaryColor }} />
                       )}
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-8 px-5 pb-5 space-y-4">
-                  <div>
-                    <h3 className="font-black text-slate-900 text-sm">
-                      {schoolSettings?.school_name || 'Vincollins Schools'}
-                    </h3>
-                    <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                      Administration Portal
-                    </p>
-                  </div>
+                <div className="pt-9 px-5 pb-5">
+                  <h3 className="text-sm font-black text-slate-900 truncate">
+                    {schoolSettings?.school_name || 'Vincollins Schools'}
+                  </h3>
+                  <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-widest mt-0.5">
+                    Administration Portal
+                  </p>
 
-                  <TermInfoPanel schoolSettings={schoolSettings} />
+                  {/* Term info inline */}
+                  <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="h-3 w-3 text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Current Term
+                        </span>
+                      </div>
+                      <span className="text-xs font-black text-slate-800">
+                        {schoolSettings?.current_term || '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="h-3 w-3 text-slate-400" />
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                          Session
+                        </span>
+                      </div>
+                      <span className="text-xs font-black text-slate-800">
+                        {schoolSettings?.current_session || '—'}
+                      </span>
+                    </div>
+                  </div>
 
                   <Link href="/admin/settings">
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full rounded-xl text-xs h-9 border-slate-200
-                                 hover:border-slate-300 gap-2 mt-2"
+                      className="w-full rounded-xl text-xs h-9 border-slate-200 hover:border-slate-300 gap-1.5 mt-4 font-semibold"
                     >
                       <Settings className="h-3.5 w-3.5" />
                       Manage Settings
@@ -675,81 +646,40 @@ export default function AdminDashboardPage() {
               </div>
             </motion.div>
 
-            {/* User breakdown */}
-            <motion.div variants={fadeInRight}>
-              <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-black text-slate-800">User Breakdown</h3>
-                  <div className="h-7 w-7 rounded-lg bg-slate-50 flex items-center justify-center">
-                    <PieChart className="h-3.5 w-3.5 text-slate-400" />
-                  </div>
-                </div>
-                <UserBreakdown stats={stats} loading={statsLoading} />
-                <Link href="/admin/students">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full text-xs text-slate-500 hover:text-slate-700 gap-1 rounded-xl h-8 mt-1"
+            {/* User Breakdown */}
+            <motion.div variants={fadeInUp}>
+              <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-sm font-black text-slate-800">User Distribution</h3>
+                  <Link
+                    href="/admin/students"
+                    className="text-[10px] font-bold text-slate-400 hover:text-slate-600 flex items-center gap-0.5 transition-colors"
                   >
-                    View all users
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </Link>
-              </div>
-            </motion.div>
-
-            {/* Help card */}
-            <motion.div variants={fadeInRight}>
-              <div
-                className="rounded-2xl p-5 text-white relative overflow-hidden"
-                style={{
-                  background: `linear-gradient(135deg, ${roleColors?.primary || '#0A2472'} 0%, ${roleColors?.primary || '#0A2472'}bb 100%)`,
-                }}
-              >
-                <div className="absolute -top-4 -right-4 w-20 h-20 rounded-full bg-white/10" />
-                <div className="absolute -bottom-6 -left-2 w-16 h-16 rounded-full bg-white/5" />
-                <div className="relative space-y-3">
-                  <div className="h-9 w-9 rounded-xl bg-white/20 flex items-center justify-center">
-                    <Zap className="h-5 w-5 text-white" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-black">Need help?</p>
-                    <p className="text-[11px] text-white/70 mt-0.5 leading-relaxed">
-                      Access guides, docs and support resources for the admin panel.
-                    </p>
-                  </div>
-                  <Link href="/admin/help">
-                    <Button
-                      size="sm"
-                      className="bg-white/20 hover:bg-white/30 text-white border-0
-                                 rounded-xl text-xs h-8 gap-1.5 backdrop-blur-sm w-full mt-1"
-                    >
-                      Open Help Centre
-                      <ArrowUpRight className="h-3.5 w-3.5" />
-                    </Button>
+                    View all
+                    <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
+                <UserBreakdown stats={stats} loading={statsLoading} />
               </div>
             </motion.div>
 
-          </div>
+          </aside>
         </div>
 
-        {/* ── Footer ──────────────────────────────────────────────────────── */}
+        {/* ═══ Footer ══════════════════════════════════════════════════ */}
         <motion.div variants={fadeInUp}>
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3
-                          pt-6 border-t border-slate-200/80">
-            <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-6 border-t border-slate-200/60">
+            <div className="flex items-center gap-2">
               {schoolSettings?.logo_path && (
-                <div className="relative h-5 w-5 opacity-40">
+                <div className="relative h-4 w-4 opacity-40">
                   <Image src={schoolSettings.logo_path} alt="logo" fill className="object-contain" />
                 </div>
               )}
-              <p className="text-[11px] text-slate-400 font-medium">
+              <p className="text-[10px] text-slate-400 font-semibold">
                 {schoolSettings?.school_name || 'Vincollins Schools'} · Admin Panel
               </p>
             </div>
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[10px] text-slate-400 font-medium">
               &copy; {new Date().getFullYear()} · All rights reserved
             </p>
           </div>

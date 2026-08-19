@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 'use client'
 
 import type { ElementType, ReactNode } from 'react'
@@ -12,8 +12,6 @@ import {
   Clock,
   FileText,
   NotebookPen,
-  Sparkles,
-  TrendingUp,
   Users,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -294,37 +292,6 @@ function StatTile({
   )
 }
 
-// ── Progress Ring (for completion rate) ────────────────────────────────────
-function ProgressRing({ value, size = 44 }: { value: number; size?: number }) {
-  const stroke = 4
-  const radius = (size - stroke) / 2
-  const circumference = 2 * Math.PI * radius
-  const dash = (value / 100) * circumference
-
-  return (
-    <svg width={size} height={size} className="shrink-0 -rotate-90">
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        strokeWidth={stroke}
-        className="stroke-slate-200 fill-none"
-      />
-      <motion.circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        className="stroke-emerald-500 fill-none"
-        initial={{ strokeDasharray: `0 ${circumference}` }}
-        animate={{ strokeDasharray: `${dash} ${circumference}` }}
-        transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-      />
-    </svg>
-  )
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -361,43 +328,6 @@ export function OverviewTab({
 
   return (
     <div className="space-y-4 sm:space-y-6">
-
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      {/* HERO: Progress + Quick Summary                                     */}
-      {/* ═══════════════════════════════════════════════════════════════════ */}
-      <Card className="overflow-hidden">
-        <div className="relative p-5 sm:p-6 bg-gradient-to-br from-emerald-500 to-emerald-600 text-white">
-          {/* Decorative blobs */}
-          <div className="absolute -top-8 -right-8 w-40 h-40 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-6 -left-6 w-32 h-32 rounded-full bg-white/5 blur-2xl" />
-
-          <div className="relative flex items-center gap-4 sm:gap-5">
-            <ProgressRing value={bannerStats.completionRate} size={64} />
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-white/70" />
-                <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-white/70">
-                  Term Progress
-                </p>
-              </div>
-              <p className="mt-1 text-2xl sm:text-3xl font-extrabold leading-tight">
-                {formatPercent(bannerStats.completionRate)} complete
-              </p>
-              <p className="mt-0.5 text-xs sm:text-sm text-white/80 truncate">
-                {bannerStats.completedAssignments} of {bannerStats.totalAssignments} tasks done
-                {bannerStats.pendingAssignments > 0 && ` · ${bannerStats.pendingAssignments} pending`}
-              </p>
-            </div>
-            <button
-              onClick={() => handleTabChange('assignments')}
-              className="hidden sm:inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 px-3 py-2 text-xs font-bold text-white hover:bg-white/25 transition-colors"
-            >
-              View tasks
-              <ArrowRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-      </Card>
 
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* STAT TILES                                                          */}

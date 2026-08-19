@@ -100,11 +100,11 @@ function buildSections(badges: {
           iconBg: 'bg-amber-50',
         },
         {
-          id: 'broad-sheet',
+          id: 'broadsheet',
           label: 'Broad Sheet',
           description: 'Generate report cards',
           icon: BookOpen,
-          route: '/admin/broad-sheet',
+          route: '/admin/broadsheet',
           iconColor: 'text-violet-600',
           iconBg: 'bg-violet-50',
         },
@@ -207,7 +207,7 @@ function getTabFromPath(path: string): string {
   const map: Record<string, string> = {
     '/admin/notifications':   'notifications',
     '/admin/announcements':   'announcements',
-    '/admin/broad-sheet':     'broad-sheet',
+    '/admin/broadsheet':     'broadsheet',
     '/admin/students':        'students',
     '/admin/staff':           'staff',
     '/admin/teacher-classes': 'teacher-classes',

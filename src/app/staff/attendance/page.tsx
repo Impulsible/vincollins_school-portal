@@ -733,6 +733,12 @@ export default function StaffAttendancePage() {
         )}
       </div>
 
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      <div className="text-center text-xs text-slate-400 pt-4 pb-6 border-t border-slate-200/50">
+        <p>Vincollins Schools Staff • Attendance Management</p>
+        <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
+      </div>
+
       {/* Floating refresh indicator */}
       {refreshing && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-full shadow-xl text-xs font-medium">

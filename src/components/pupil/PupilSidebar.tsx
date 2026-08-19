@@ -10,7 +10,7 @@ import {
   LogOut, ChevronLeft, ChevronRight, GraduationCap,
   Sparkles, User, Bell, HelpCircle, Wifi, WifiOff,
   FileCheck, Users, NotebookPen, BookOpen, Shield,
-  TrendingUp, Star, Zap,
+  TrendingUp, Star, Zap, Megaphone,
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -93,6 +93,15 @@ const primaryNavigation: NavigationItem[] = [
     route: '/pupil/notes',
     color: 'text-violet-600',
     bgColor: 'bg-violet-50',
+  },
+  {
+    id: 'announcements', // ✅ NEW
+    name: 'Announcements',
+    icon: Megaphone,
+    description: 'School Updates',
+    route: '/pupil/announcements',
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50',
   },
   {
     id: 'report-cards',
@@ -187,13 +196,11 @@ function SidebarSkeleton({ collapsed }: { collapsed: boolean }) {
       collapsed ? 'w-[72px]' : 'w-[280px]',
     )}>
       <div className="p-4 space-y-4">
-        {/* Logo */}
         <div className="flex items-center gap-3 px-2 py-3">
           <div className="h-9 w-9 rounded-xl bg-emerald-100 animate-pulse flex-shrink-0" />
           {!collapsed && <div className="h-5 w-32 bg-slate-100 rounded-lg animate-pulse" />}
         </div>
         <div className="h-px bg-slate-100" />
-        {/* Avatar */}
         <div className="flex items-center gap-3 px-2 py-2">
           <div className="h-12 w-12 rounded-2xl bg-slate-100 animate-pulse flex-shrink-0" />
           {!collapsed && (
@@ -204,8 +211,7 @@ function SidebarSkeleton({ collapsed }: { collapsed: boolean }) {
           )}
         </div>
         <div className="h-px bg-slate-100" />
-        {/* Nav items */}
-        {[...Array(5)].map((_, i) => (
+        {[...Array(6)].map((_, i) => (
           <div key={i} className="flex items-center gap-3 px-2 py-2">
             <div className="h-9 w-9 rounded-xl bg-slate-100 animate-pulse flex-shrink-0" />
             {!collapsed && <div className="h-4 flex-1 bg-slate-100 rounded-lg animate-pulse" />}
@@ -243,7 +249,6 @@ function NavItem({
           : 'text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100',
       )}
     >
-      {/* Active left accent bar */}
       {isActive && !collapsed && (
         <motion.div
           layoutId="activeBar"
@@ -251,7 +256,6 @@ function NavItem({
         />
       )}
 
-      {/* Icon container */}
       <div className={cn(
         'flex items-center justify-center rounded-xl transition-all duration-200 flex-shrink-0',
         collapsed ? 'h-9 w-9' : 'h-8 w-8',
@@ -266,7 +270,6 @@ function NavItem({
         )} />
       </div>
 
-      {/* Label + description */}
       {!collapsed && (
         <div className="flex-1 text-left min-w-0">
           <div className="flex items-center gap-2">
@@ -291,7 +294,6 @@ function NavItem({
         </div>
       )}
 
-      {/* Active dot indicator (collapsed) */}
       {isActive && collapsed && (
         <motion.div
           layoutId="activeCollapsedDot"
@@ -372,7 +374,6 @@ function ProfileCard({
     <div className="mx-3 my-2 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50/60
                     dark:from-emerald-950/30 dark:to-teal-950/20 border border-emerald-100/60
                     dark:border-emerald-900/30 p-4 space-y-3">
-      {/* Top row — avatar + greeting */}
       <div className="flex items-center gap-3">
         <div className="relative flex-shrink-0">
           <Avatar className="h-14 w-14 ring-2 ring-white dark:ring-slate-900 shadow-xl">
@@ -409,7 +410,6 @@ function ProfileCard({
         </div>
       </div>
 
-      {/* Name + email */}
       <div className="space-y-0.5">
         <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">
           {displayName}
@@ -419,7 +419,6 @@ function ProfileCard({
         </p>
       </div>
 
-      {/* Badges row */}
       <div className="flex flex-wrap gap-1.5">
         <Badge className="bg-gradient-to-r from-emerald-600 to-teal-500 text-white
                           text-[10px] px-2 py-0.5 rounded-lg shadow-sm border-0">
@@ -434,7 +433,6 @@ function ProfileCard({
         )}
       </div>
 
-      {/* Class + Year grid */}
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-white/70 dark:bg-slate-900/50 rounded-xl p-2.5 border
                         border-white dark:border-slate-800 shadow-sm">
@@ -520,7 +518,6 @@ function LogoHeader({ collapsed }: { collapsed: boolean }) {
       'flex items-center gap-3 px-5 py-4 border-b border-slate-100 dark:border-slate-800',
       collapsed ? 'justify-center' : '',
     )}>
-      {/* Icon with glow */}
       <div className="relative flex-shrink-0">
         <div className="absolute -inset-1 bg-gradient-to-br from-emerald-400 to-teal-400
                         rounded-2xl blur-md opacity-40" />
@@ -689,24 +686,19 @@ export function PupilSidebar({
             'shadow-[2px_0_20px_rgba(0,0,0,0.04)]',
           )}
         >
-          {/* Collapse toggle */}
           <CollapseToggle collapsed={collapsed} onToggle={onToggle} />
 
-          {/* Logo */}
           <LogoHeader collapsed={collapsed} />
 
-          {/* Scrollable body */}
           <ScrollArea className="flex-1">
             <div className="py-2">
 
-              {/* Profile */}
               <ProfileCard
                 profile={localProfile}
                 collapsed={collapsed}
                 isOnline={isOnline}
               />
 
-              {/* Primary nav */}
               <div className="mt-2 px-3 space-y-0.5">
                 <SectionLabel label="Main Menu" collapsed={collapsed} />
                 {primaryNavigation.map(item => (
@@ -720,7 +712,6 @@ export function PupilSidebar({
                 ))}
               </div>
 
-              {/* Secondary nav */}
               <div className="mt-2 px-3 space-y-0.5">
                 <SectionLabel label="Account" collapsed={collapsed} />
                 {secondaryNavigation.map(item => (
@@ -734,7 +725,6 @@ export function PupilSidebar({
                 ))}
               </div>
 
-              {/* Achievement strip (expanded only) */}
               <AnimatePresence>
                 {!collapsed && (
                   <motion.div
@@ -759,12 +749,10 @@ export function PupilSidebar({
                 )}
               </AnimatePresence>
 
-              {/* Spacer */}
               <div className="h-4" />
             </div>
           </ScrollArea>
 
-          {/* Footer — sign out */}
           <div className="border-t border-slate-100 dark:border-slate-800 p-3">
             <SignOutButton
               collapsed={collapsed}
@@ -774,7 +762,6 @@ export function PupilSidebar({
         </motion.aside>
       </TooltipProvider>
 
-      {/* Sign-out dialog */}
       <SignOutDialog
         open={showSignOutConfirm}
         onOpenChange={setShowSignOutConfirm}

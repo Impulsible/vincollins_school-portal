@@ -277,6 +277,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
         
         console.log('✅ [UserContext] User data set:', userData)
         console.log('✅ [UserContext] userData.first_name:', userData.first_name)
+        console.log('✅ [UserContext] userData.photo_url:', userData.photo_url)
+        
         setUser(userData)
         localStorage.setItem('auth_user', JSON.stringify(userData))
         localStorage.setItem('auth_role', role)

@@ -759,6 +759,13 @@ export default function ClassmatesPage() {
             </div>
           </motion.div>
         )}
+
+        {/* ── Footer ────────────────────────────────────────────────────────── */}
+        <div className="text-center text-xs text-slate-400 pt-4 mt-6 border-t border-slate-200/50">
+          <p>Vincollins Schools Pupil • Classmates</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
+        </div>
+
       </div>
     </div>
   )

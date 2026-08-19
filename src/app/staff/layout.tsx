@@ -7,8 +7,9 @@ import { useUser } from '@/contexts/UserContext'
 import { StaffSidebar } from '@/components/staff/StaffSidebar'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
-import { Loader2 } from 'lucide-react'
+import { Loader2, ChevronRight, Home } from 'lucide-react'
 import { Header, HeaderUser } from '@/components/layout/header'
+import Link from 'next/link'
 
 interface StaffProfile {
   id?: string
@@ -28,6 +29,76 @@ interface StaffProfile {
 interface StaffLayoutProps {
   children: React.ReactNode
 }
+
+// ─── Breadcrumb Component ─────────────────────────────────────────────────────
+
+function StaffBreadcrumb({ pathname }: { pathname: string }) {
+  // Don't show breadcrumb on the main staff page
+  if (pathname === '/staff' || pathname === '/staff/') return null
+
+  // Generate breadcrumb items from pathname
+  const segments = pathname.split('/').filter(Boolean)
+  
+  // Remove 'staff' from the segments for display
+  const displaySegments = segments.slice(1) // Skip 'staff'
+  
+  if (displaySegments.length === 0) return null
+
+  // Map segment to a readable label
+  const getLabel = (segment: string): string => {
+    const map: Record<string, string> = {
+      'attendance': 'Attendance',
+      'announcements': 'Announcements',
+      'pupils': 'Pupils',
+      'assignments': 'Assignments',
+      'notes': 'Study Notes',
+      'scores': 'Scores',
+      'report-cards': 'Report Cards',
+      'notifications': 'Notifications',
+      'profile': 'Profile',
+      'settings': 'Settings',
+      'help': 'Help',
+      'analytics': 'Analytics',
+    }
+    return map[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ')
+  }
+
+  return (
+    <nav className="flex items-center gap-1.5 text-xs sm:text-sm mb-4 lg:mb-6 px-1 overflow-x-auto whitespace-nowrap scrollbar-none">
+      <Link 
+        href="/staff" 
+        className="flex items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors"
+      >
+        <Home className="h-3.5 w-3.5" />
+        <span className="sr-only sm:not-sr-only">Dashboard</span>
+      </Link>
+
+      {displaySegments.map((segment, index) => {
+        const isLast = index === displaySegments.length - 1
+        const href = `/staff/${displaySegments.slice(0, index + 1).join('/')}`
+        const label = getLabel(segment)
+
+        return (
+          <div key={segment} className="flex items-center gap-1.5">
+            <ChevronRight className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
+            {isLast ? (
+              <span className="font-medium text-slate-700">{label}</span>
+            ) : (
+              <Link 
+                href={href}
+                className="text-slate-500 hover:text-blue-600 transition-colors"
+              >
+                {label}
+              </Link>
+            )}
+          </div>
+        )
+      })}
+    </nav>
+  )
+}
+
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function StaffLayout({ children }: StaffLayoutProps) {
   const { user, loading: userLoading, logout } = useUser()
@@ -227,6 +298,10 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
         )}>
           <main className="min-h-[calc(100vh-64px)] pt-[72px] lg:pt-24 pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
             <div className="w-full max-w-7xl mx-auto">
+              {/* Breadcrumb Navigation */}
+              <StaffBreadcrumb pathname={pathname || ''} />
+              
+              {/* Page Content */}
               {children}
             </div>
           </main>

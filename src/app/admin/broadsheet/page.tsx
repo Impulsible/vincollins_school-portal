@@ -16,7 +16,9 @@ import { useRouter } from 'next/navigation'
 import {
   Loader2, RefreshCw, Printer, Search, X, FileSpreadsheet,
   Users, FileDown, Sparkles, FileText, CheckCircle2,
-  Eye, Bell, Send, BookOpen, AlertTriangle,
+  Eye, Bell, Send, BookOpen, AlertTriangle, GraduationCap,
+  School, Calendar, Clock, Award, BarChart3, TrendingUp,
+  Copy, Check, ChevronDown, ChevronUp
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -117,25 +119,66 @@ interface StudentRecord {
   photo_url?: string | null
 }
 
+// ── Loading State ─────────────────────────────────────────────────────────────
+
+function LoadingState({ type = 'initial' }: { type?: 'initial' | 'refresh' }) {
+  if (type === 'refresh') {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-emerald-600" />
+          <span className="text-sm text-slate-500">Refreshing data...</span>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh]">
+      <div className="relative mb-6">
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-emerald-400 to-teal-400 blur-2xl opacity-20 animate-pulse" />
+        <div className="relative p-5 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 shadow-lg">
+          <FileSpreadsheet className="h-12 w-12 text-white" />
+        </div>
+      </div>
+      
+      <div className="space-y-2 text-center">
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Loading Broad Sheet</h3>
+        <p className="text-sm text-slate-400 dark:text-slate-500">Fetching student records and scores...</p>
+        <div className="flex items-center justify-center gap-1.5 mt-3">
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.3s]" />
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce [animation-delay:-0.15s]" />
+          <div className="h-2 w-2 rounded-full bg-emerald-500 animate-bounce" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Stat Card ─────────────────────────────────────────────────────────────────
-function StatCard({ label, value, accent, icon: Icon, sub }: { 
+function StatCard({ label, value, accent, icon: Icon, sub, loading }: { 
   label: string
   value: string | number
   accent: string
   icon: React.ElementType
   sub?: string 
+  loading?: boolean
 }) {
   return (
     <Card className="relative overflow-hidden border-0 shadow-sm bg-white dark:bg-slate-900">
       <div className={cn('absolute inset-y-0 left-0 w-1 rounded-l-lg', accent)} />
       <CardContent className="p-4 pl-5">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wide">{label}</p>
-            <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-0.5">{value}</p>
-            {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+            {loading ? (
+              <div className="h-8 w-16 bg-slate-200 dark:bg-slate-700 rounded-lg animate-pulse mt-1" />
+            ) : (
+              <p className="text-2xl font-bold text-slate-800 dark:text-slate-100 mt-0.5">{value}</p>
+            )}
+            {sub && !loading && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
           </div>
-          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+          <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 flex-shrink-0">
             <Icon className={cn('h-4 w-4', accent.replace('bg-', 'text-'))} />
           </div>
         </div>
@@ -159,6 +202,71 @@ function ReportStatusChip({ status }: { status?: string | null }) {
   return <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 px-2 py-0.5 rounded-full">None</span>
 }
 
+// ── Footer ────────────────────────────────────────────────────────────────────
+
+function Footer() {
+  const currentYear = new Date().getFullYear()
+  
+  return (
+    <footer className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center shadow-sm">
+            <GraduationCap className="h-4 w-4 text-white" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+              Vincollins Schools
+            </p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+              Broad Sheet Management
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
+          <span className="flex items-center gap-1">
+            <Calendar className="h-3 w-3" />
+            {new Date().toLocaleDateString('en-US', { 
+              year: 'numeric', 
+              month: 'short', 
+              day: 'numeric' 
+            })}
+          </span>
+          <span className="hidden sm:inline">•</span>
+          <span className="flex items-center gap-1">
+            <Clock className="h-3 w-3" />
+            {new Date().toLocaleTimeString('en-US', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            })}
+          </span>
+          <span className="hidden sm:inline">•</span>
+          <span>v2.0.0</span>
+        </div>
+
+        <p className="text-[10px] text-slate-400 dark:text-slate-500">
+          &copy; {currentYear} Vincollins Schools. All rights reserved.
+        </p>
+      </div>
+      
+      <div className="mt-3 flex flex-wrap items-center justify-center gap-3 text-[10px] text-slate-400 dark:text-slate-500">
+        <span className="flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+          Geared Towards Excellence
+        </span>
+        <span>•</span>
+        <span>Data refreshed automatically every 30s</span>
+        <span>•</span>
+        <span className="flex items-center gap-1">
+          <Users className="h-2.5 w-2.5" />
+          {PRIMARY_SUBJECTS.length} Subjects
+        </span>
+      </div>
+    </footer>
+  )
+}
+
 // ── Main Component ──────────────────────────────────────────────────────────
 export default function BroadSheetPage() {
   const router = useRouter()
@@ -175,6 +283,7 @@ export default function BroadSheetPage() {
   const [genProgress, setGenProgress] = useState({ current: 0, total: 0 })
   const [newScoreAlert, setNewScoreAlert] = useState<string | null>(null)
   const [isLoadingTerm, setIsLoadingTerm] = useState(true)
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null)
 
   const autoRefreshTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const isRefreshingRef = useRef(false)
@@ -277,6 +386,7 @@ export default function BroadSheetPage() {
       if (!classStudents || classStudents.length === 0) {
         setStudents([])
         setLoading(false)
+        setLastRefreshed(new Date())
         return
       }
 
@@ -383,18 +493,13 @@ export default function BroadSheetPage() {
         const totalScore = Object.values(subjectMap).reduce((sum, s) => sum + s.total, 0)
         
         // ✅ FIXED: Average = Average percentage across completed subjects
-        // Example: 1 subject with 60/100 → 60/1 = 60%
-        // Example: 5 subjects with 60,70,80,65,75 → 350/5 = 70%
         let averageScore = 0
         if (completedSubjects > 0) {
           const completedScores = Object.values(subjectMap)
             .filter(s => s.total > 0)
             .map(s => s.total)
           
-          // Sum of all completed subject scores
           const sumCompletedScores = completedScores.reduce((a, b) => a + b, 0)
-          
-          // Average = (sum of scores) / (number of completed subjects)
           averageScore = Math.round(sumCompletedScores / completedSubjects)
         }
         
@@ -432,6 +537,7 @@ export default function BroadSheetPage() {
       })
 
       setStudents(records)
+      setLastRefreshed(new Date())
       console.log(`✅ Processed ${records.length} student records`)
       
       // Log sample student's subjects
@@ -701,18 +807,32 @@ export default function BroadSheetPage() {
   // ─── Loading ──────────────────────────────────────────────────────────────
   if (isLoadingTerm || (loading && students.length === 0 && !loadError)) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-3">
-          <div className="inline-flex p-4 rounded-2xl bg-emerald-100 dark:bg-emerald-900/30 mb-2">
-            <FileSpreadsheet className="h-10 w-10 text-emerald-600 dark:text-emerald-400" />
+      <>
+        <LoadingState type="initial" />
+        <Footer />
+      </>
+    )
+  }
+
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-4">
+          <div className="inline-flex p-4 rounded-2xl bg-red-100 dark:bg-red-900/30">
+            <AlertTriangle className="h-10 w-10 text-red-600 dark:text-red-400" />
           </div>
-          <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mx-auto" />
-          <p className="text-sm text-slate-500">Loading broad sheet...</p>
+          <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Failed to Load Data</h3>
+          <p className="text-sm text-slate-500 dark:text-slate-400">There was an error loading the broad sheet data.</p>
+          <Button onClick={loadBroadSheet} className="gap-2">
+            <RefreshCw className="h-4 w-4" /> Try Again
+          </Button>
         </div>
+        <Footer />
       </div>
     )
   }
 
+  // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <div className="w-full max-w-full overflow-x-hidden bg-slate-50 dark:bg-slate-950 min-h-screen print:bg-white">
       <div className="px-3 sm:px-5 lg:px-6 py-4 sm:py-6 space-y-4 max-w-[1800px] mx-auto">
@@ -738,7 +858,7 @@ export default function BroadSheetPage() {
         <div className="no-print flex flex-col sm:flex-row sm:items-start justify-between gap-4">
           <div>
             <button onClick={() => router.back()} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 mb-2 transition-colors">
-              Back
+              ← Back
             </button>
             <h1 className="text-xl sm:text-2xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
               <FileSpreadsheet className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
@@ -747,6 +867,12 @@ export default function BroadSheetPage() {
             <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
               {CLASSES.find(c => c.id === selectedClass)?.name || 'Select Class'} · {selectedTerm} Term · {selectedYear}
             </p>
+            {lastRefreshed && (
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-1">
+                <Clock className="h-3 w-3" />
+                Last refreshed: {lastRefreshed.toLocaleTimeString()}
+              </p>
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
@@ -764,11 +890,43 @@ export default function BroadSheetPage() {
 
         {/* ── Stats ───────────────────────────────────────────────────────── */}
         <div className="no-print grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-          <StatCard label="Total Students" value={stats.total} icon={Users} accent="bg-slate-500" />
-          <StatCard label="All Subjects Submitted" value={stats.complete} icon={CheckCircle2} accent="bg-emerald-500" />
-          <StatCard label="Ready for Report (20+ Subjects)" value={stats.readyForReport} icon={FileText} accent="bg-violet-500" />
-          <StatCard label="Generated" value={stats.generated} icon={FileText} accent="bg-amber-500" sub="not yet visible" />
-          <StatCard label="Published" value={stats.published} icon={Send} accent="bg-teal-500" sub="visible to students" />
+          <StatCard 
+            label="Total Students" 
+            value={stats.total} 
+            icon={Users} 
+            accent="bg-slate-500"
+            loading={loading && students.length === 0}
+          />
+          <StatCard 
+            label="All Subjects Submitted" 
+            value={stats.complete} 
+            icon={CheckCircle2} 
+            accent="bg-emerald-500"
+            loading={loading && students.length === 0}
+          />
+          <StatCard 
+            label="Ready for Report (20+ Subjects)" 
+            value={stats.readyForReport} 
+            icon={FileText} 
+            accent="bg-violet-500"
+            loading={loading && students.length === 0}
+          />
+          <StatCard 
+            label="Generated" 
+            value={stats.generated} 
+            icon={FileText} 
+            accent="bg-amber-500" 
+            sub="not yet visible"
+            loading={loading && students.length === 0}
+          />
+          <StatCard 
+            label="Published" 
+            value={stats.published} 
+            icon={Send} 
+            accent="bg-teal-500" 
+            sub="visible to students"
+            loading={loading && students.length === 0}
+          />
         </div>
 
         {/* ── Filters ────────────────────────────────────────────────────── */}
@@ -871,118 +1029,128 @@ export default function BroadSheetPage() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-xs min-w-[1000px]">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-slate-800">
-                  <th className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[160px]">
-                    Student
-                  </th>
-                  <th className="px-3 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[90px]">
-                    Admission No
-                  </th>
-                  {PRIMARY_SUBJECTS.map(subject => (
-                    <th key={subject.id} className="px-2 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] whitespace-nowrap min-w-[56px]">
-                      <span className="block">{SUBJECT_DISPLAY_NAMES[subject.name] || subject.name}</span>
+            {loading && students.length > 0 ? (
+              <LoadingState type="refresh" />
+            ) : (
+              <table className="w-full border-collapse text-xs min-w-[1000px]">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-slate-800">
+                    <th className="sticky left-0 z-20 bg-slate-50 dark:bg-slate-800 px-4 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[160px]">
+                      Student
                     </th>
-                  ))}
-                  <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Total</th>
-                  <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Avg</th>
-                  <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Remark</th>
-                  <th className="no-print px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[80px]">Report</th>
-                  <th className="no-print px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[60px]">View</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {displayedStudents.length === 0 ? (
-                  <tr>
-                    <td colSpan={PRIMARY_SUBJECTS.length + 7} className="text-center py-16">
-                      <div className="inline-flex p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-3">
-                        <Users className="h-8 w-8 text-slate-400" />
-                      </div>
-                      <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No students found</p>
-                    </td>
+                    <th className="px-3 py-3 text-left font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[90px]">
+                      Admission No
+                    </th>
+                    {PRIMARY_SUBJECTS.map(subject => (
+                      <th key={subject.id} className="px-2 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] whitespace-nowrap min-w-[56px]">
+                        <span className="block">{SUBJECT_DISPLAY_NAMES[subject.name] || subject.name}</span>
+                      </th>
+                    ))}
+                    <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Total</th>
+                    <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Avg</th>
+                    <th className="px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[50px]">Remark</th>
+                    <th className="no-print px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[80px]">Report</th>
+                    <th className="no-print px-3 py-3 text-center font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide text-[10px] min-w-[60px]">View</th>
                   </tr>
-                ) : (
-                  displayedStudents.map((student, idx) => (
-                    <tr key={student.id}
-                      className={cn(
-                        'border-b border-slate-100 dark:border-slate-800 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40',
-                        idx % 2 !== 0 && 'bg-slate-50/30 dark:bg-slate-800/10',
-                        !student.meetsMinimum && 'bg-amber-50/40 dark:bg-amber-950/10',
-                      )}>
-                      <td className="sticky left-0 z-10 bg-inherit px-4 py-3">
-                        <div>
-                          <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-snug">{student.name}</p>
-                          <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">{student.vin_id}</p>
-                          {!student.hasAllSubjects && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full mt-0.5">
-                              <AlertTriangle className="h-2.5 w-2.5" /> {student.completedSubjects}/{student.totalSubjects}
-                            </span>
-                          )}
-                          {student.completedSubjects >= 20 && student.hasAllSubjects && (
-                            <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded-full mt-0.5">
-                              <CheckCircle2 className="h-2.5 w-2.5" /> Ready
-                            </span>
-                          )}
+                </thead>
+
+                <tbody>
+                  {displayedStudents.length === 0 ? (
+                    <tr>
+                      <td colSpan={PRIMARY_SUBJECTS.length + 7} className="text-center py-16">
+                        <div className="inline-flex p-4 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-3">
+                          <Users className="h-8 w-8 text-slate-400" />
                         </div>
-                      </td>
-
-                      <td className="px-3 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">{student.admission_number}</td>
-
-                      {PRIMARY_SUBJECTS.map(subject => {
-                        const score = student.subjectMap[subject.name]
-                        return (
-                          <td key={subject.id} className="px-2 py-3 text-center">
-                            {score && score.total > 0 ? (
-                              <div className="flex flex-col items-center gap-0.5">
-                                <span className="font-bold text-xs text-slate-800 dark:text-slate-100">{score.total}</span>
-                                <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded-full', getRemarkColor(score.remark))}>
-                                  {score.remark}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
-                            )}
-                          </td>
-                        )
-                      })}
-
-                      <td className="px-3 py-3 text-center font-bold text-sm text-slate-800 dark:text-slate-100">{student.totalScore || '—'}</td>
-                      <td className="px-3 py-3 text-center font-semibold text-sm text-slate-700 dark:text-slate-200">
-                        {student.averageScore > 0 ? `${student.averageScore}%` : '—'}
-                      </td>
-                      <td className="px-3 py-3 text-center">
-                        {student.overallRemark !== 'Not graded' ? (
-                          <span className={cn('text-xs font-bold px-2 py-1 rounded-full', getRemarkColor(student.overallRemark))}>
-                            {student.overallRemark}
-                          </span>
-                        ) : (
-                          <span className="text-slate-300 dark:text-slate-600">—</span>
+                        <p className="text-sm font-medium text-slate-500 dark:text-slate-400">No students found</p>
+                        {searchQuery && (
+                          <p className="text-xs text-slate-400 mt-1">Try adjusting your search or filters</p>
                         )}
                       </td>
-
-                      <td className="no-print px-3 py-3 text-center">
-                        <ReportStatusChip status={student.reportCardStatus} />
-                      </td>
-
-                      <td className="no-print px-3 py-3 text-center">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => handleViewReportCard(student)}
-                          className="h-7 px-2.5 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30 gap-1"
-                        >
-                          <Eye className="h-3 w-3" />
-                        </Button>
-                      </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    displayedStudents.map((student, idx) => (
+                      <tr key={student.id}
+                        className={cn(
+                          'border-b border-slate-100 dark:border-slate-800 transition-colors hover:bg-slate-50/70 dark:hover:bg-slate-800/40',
+                          idx % 2 !== 0 && 'bg-slate-50/30 dark:bg-slate-800/10',
+                          !student.meetsMinimum && 'bg-amber-50/40 dark:bg-amber-950/10',
+                        )}>
+                        <td className="sticky left-0 z-10 bg-inherit px-4 py-3">
+                          <div>
+                            <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 leading-snug">{student.name}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 font-mono mt-0.5">{student.vin_id}</p>
+                            {!student.hasAllSubjects && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded-full mt-0.5">
+                                <AlertTriangle className="h-2.5 w-2.5" /> {student.completedSubjects}/{student.totalSubjects}
+                              </span>
+                            )}
+                            {student.completedSubjects >= 20 && student.hasAllSubjects && (
+                              <span className="inline-flex items-center gap-0.5 text-[9px] font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 px-1.5 py-0.5 rounded-full mt-0.5">
+                                <CheckCircle2 className="h-2.5 w-2.5" /> Ready
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="px-3 py-3 font-mono text-xs text-slate-500 dark:text-slate-400">{student.admission_number}</td>
+
+                        {PRIMARY_SUBJECTS.map(subject => {
+                          const score = student.subjectMap[subject.name]
+                          return (
+                            <td key={subject.id} className="px-2 py-3 text-center">
+                              {score && score.total > 0 ? (
+                                <div className="flex flex-col items-center gap-0.5">
+                                  <span className="font-bold text-xs text-slate-800 dark:text-slate-100">{score.total}</span>
+                                  <span className={cn('text-[9px] font-semibold px-1.5 py-0.5 rounded-full', getRemarkColor(score.remark))}>
+                                    {score.remark}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span className="text-slate-300 dark:text-slate-600 text-xs">—</span>
+                              )}
+                            </td>
+                          )
+                        })}
+
+                        <td className="px-3 py-3 text-center font-bold text-sm text-slate-800 dark:text-slate-100">{student.totalScore || '—'}</td>
+                        <td className="px-3 py-3 text-center font-semibold text-sm text-slate-700 dark:text-slate-200">
+                          {student.averageScore > 0 ? `${student.averageScore}%` : '—'}
+                        </td>
+                        <td className="px-3 py-3 text-center">
+                          {student.overallRemark !== 'Not graded' ? (
+                            <span className={cn('text-xs font-bold px-2 py-1 rounded-full', getRemarkColor(student.overallRemark))}>
+                              {student.overallRemark}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 dark:text-slate-600">—</span>
+                          )}
+                        </td>
+
+                        <td className="no-print px-3 py-3 text-center">
+                          <ReportStatusChip status={student.reportCardStatus} />
+                        </td>
+
+                        <td className="no-print px-3 py-3 text-center">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleViewReportCard(student)}
+                            className="h-7 px-2.5 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/30 gap-1"
+                          >
+                            <Eye className="h-3 w-3" />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            )}
           </div>
         </Card>
+
+        {/* ── Footer ────────────────────────────────────────────────────────── */}
+        <Footer />
 
         <style jsx global>{`
           @media print {

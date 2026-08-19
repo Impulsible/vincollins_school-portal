@@ -1,5 +1,3 @@
-/* eslint-disable react-hooks/rules-of-hooks */
-/* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
@@ -21,8 +19,6 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
-// ✅ Import PrimaryScoresTab
-import PrimaryScoresTab from '@/components/staff/PrimaryScoresTab'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface StaffStatsData {
@@ -65,6 +61,82 @@ const DEFAULT_STATS: StaffStatsData = {
   scoresSubmitted: 0,
   totalScores: 0,
   classBreakdown: [],
+}
+
+// ── Helper: Calculate current week from term dates ──────────────────────────
+
+function calculateWeekInfo(
+  termName: string,
+  sessionYear: string,
+  startDate?: string,
+  endDate?: string
+) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  // If no dates provided, return a default "not started" state
+  if (!startDate || !endDate) {
+    return {
+      termName,
+      sessionYear,
+      currentWeek: 0,
+      totalWeeks: 0,
+      weekProgress: 0,
+      displayWeek: 'Term dates not set',
+    }
+  }
+
+  const start = new Date(startDate)
+  start.setHours(0, 0, 0, 0)
+  
+  const end = new Date(endDate)
+  end.setHours(0, 0, 0, 0)
+
+  // If today is before the start date, term hasn't started
+  if (today < start) {
+    return {
+      termName,
+      sessionYear,
+      currentWeek: 0,
+      totalWeeks: 0,
+      weekProgress: 0,
+      displayWeek: 'Term starts soon',
+    }
+  }
+
+  // If today is after the end date, term has ended
+  if (today > end) {
+    return {
+      termName,
+      sessionYear,
+      currentWeek: 0,
+      totalWeeks: 0,
+      weekProgress: 100,
+      displayWeek: 'Term ended',
+    }
+  }
+
+  // Calculate weeks between start and today
+  const diffMs = today.getTime() - start.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  const currentWeek = Math.floor(diffDays / 7) + 1
+
+  // Calculate total weeks in the term
+  const diffTotalMs = end.getTime() - start.getTime()
+  const diffTotalDays = Math.floor(diffTotalMs / (1000 * 60 * 60 * 24))
+  const totalWeeks = Math.ceil(diffTotalDays / 7)
+
+  // Week progress
+  const weekProgress = Math.round((currentWeek / totalWeeks) * 100)
+
+  return {
+    termName,
+    sessionYear,
+    currentWeek: Math.min(currentWeek, totalWeeks),
+    totalWeeks: Math.max(totalWeeks, 1),
+    weekProgress: Math.min(weekProgress, 100),
+    displayWeek: `Week ${Math.min(currentWeek, totalWeeks)} of ${totalWeeks}`,
+  }
 }
 
 // ── Helper Components ─────────────────────────────────────────────────────────
@@ -143,34 +215,51 @@ export default function StaffDashboardPage() {
   const [termInfo, setTermInfo] = useState({
     termName: 'First',
     sessionYear: '2025/2026',
-    currentWeek: 5,
-    totalWeeks: 13,
-    weekProgress: 38,
-    displayWeek: 'Week 5 of 13',
+    currentWeek: 0,
+    totalWeeks: 0,
+    weekProgress: 0,
+    displayWeek: 'Loading...',
   })
-  const [scoresRefreshKey, setScoresRefreshKey] = useState(0)
 
   // ─── Fetch Term Info from Database ─────────────────────────────────────────
-  useEffect(() => {
-    const fetchTerm = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('school_settings')
-          .select('current_term, current_session')
-          .maybeSingle()
+  const fetchTermInfo = useCallback(async () => {
+    try {
+      // 1. Fetch current term and session from school_settings
+      const { data: settings, error: settingsError } = await supabase
+        .from('school_settings')
+        .select('current_term, current_session')
+        .maybeSingle()
 
-        if (!error && data) {
-          setTermInfo(prev => ({
-            ...prev,
-            termName: data.current_term || prev.termName,
-            sessionYear: data.current_session || prev.sessionYear,
-          }))
-        }
-      } catch (error) {
-        console.error('Error fetching term:', error)
+      if (settingsError || !settings) {
+        console.warn('No school settings found, using defaults')
+        return
       }
+
+      // 2. Fetch term details from terms table
+      const { data: termData, error: termError } = await supabase
+        .from('terms')
+        .select('*')
+        .eq('term_code', settings.current_term)
+        .eq('session_year', settings.current_session)
+        .maybeSingle()
+
+      if (termError || !termData) {
+        console.warn('Term details not found, using defaults')
+        return
+      }
+
+      // 3. Calculate week info based on term dates
+      const weekInfo = calculateWeekInfo(
+        termData.term_name || termData.term_code || 'First',
+        termData.session_year || '2025/2026',
+        termData.start_date,
+        termData.end_date
+      )
+
+      setTermInfo(weekInfo)
+    } catch (error) {
+      console.error('Error fetching term info:', error)
     }
-    fetchTerm()
   }, [])
 
   // ─── Fetch Data ──────────────────────────────────────────────────────────────
@@ -277,9 +366,14 @@ export default function StaffDashboardPage() {
   // ─── Initial Load ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!authLoading && user?.id && user?.role !== 'student') {
-      fetchData()
+      // Fetch term info first, then data
+      const loadAll = async () => {
+        await fetchTermInfo()
+        await fetchData()
+      }
+      loadAll()
     }
-  }, [authLoading, user, fetchData])
+  }, [authLoading, user, fetchTermInfo, fetchData])
 
   const stats = data?.stats || DEFAULT_STATS
 
@@ -293,17 +387,16 @@ export default function StaffDashboardPage() {
   }
 
   // ─── Map user to StaffProfile ──────────────────────────────────────────────
-  // ✅ FIX: Use full_name instead of name, add optional chaining for missing properties
   const staffProfile: StaffProfile = {
     id: user.id,
     full_name: user.full_name || user.first_name || '',
     first_name: user.first_name || '',
     last_name: user.last_name || '',
-    department: (user as any).department || '', // ✅ Use type assertion
+    department: (user as any).department || '',
     role: user.role || 'staff',
     photo_url: user.photo_url || null,
     avatar_url: user.avatar_url || null,
-    title: (user as any).title || '', // ✅ Use type assertion
+    title: (user as any).title || '',
   }
 
   console.log('🔍 Staff Profile:', {
@@ -327,12 +420,6 @@ export default function StaffDashboardPage() {
   const submissionPercentage = stats.totalScores > 0 
     ? Math.round((stats.scoresSubmitted / stats.totalScores) * 100) 
     : 0
-
-  const handleScoresSaved = useCallback(() => {
-    console.log('🔄 Scores saved, refreshing dashboard data...')
-    setScoresRefreshKey(prev => prev + 1)
-    fetchData()
-  }, [fetchData])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
@@ -618,28 +705,6 @@ export default function StaffDashboardPage() {
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* ════════════════════════════════════════════════════════════════ */}
-        {/* ✅ PRIMARY SCORES TAB - USING THE IMPORTED COMPONENT            */}
-        {/* ════════════════════════════════════════════════════════════════ */}
-        <div className="mt-8">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="h-1 w-12 bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full" />
-            <h2 className="text-lg font-bold text-slate-800 dark:text-slate-200">
-              Score Management
-            </h2>
-            <Badge variant="secondary" className="text-xs font-normal">
-              Primary School
-            </Badge>
-          </div>
-          
-          {/* ✅ Pass the staffProfile with proper ID */}
-          <PrimaryScoresTab 
-            key={scoresRefreshKey}
-            staffProfile={staffProfile}
-            onScoresSaved={handleScoresSaved}
-          />
         </div>
 
         {/* ── Footer ────────────────────────────────────────────────────────── */}

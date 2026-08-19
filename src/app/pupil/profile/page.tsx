@@ -289,397 +289,407 @@ export default function PupilProfilePage() {
   const photoUrl = profile?.photo_url
 
   return (
-    <div className="space-y-6">
-      {/* ─── Header ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-display text-[#0A2472]">My Profile</h1>
-          <p className="text-sm text-slate-500">View and manage your personal information</p>
-        </div>
-        <div className="flex items-center gap-3">
-          {isEditing ? (
-            <>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setIsEditing(false)
-                  setFormData(profile || {})
-                }}
-                disabled={saving}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-emerald-600 hover:bg-emerald-700"
-              >
-                {saving ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Saving...
-                  </>
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
-                  </>
-                )}
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => setIsEditing(true)}
-              className="bg-[#0A2472] hover:bg-[#1A3A8A]"
-            >
-              <Edit2 className="w-4 h-4 mr-2" />
-              Edit Profile
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* ─── Profile Card ──────────────────────────────────────────────────── */}
-      <Card className="border-0 shadow-soft overflow-hidden">
-        <div 
-          className="relative h-24 bg-gradient-to-r"
-          style={{ background: `linear-gradient(135deg, ${roleColors.primary}, ${roleColors.dark})` }}
-        >
-          <div className="absolute -bottom-12 left-6">
-            <div className="relative">
-              <Avatar className="w-24 h-24 border-4 border-white shadow-xl">
-                <AvatarImage src={photoUrl} />
-                <AvatarFallback 
-                  className="text-3xl font-bold text-white"
-                  style={{ backgroundColor: roleColors.primary }}
+    <div className="min-h-screen bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+        
+        {/* ─── Header ────────────────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-display text-[#0A2472]">My Profile</h1>
+            <p className="text-sm text-slate-500">View and manage your personal information</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {isEditing ? (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsEditing(false)
+                    setFormData(profile || {})
+                  }}
+                  disabled={saving}
                 >
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              
-              {/* ─── Upload Button ────────────────────────────────────────── */}
-              <div className="absolute bottom-0 right-0 flex gap-1">
-                {photoUrl && (
-                  <button
-                    onClick={handleRemovePhoto}
-                    className="p-1.5 bg-red-500 rounded-full shadow-md hover:bg-red-600 transition-colors"
-                    title="Remove photo"
-                  >
-                    <X className="w-3 h-3 text-white" />
-                  </button>
-                )}
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
-                  className="p-1.5 bg-white rounded-full shadow-md hover:bg-slate-50 transition-colors disabled:opacity-50"
-                  title="Upload photo"
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-emerald-600 hover:bg-emerald-700"
                 >
-                  {isUploading ? (
-                    <Loader2 className="w-3.5 h-3.5 text-slate-600 animate-spin" />
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
                   ) : (
-                    <Camera className="w-3.5 h-3.5 text-slate-600" />
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
                   )}
-                </button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handlePhotoUpload}
-                  className="hidden"
-                />
-              </div>
-            </div>
+                </Button>
+              </>
+            ) : (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="bg-[#0A2472] hover:bg-[#1A3A8A]"
+              >
+                <Edit2 className="w-4 h-4 mr-2" />
+                Edit Profile
+              </Button>
+            )}
           </div>
         </div>
 
-        <CardContent className="pt-16 pb-6 px-6">
-          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-            <div>
-              <h2 className="text-xl font-display text-[#0A2472]">{fullName}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                <Badge 
-                  className="text-xs"
-                  style={{ backgroundColor: roleColors.light, color: roleColors.primary }}
-                >
-                  {profile?.class || 'Not Assigned'}
-                  {profile?.class_arm ? ` - ${profile.class_arm}` : ''}
+        {/* ─── Profile Card ──────────────────────────────────────────────────── */}
+        <Card className="border-0 shadow-soft overflow-hidden">
+          <div 
+            className="relative h-24 bg-gradient-to-r"
+            style={{ background: `linear-gradient(135deg, ${roleColors.primary}, ${roleColors.dark})` }}
+          >
+            <div className="absolute -bottom-12 left-6">
+              <div className="relative">
+                <Avatar className="w-24 h-24 border-4 border-white shadow-xl">
+                  <AvatarImage src={photoUrl} />
+                  <AvatarFallback 
+                    className="text-3xl font-bold text-white"
+                    style={{ backgroundColor: roleColors.primary }}
+                  >
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                
+                {/* ─── Upload Button ────────────────────────────────────────── */}
+                <div className="absolute bottom-0 right-0 flex gap-1">
+                  {photoUrl && (
+                    <button
+                      onClick={handleRemovePhoto}
+                      className="p-1.5 bg-red-500 rounded-full shadow-md hover:bg-red-600 transition-colors"
+                      title="Remove photo"
+                    >
+                      <X className="w-3 h-3 text-white" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                    className="p-1.5 bg-white rounded-full shadow-md hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    title="Upload photo"
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-3.5 h-3.5 text-slate-600 animate-spin" />
+                    ) : (
+                      <Camera className="w-3.5 h-3.5 text-slate-600" />
+                    )}
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handlePhotoUpload}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <CardContent className="pt-16 pb-6 px-6">
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+              <div>
+                <h2 className="text-xl font-display text-[#0A2472]">{fullName}</h2>
+                <div className="flex items-center gap-2 mt-1">
+                  <Badge 
+                    className="text-xs"
+                    style={{ backgroundColor: roleColors.light, color: roleColors.primary }}
+                  >
+                    {profile?.class || 'Not Assigned'}
+                    {profile?.class_arm ? ` - ${profile.class_arm}` : ''}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs">
+                    {profile?.vin_id}
+                  </Badge>
+                </div>
+                <p className="text-sm text-slate-500 mt-2">{profile?.email}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-emerald-100 text-emerald-700 border-0">
+                  <UserCheck className="w-3 h-3 mr-1" />
+                  Active
                 </Badge>
                 <Badge variant="outline" className="text-xs">
-                  {profile?.vin_id}
+                  Joined {profile?.admission_year || new Date().getFullYear()}
                 </Badge>
               </div>
-              <p className="text-sm text-slate-500 mt-2">{profile?.email}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge className="bg-emerald-100 text-emerald-700 border-0">
-                <UserCheck className="w-3 h-3 mr-1" />
-                Active
-              </Badge>
-              <Badge variant="outline" className="text-xs">
-                Joined {profile?.admission_year || new Date().getFullYear()}
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* ─── Quick Stats ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-50">
-                <GraduationCap className="w-4 h-4 text-emerald-600" />
+        {/* ─── Quick Stats ────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <Card className="border-0 shadow-soft">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-emerald-50">
+                  <GraduationCap className="w-4 h-4 text-emerald-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{profile?.class || 'N/A'}</p>
+                  <p className="text-xs text-slate-500">Class</p>
+                </div>
               </div>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-soft">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-violet-50">
+                  <IdCard className="w-4 h-4 text-violet-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold font-mono">{profile?.vin_id || 'N/A'}</p>
+                  <p className="text-xs text-slate-500">VIN ID</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="border-0 shadow-soft">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-amber-50">
+                  <Award className="w-4 h-4 text-amber-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-bold">{profile?.admission_year || 'N/A'}</p>
+                  <p className="text-xs text-slate-500">Admission Year</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ─── Personal Information ──────────────────────────────────────────── */}
+        <Card className="border-0 shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-lg font-display text-[#0A2472] flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Personal Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
               <div>
-                <p className="text-lg font-bold">{profile?.class || 'N/A'}</p>
-                <p className="text-xs text-slate-500">Class</p>
+                <Label className="text-xs text-slate-500">Full Name</Label>
+                {isEditing ? (
+                  <Input
+                    value={formData.full_name || ''}
+                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-slate-800 mt-1">{profile?.full_name || '-'}</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-500">Display Name</Label>
+                {isEditing ? (
+                  <Input
+                    value={formData.display_name || ''}
+                    onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-slate-800 mt-1">{profile?.display_name || '-'}</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-500">Email</Label>
+                <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-slate-400" />
+                  {profile?.email || '-'}
+                </p>
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-500">Phone</Label>
+                {isEditing ? (
+                  <Input
+                    value={formData.phone || ''}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className="mt-1"
+                    placeholder="Enter phone number"
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
+                    <Phone className="w-4 h-4 text-slate-400" />
+                    {profile?.phone || 'Not provided'}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <Label className="text-xs text-slate-500">Date of Birth</Label>
+                {isEditing ? (
+                  <Input
+                    type="date"
+                    value={formData.date_of_birth || ''}
+                    onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                    className="mt-1"
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
+                    <Calendar className="w-4 h-4 text-slate-400" />
+                    {profile?.date_of_birth ? new Date(profile.date_of_birth).toLocaleDateString() : 'Not provided'}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-500">Gender</Label>
+                {isEditing ? (
+                  <select
+                    value={formData.gender || ''}
+                    onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                    className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                  >
+                    <option value="">Select gender</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                  </select>
+                ) : (
+                  <p className="text-sm font-medium text-slate-800 mt-1 capitalize">{profile?.gender || 'Not provided'}</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-xs text-slate-500">Address</Label>
+                {isEditing ? (
+                  <Input
+                    value={formData.address || ''}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="mt-1"
+                    placeholder="Enter address"
+                  />
+                ) : (
+                  <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
+                    <MapPin className="w-4 h-4 text-slate-400" />
+                    {profile?.address || 'Not provided'}
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* ─── School Information ────────────────────────────────────────────── */}
         <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-50">
-                <IdCard className="w-4 h-4 text-violet-600" />
-              </div>
-              <div>
-                <p className="text-lg font-bold font-mono">{profile?.vin_id || 'N/A'}</p>
-                <p className="text-xs text-slate-500">VIN ID</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-50">
-                <Award className="w-4 h-4 text-amber-600" />
-              </div>
-              <div>
-                <p className="text-lg font-bold">{profile?.admission_year || 'N/A'}</p>
-                <p className="text-xs text-slate-500">Admission Year</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ─── Personal Information ──────────────────────────────────────────── */}
-      <Card className="border-0 shadow-soft">
-        <CardHeader>
-          <CardTitle className="text-lg font-display text-[#0A2472] flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Personal Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="space-y-4">
+          <CardHeader>
+            <CardTitle className="text-lg font-display text-[#0A2472] flex items-center gap-2">
+              <School className="w-5 h-5" />
+              School Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div>
-              <Label className="text-xs text-slate-500">Full Name</Label>
-              {isEditing ? (
-                <Input
-                  value={formData.full_name || ''}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="mt-1"
-                />
-              ) : (
-                <p className="text-sm font-medium text-slate-800 mt-1">{profile?.full_name || '-'}</p>
-              )}
-            </div>
-
-            <div>
-              <Label className="text-xs text-slate-500">Display Name</Label>
-              {isEditing ? (
-                <Input
-                  value={formData.display_name || ''}
-                  onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
-                  className="mt-1"
-                />
-              ) : (
-                <p className="text-sm font-medium text-slate-800 mt-1">{profile?.display_name || '-'}</p>
-              )}
-            </div>
-
-            <div>
-              <Label className="text-xs text-slate-500">Email</Label>
-              <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
-                <Mail className="w-4 h-4 text-slate-400" />
-                {profile?.email || '-'}
+              <Label className="text-xs text-slate-500">VIN ID</Label>
+              <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2 font-mono">
+                <IdCard className="w-4 h-4 text-slate-400" />
+                {profile?.vin_id || '-'}
               </p>
             </div>
 
             <div>
-              <Label className="text-xs text-slate-500">Phone</Label>
-              {isEditing ? (
-                <Input
-                  value={formData.phone || ''}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  className="mt-1"
-                  placeholder="Enter phone number"
-                />
-              ) : (
-                <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-slate-400" />
-                  {profile?.phone || 'Not provided'}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <div>
-              <Label className="text-xs text-slate-500">Date of Birth</Label>
-              {isEditing ? (
-                <Input
-                  type="date"
-                  value={formData.date_of_birth || ''}
-                  onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
-                  className="mt-1"
-                />
-              ) : (
-                <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  {profile?.date_of_birth ? new Date(profile.date_of_birth).toLocaleDateString() : 'Not provided'}
-                </p>
-              )}
+              <Label className="text-xs text-slate-500">Admission Number</Label>
+              <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
+                <School className="w-4 h-4 text-slate-400" />
+                {profile?.admission_number || 'Not assigned'}
+              </p>
             </div>
 
             <div>
-              <Label className="text-xs text-slate-500">Gender</Label>
+              <Label className="text-xs text-slate-500">Class</Label>
+              <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
+                <GraduationCap className="w-4 h-4 text-slate-400" />
+                {profile?.class || 'Not assigned'}
+                {profile?.class_arm ? ` - ${profile.class_arm}` : ''}
+              </p>
+            </div>
+
+            <div>
+              <Label className="text-xs text-slate-500">Admission Year</Label>
+              <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-slate-400" />
+                {profile?.admission_year || 'Not assigned'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ─── Guardian Information ──────────────────────────────────────────── */}
+        <Card className="border-0 shadow-soft">
+          <CardHeader>
+            <CardTitle className="text-lg font-display text-[#0A2472] flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Guardian Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <Label className="text-xs text-slate-500">Guardian Name</Label>
               {isEditing ? (
-                <select
-                  value={formData.gender || ''}
-                  onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
-                  className="w-full mt-1 px-3 py-2 rounded-lg border border-slate-200 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
-                >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                </select>
+                <Input
+                  value={formData.guardian_name || ''}
+                  onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
+                  className="mt-1"
+                  placeholder="Enter guardian name"
+                />
               ) : (
-                <p className="text-sm font-medium text-slate-800 mt-1 capitalize">{profile?.gender || 'Not provided'}</p>
+                <p className="text-sm font-medium text-slate-800 mt-1">{profile?.guardian_name || 'Not provided'}</p>
               )}
             </div>
 
             <div>
-              <Label className="text-xs text-slate-500">Address</Label>
+              <Label className="text-xs text-slate-500">Guardian Phone</Label>
               {isEditing ? (
                 <Input
-                  value={formData.address || ''}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  value={formData.guardian_phone || ''}
+                  onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
                   className="mt-1"
-                  placeholder="Enter address"
+                  placeholder="Enter guardian phone"
                 />
               ) : (
-                <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-slate-400" />
-                  {profile?.address || 'Not provided'}
-                </p>
+                <p className="text-sm font-medium text-slate-800 mt-1">{profile?.guardian_phone || 'Not provided'}</p>
               )}
             </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* ─── School Information ────────────────────────────────────────────── */}
-      <Card className="border-0 shadow-soft">
-        <CardHeader>
-          <CardTitle className="text-lg font-display text-[#0A2472] flex items-center gap-2">
-            <School className="w-5 h-5" />
-            School Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <Label className="text-xs text-slate-500">VIN ID</Label>
-            <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2 font-mono">
-              <IdCard className="w-4 h-4 text-slate-400" />
-              {profile?.vin_id || '-'}
-            </p>
-          </div>
+            <div className="md:col-span-2">
+              <Label className="text-xs text-slate-500">Guardian Email</Label>
+              {isEditing ? (
+                <Input
+                  type="email"
+                  value={formData.guardian_email || ''}
+                  onChange={(e) => setFormData({ ...formData, guardian_email: e.target.value })}
+                  className="mt-1"
+                  placeholder="Enter guardian email"
+                />
+              ) : (
+                <p className="text-sm font-medium text-slate-800 mt-1">{profile?.guardian_email || 'Not provided'}</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
-          <div>
-            <Label className="text-xs text-slate-500">Admission Number</Label>
-            <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
-              <School className="w-4 h-4 text-slate-400" />
-              {profile?.admission_number || 'Not assigned'}
-            </p>
-          </div>
+        {/* ─── Footer ────────────────────────────────────────────────────────── */}
+        <div className="text-center text-xs text-slate-400 pt-4 mt-6 border-t border-slate-200/50">
+          <p>Vincollins Schools Pupil • Profile</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
+        </div>
 
-          <div>
-            <Label className="text-xs text-slate-500">Class</Label>
-            <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
-              <GraduationCap className="w-4 h-4 text-slate-400" />
-              {profile?.class || 'Not assigned'}
-              {profile?.class_arm ? ` - ${profile.class_arm}` : ''}
-            </p>
-          </div>
-
-          <div>
-            <Label className="text-xs text-slate-500">Admission Year</Label>
-            <p className="text-sm font-medium text-slate-800 mt-1 flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              {profile?.admission_year || 'Not assigned'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ─── Guardian Information ──────────────────────────────────────────── */}
-      <Card className="border-0 shadow-soft">
-        <CardHeader>
-          <CardTitle className="text-lg font-display text-[#0A2472] flex items-center gap-2">
-            <User className="w-5 h-5" />
-            Guardian Information
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <Label className="text-xs text-slate-500">Guardian Name</Label>
-            {isEditing ? (
-              <Input
-                value={formData.guardian_name || ''}
-                onChange={(e) => setFormData({ ...formData, guardian_name: e.target.value })}
-                className="mt-1"
-                placeholder="Enter guardian name"
-              />
-            ) : (
-              <p className="text-sm font-medium text-slate-800 mt-1">{profile?.guardian_name || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div>
-            <Label className="text-xs text-slate-500">Guardian Phone</Label>
-            {isEditing ? (
-              <Input
-                value={formData.guardian_phone || ''}
-                onChange={(e) => setFormData({ ...formData, guardian_phone: e.target.value })}
-                className="mt-1"
-                placeholder="Enter guardian phone"
-              />
-            ) : (
-              <p className="text-sm font-medium text-slate-800 mt-1">{profile?.guardian_phone || 'Not provided'}</p>
-            )}
-          </div>
-
-          <div className="md:col-span-2">
-            <Label className="text-xs text-slate-500">Guardian Email</Label>
-            {isEditing ? (
-              <Input
-                type="email"
-                value={formData.guardian_email || ''}
-                onChange={(e) => setFormData({ ...formData, guardian_email: e.target.value })}
-                className="mt-1"
-                placeholder="Enter guardian email"
-              />
-            ) : (
-              <p className="text-sm font-medium text-slate-800 mt-1">{profile?.guardian_email || 'Not provided'}</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      </div>
     </div>
   )
 }
