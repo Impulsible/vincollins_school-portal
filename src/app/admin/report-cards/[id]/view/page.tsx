@@ -1,51 +1,24 @@
 /* eslint-disable @next/next/no-img-element */
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable react/no-unescaped-entities */
 /* eslint-disable react-hooks/set-state-in-effect */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
 import React, { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { useReactToPrint } from 'react-to-print'
 import {
   Loader2, Printer, ArrowLeft, TrendingUp, TrendingDown,
-  School, Mail, Phone, User, Sparkles, LayoutDashboard, FileX, Lock,
-  ClipboardCheck, MapPin, Calendar, Award, Star,
+  School, Mail, Phone, User, FileX, Sparkles, Edit3, X,
+  CheckCircle2, RotateCcw, Award, Star, MapPin, Calendar, ClipboardCheck
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// ─── PRIMARY SUBJECTS ──────────────────────────────────────────────────────
-const PRIMARY_SUBJECTS = [
-  { id: 'english', name: 'English', category: 'Core' },
-  { id: 'mathematics', name: 'Mathematics', category: 'Core' },
-  { id: 'basic_science', name: 'Basic Science', category: 'Core' },
-  { id: 'social_studies', name: 'Social Studies', category: 'Core' },
-  { id: 'phonics', name: 'Phonics', category: 'Core' },
-  { id: 'yoruba', name: 'Yoruba', category: 'Languages' },
-  { id: 'civic_education', name: 'Civic Education', category: 'Core' },
-  { id: 'creative_arts', name: 'Creative Arts', category: 'Arts' },
-  { id: 'agriculture', name: 'Agriculture', category: 'Sciences' },
-  { id: 'computer_education', name: 'Computer Education', category: 'Sciences' },
-  { id: 'crs', name: 'Christian Religious Studies', category: 'Core' },
-  { id: 'french', name: 'French', category: 'Languages' },
-  { id: 'quantitative_reasoning', name: 'Quantitative Reasoning', category: 'Core' },
-  { id: 'verbal_reasoning', name: 'Verbal Reasoning', category: 'Core' },
-  { id: 'music', name: 'Music', category: 'Arts' },
-  { id: 'handwriting', name: 'Handwriting', category: 'Core' },
-  { id: 'literature', name: 'Literature', category: 'Arts' },
-  { id: 'vocational_aptitude', name: 'Vocational Aptitude', category: 'Vocational' },
-  { id: 'history', name: 'History', category: 'Core' },
-  { id: 'security_education', name: 'Security Education', category: 'Core' },
-  { id: 'home_economics', name: 'Home Economics', category: 'Vocational' },
-  { id: 'phe', name: 'Physical and Health Education', category: 'Core' },
-]
-
-// ─── AFFECTIVE DOMAIN ──────────────────────────────────────────────────────
+// ─── PRIMARY SUBJECTS & CONFIGURATION ──────────────────────────────────────
 const AFFECTIVE_DOMAIN = [
   { id: 'honesty', name: 'Honesty' },
   { id: 'neatness', name: 'Neatness' },
@@ -57,7 +30,6 @@ const AFFECTIVE_DOMAIN = [
   { id: 'politeness', name: 'Politeness' },
 ]
 
-// ─── PSYCHOMOTOR SKILLS ────────────────────────────────────────────────────
 const PSYCHOMOTOR_SKILLS = [
   { id: 'handwriting', name: 'Handwriting' },
   { id: 'verbal_fluency', name: 'Verbal Fluency' },
@@ -69,7 +41,6 @@ const PSYCHOMOTOR_SKILLS = [
   { id: 'dancing', name: 'Dancing' },
 ]
 
-// ─── Subject Order ──────────────────────────────────────────────────────────
 const SUBJECT_ORDER: Record<string, number> = {
   'English': 1, 'Mathematics': 2, 'Basic Science': 3, 'Social Studies': 4,
   'Phonics': 5, 'Yoruba': 6, 'Civic Education': 7, 'Creative Arts': 8,
@@ -82,7 +53,6 @@ const SUBJECT_ORDER: Record<string, number> = {
 
 const MAX_SCORE_PER_SUBJECT = 100
 
-// ─── Types ──────────────────────────────────────────────────────────────────
 interface SubjectScore {
   subject: string
   subject_display: string
@@ -102,11 +72,6 @@ interface SchoolSettings {
   next_term_resume?: string | null
 }
 
-interface TermOption {
-  value: string
-  label: string
-}
-
 interface AttendanceData {
   totalDays: number
   daysPresent: number
@@ -114,7 +79,39 @@ interface AttendanceData {
   daysLate: number
 }
 
-// ─── Default school ──────────────────────────────────────────────────────────
+interface StudentProfile {
+  id: string
+  full_name?: string
+  display_name?: string
+  admission_number?: string
+  class?: string
+  photo_url?: string
+  gender?: string
+}
+
+interface ReportCardData {
+  id: string
+  student_id: string
+  student_name?: string
+  student_admission_number?: string
+  class?: string
+  term?: string
+  academic_year?: string
+  session_year?: string
+  teacher_comment?: string
+  principal_comment?: string
+  status?: string
+  generated_by?: string
+  subjects?: SubjectScore[]
+  // DB integrated aggregate attendance properties
+  attendance_present?: number
+  attendance_absent?: number
+  attendance_total?: number
+  days_present?: number
+  days_absent?: number
+  total_days?: number
+}
+
 const DEFAULT_SCHOOL: SchoolSettings = {
   name: 'VINCOLLINS SCHOOLS',
   address: '7/9 Lawani Street, off Ishaga Rd, Surulere, Lagos',
@@ -123,7 +120,7 @@ const DEFAULT_SCHOOL: SchoolSettings = {
   motto: 'Geared Towards Excellence',
 }
 
-// ─── Global Utility Helper Functions ───────────────────────────────────────
+// ─── GLOBAL UTILITY HELPER FUNCTIONS ───────────────────────────────────────
 const normalizeSubjectName = (name: string): string => {
   const map: Record<string, string> = {
     'English': 'English', 'Eng': 'English',
@@ -166,7 +163,7 @@ const getSchoolLevel = (className?: string): 'Primary' | 'Nursery' | 'Playgroup'
       lower.includes('basic')) {
     return 'Primary'
   }
-  if (lower.includes('nursery') || lower.includes('n1') || lower.includes('n2') ||
+  if (lower.includes('nursery') || lower.includes('n1') || lower.includes('n2') || 
       lower.includes('n3') || lower.includes('creche') || lower.includes('toddler')) {
     return 'Nursery'
   }
@@ -186,12 +183,12 @@ const getFullSchoolName = (school: SchoolSettings, className?: string): string =
 
 const getRemark = (score: number): string => {
   if (score >= 80) return 'Excellent'
-  else if (score >= 70) return 'Very Good'
-  else if (score >= 60) return 'Good'
-  else if (score >= 50) return 'Satisfactory'
-  else if (score >= 45) return 'Average'
-  else if (score > 0) return 'Fair'
-  else return 'Not graded'
+  if (score >= 70) return 'Very Good'
+  if (score >= 60) return 'Good'
+  if (score >= 50) return 'Satisfactory'
+  if (score >= 45) return 'Average'
+  if (score > 0) return 'Fair'
+  return 'Not graded'
 }
 
 const getRemarkPillColor = (remark: string): string => {
@@ -235,7 +232,7 @@ function StarRating({ rating, max = 5 }: { rating: number; max?: number }) {
         <Star
           key={i}
           className={cn(
-            'h-2 w-2 print:h-[7px] print:w-[7px]',
+            'h-2.5 w-2.5 print:h-[8px] print:w-[8px]',
             i < rating ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'
           )}
         />
@@ -244,84 +241,106 @@ function StarRating({ rating, max = 5 }: { rating: number; max?: number }) {
   )
 }
 
-// ─── Main Page ──────────────────────────────────────────────────────────────
-export default function PupilReportCardPage() {
+// ═══════════════════════════════════════════════════════════════
+// REPORT CARD VIEW COMPONENT
+// ═══════════════════════════════════════════════════════════════
+export default function ReportCardViewPage() {
   const router = useRouter()
+  const params = useParams()
+  const reportCardId = params.id as string
   const printRef = useRef<HTMLDivElement>(null)
 
   const [loading, setLoading] = useState(true)
+  const [reportCard, setReportCard] = useState<ReportCardData | null>(null)
+  const [student, setStudent] = useState<StudentProfile | null>(null)
   const [school, setSchool] = useState<SchoolSettings>(DEFAULT_SCHOOL)
-
-  // ─── Term State with Fallback ──────────────────────────────────────────────
-  const [availableTerms, setAvailableTerms] = useState<TermOption[]>([
-    { value: 'First', label: 'First' },
-    { value: 'Second', label: 'Second' },
-    { value: 'Third', label: 'Third' },
-  ])
-  const [availableYears, setAvailableYears] = useState<string[]>(['2026/2027'])
-  const [selectedTerm, setSelectedTerm] = useState('First')
-  const [selectedYear, setSelectedYear] = useState('2026/2027')
-
-  const [student, setStudent] = useState<any>(null)
-  const [reportCard, setReportCard] = useState<any>(null)
   const [subjects, setSubjects] = useState<SubjectScore[]>([])
-  const [hasReport, setHasReport] = useState(false)
-  const [reportNotPublished, setReportNotPublished] = useState(false)
   const [totalScore, setTotalScore] = useState(0)
   const [averageScore, setAverageScore] = useState(0)
   const [overallRemark, setOverallRemark] = useState('')
   const [teacherComment, setTeacherComment] = useState('')
   const [principalComment, setPrincipalComment] = useState('')
-  const [classTeacher, setClassTeacher] = useState('Class Teacher')
   const [attendance, setAttendance] = useState<AttendanceData>({
     totalDays: 0, daysPresent: 0, daysAbsent: 0, daysLate: 0,
   })
+  const [classTeacher, setClassTeacher] = useState('Class Teacher')
   const [resumptionDate, setResumptionDate] = useState<string | null>(null)
 
-  // ─── Print handler ─────────────────────────────────────────────────────────
+  const [editingTeacher, setEditingTeacher] = useState(false)
+  const [editingPrincipal, setEditingPrincipal] = useState(false)
+  const [tempTeacherComment, setTempTeacherComment] = useState('')
+  const [tempPrincipalComment, setTempPrincipalComment] = useState('')
+  const [generatingComments, setGeneratingComments] = useState(false)
+
   const handlePrint = useReactToPrint({
     contentRef: printRef,
-    documentTitle: `Report_${student?.display_name || 'Student'}_${selectedTerm}_${selectedYear}`,
+    documentTitle: `Report_${reportCard?.student_name || 'Student'}_${reportCard?.term || ''}_${reportCard?.academic_year || ''}`,
     pageStyle: `
-      @page {
-        size: A4 portrait;
-        margin: 0;
-      }
-
+      @page { size: A4 portrait; margin: 0.4cm; }
       @media print {
-        html,
-        body {
-          width: 210mm !important;
-          min-height: 297mm !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          background: white !important;
-          overflow: visible !important;
-        }
-
-        * {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-
-        .no-print {
-          display: none !important;
-        }
-
-        .print-card {
-          width: 100% !important;
-          max-width: none !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          transform: none !important;
-          page-break-inside: avoid !important;
-          break-inside: avoid !important;
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        html, body { height: auto !important; overflow: visible !important; }
+        body { background: white !important; margin: 0 !important; padding: 0 !important; }
+        .no-print { display: none !important; }
+        .print-card { 
+          page-break-inside: avoid !important; 
+          break-inside: avoid !important; 
+          transform: scale(0.98);
+          transform-origin: top center;
         }
       }
     `,
   })
 
-  // ─── Load school settings ──────────────────────────────────────────────────
+  // ─── Fetch Next Term Resumption Date from configurations ─────────
+  const fetchResumptionDate = useCallback(async (currentTerm?: string, currentSession?: string) => {
+    try {
+      const { data: sysSetting } = await supabase
+        .from('system_settings')
+        .select('value')
+        .eq('key', 'next_term_date')
+        .maybeSingle()
+
+      if (sysSetting?.value) {
+        return sysSetting.value
+      }
+
+      if (currentSession) {
+        const termCodeLower = (currentTerm || 'first').toLowerCase()
+        const nextTermMap: Record<string, string[]> = {
+          first: ['second', '2nd', 'Second', 'second_term'],
+          second: ['third', '3rd', 'Third', 'third_term'],
+          third: ['first', '1st', 'First', 'first_term'],
+        }
+        const targetNextCodes = nextTermMap[termCodeLower] || ['second', 'Second']
+
+        const { data: nextTermRow } = await supabase
+          .from('terms')
+          .select('start_date')
+          .eq('session_year', currentSession)
+          .in('term_code', targetNextCodes)
+          .maybeSingle()
+
+        if (nextTermRow?.start_date) {
+          return nextTermRow.start_date
+        }
+      }
+
+      const { data: schoolSet } = await supabase
+        .from('school_settings')
+        .select('next_term_resume, next_term_resumption_date, next_term_start')
+        .maybeSingle()
+
+      if (schoolSet) {
+        return schoolSet.next_term_resume || schoolSet.next_term_resumption_date || schoolSet.next_term_start || null
+      }
+    } catch (err) {
+      console.warn('Error fetching next term resumption date:', err)
+    }
+    return null
+  }, [])
+
+  // ─── Load School Settings ──────────────────────────────────────────────────
   const loadSchoolSettings = useCallback(async () => {
     try {
       const { data } = await supabase.from('school_settings').select('*').maybeSingle()
@@ -341,155 +360,27 @@ export default function PupilReportCardPage() {
     }
   }, [])
 
-  // ─── Load terms from database (hardened for unknown schemas) ───────────────
-  const loadTerms = useCallback(async () => {
-    try {
-      // Select * so we don't 400 on unknown column names
-      const { data: termsData, error: termsError } = await supabase
-        .from('terms')
-        .select('*')
-
-      if (termsError) {
-        console.warn('terms query failed, using defaults:', termsError.message)
-      }
-
-      if (!termsError && termsData && termsData.length > 0) {
-        // Normalize row shape across possible schema variants
-        const normalized = termsData.map((t: any) => {
-          const termCode = (
-            t.term_code || t.term || t.code || t.name || t.term_name || ''
-          ).toString().trim()
-
-          const termName = (
-            t.term_name || t.name || t.label || t.term || t.term_code || termCode
-          ).toString().trim()
-
-          const sessionYear = (
-            t.session_year || t.academic_year || t.session || t.year || ''
-          ).toString().trim()
-
-          return { termCode, termName, sessionYear }
-        }).filter((t: any) => t.termCode)
-
-        // Unique terms (First / Second / Third)
-        const termMap = new Map<string, string>()
-        normalized.forEach((t: any) => {
-          // Prefer short code-like values for Select value
-          const value = t.termCode.replace(/\s*term\s*/i, '').trim() || t.termCode
-          const label = t.termName.replace(/\s*term\s*/i, '').trim() || value
-          if (value && !termMap.has(value)) {
-            termMap.set(value, label)
-          }
-        })
-
-        if (termMap.size > 0) {
-          // Optional preferred order
-          const order = ['First', 'Second', 'Third', '1st', '2nd', '3rd']
-          const terms: TermOption[] = Array.from(termMap.entries())
-            .map(([value, label]) => ({ value, label }))
-            .sort((a, b) => {
-              const ai = order.findIndex(o => o.toLowerCase() === a.value.toLowerCase())
-              const bi = order.findIndex(o => o.toLowerCase() === b.value.toLowerCase())
-              if (ai === -1 && bi === -1) return a.label.localeCompare(b.label)
-              if (ai === -1) return 1
-              if (bi === -1) return -1
-              return ai - bi
-            })
-          setAvailableTerms(terms)
-        }
-
-        // Unique years
-        const years = [
-          ...new Set(
-            normalized
-              .map((t: any) => t.sessionYear)
-              .filter(Boolean)
-          ),
-        ].sort((a, b) => b.localeCompare(a))
-
-        if (years.length > 0) setAvailableYears(years)
-      }
-
-      // Current term/session from school_settings (safe even if terms failed)
-      const { data: settings } = await supabase
-        .from('school_settings')
-        .select('*')
-        .maybeSingle()
-
-      if (settings) {
-        const currentTerm = (
-          settings.current_term || settings.term || settings.active_term || ''
-        ).toString().replace(/\s*term\s*/i, '').trim()
-
-        const currentSession = (
-          settings.current_session ||
-          settings.current_academic_year ||
-          settings.session_year ||
-          settings.academic_year ||
-          ''
-        ).toString().trim()
-
-        if (currentTerm) setSelectedTerm(currentTerm)
-        if (currentSession) setSelectedYear(currentSession)
-      }
-    } catch (error) {
-      console.error('Error loading terms:', error)
-      // Keep built-in defaults: First/Second/Third + 2026/2027
-    }
-  }, [])
-
-  // ─── Fetch Next Term Resumption Date ────────────────────────────────────────
-  const fetchResumptionDate = useCallback(async (currentTerm?: string, currentSession?: string) => {
-    try {
-      const { data: sysSetting } = await supabase
-        .from('system_settings')
-        .select('value')
-        .eq('key', 'next_term_date')
-        .maybeSingle()
-
-      if (sysSetting?.value) return sysSetting.value
-
-      if (currentSession) {
-        const termCodeLower = (currentTerm || 'first').toLowerCase()
-        const nextTermMap: Record<string, string[]> = {
-          first: ['second', '2nd', 'Second', 'second_term'],
-          second: ['third', '3rd', 'Third', 'third_term'],
-          third: ['first', '1st', 'First', 'first_term'],
-        }
-        const targetNextCodes = nextTermMap[termCodeLower] || ['second', 'Second']
-
-        try {
-          const { data: nextTermRow } = await supabase
-            .from('terms')
-            .select('*')
-            .eq('session_year', currentSession)
-            .in('term_code', targetNextCodes)
-            .maybeSingle()
-
-          if (nextTermRow?.start_date) return nextTermRow.start_date
-        } catch (innerErr) {
-          console.warn('Next term lookup failed:', innerErr)
-        }
-      }
-
-      const { data: schoolSet } = await supabase
-        .from('school_settings')
-        .select('next_term_resume, next_term_resumption_date, next_term_start')
-        .maybeSingle()
-
-      if (schoolSet) {
-        return schoolSet.next_term_resume || schoolSet.next_term_resumption_date || schoolSet.next_term_start || null
-      }
-    } catch (err) {
-      console.warn('Error fetching next term resumption date:', err)
-    }
-    return null
-  }, [])
-
-  // ─── Load Attendance ─────────────────────────────────────────────────────
+  // ─── Fetch Attendance Logs or parse fallbacks ──────────────────────────────
   const loadAttendance = useCallback(
-    async (sid: string, termVal: string, sessionVal: string) => {
+    async (sid: string, termVal: string, sessionVal: string, rcRecord?: ReportCardData) => {
       try {
+        // High priority fallback: Direct summary values saved directly on the report card row
+        if (rcRecord) {
+          const directPresent = rcRecord.attendance_present ?? rcRecord.days_present
+          const directAbsent = rcRecord.attendance_absent ?? rcRecord.days_absent
+          const directTotal = rcRecord.attendance_total ?? rcRecord.total_days
+
+          if (directPresent !== undefined && directPresent !== null && directPresent > 0) {
+            setAttendance({
+              totalDays: directTotal || (Number(directPresent) + Number(directAbsent || 0)),
+              daysPresent: Number(directPresent),
+              daysAbsent: Number(directAbsent || 0),
+              daysLate: 0
+            })
+            return
+          }
+        }
+
         const cleanTerm = (termVal || 'First').trim()
         const termVariants = [
           cleanTerm,
@@ -501,6 +392,7 @@ export default function PupilReportCardPage() {
         ]
         const uniqueTerms = Array.from(new Set(termVariants.filter(Boolean)))
 
+        // Query 1: 'attendance_records' table
         const { data: recordsData } = await supabase
           .from('attendance_records')
           .select('status, date')
@@ -510,6 +402,7 @@ export default function PupilReportCardPage() {
 
         let rowsToParse = recordsData || []
 
+        // Fallback Query 2: 'attendance' table
         if (rowsToParse.length === 0) {
           const { data: attTableData } = await supabase
             .from('attendance')
@@ -518,21 +411,38 @@ export default function PupilReportCardPage() {
             .in('term', uniqueTerms)
             .eq('session_year', sessionVal)
 
-          if (attTableData && attTableData.length > 0) rowsToParse = attTableData
+          if (attTableData && attTableData.length > 0) {
+            rowsToParse = attTableData
+          }
         }
 
         if (rowsToParse.length > 0) {
-          let present = 0, absent = 0, late = 0, total = 0
+          let present = 0
+          let absent = 0
+          let late = 0
+          let total = 0
 
           for (const r of rowsToParse) {
             const rawStatus = (r.status || '').toString().trim().toLowerCase()
-            if (rawStatus === 'present' || rawStatus === 'p') { present++; total++ }
-            else if (rawStatus === 'absent' || rawStatus === 'a') { absent++; total++ }
-            else if (rawStatus === 'late' || rawStatus === 'l') { late++; total++ }
+            if (rawStatus === 'present' || rawStatus === 'p') {
+              present++
+              total++
+            } else if (rawStatus === 'absent' || rawStatus === 'a') {
+              absent++
+              total++
+            } else if (rawStatus === 'late' || rawStatus === 'l') {
+              late++
+              total++
+            }
           }
 
           if (total > 0) {
-            setAttendance({ totalDays: total, daysPresent: present, daysAbsent: absent, daysLate: late })
+            setAttendance({
+              totalDays: total,
+              daysPresent: present,
+              daysAbsent: absent,
+              daysLate: late,
+            })
             return
           }
         }
@@ -546,71 +456,85 @@ export default function PupilReportCardPage() {
     []
   )
 
-  // ─── Load scores + report card ──────────────────────────────────────────
-  const loadScores = useCallback(async () => {
-    setLoading(true)
-    setHasReport(false)
-    setReportNotPublished(false)
-    setSubjects([])
-    setTotalScore(0)
-    setAverageScore(0)
-
+  // ─── Manual API Action for Principal Comment Generation ───────────────────
+  const generateAndSavePrincipalComment = useCallback(async (std: StudentProfile, subjs: SubjectScore[], avg: number, targetClass?: string) => {
+    if (!std || subjs.length === 0 || !reportCardId) return
+    setGeneratingComments(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { router.push('/portal'); return }
-
-      // ─── 1. Get student profile ──────────────────────────────────────────
-      const { data: sd, error: sdError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-
-      if (sdError || !sd) {
-        console.error('Error fetching profile:', sdError)
-        toast.error('Profile not found')
-        setLoading(false)
-        return
-      }
-      setStudent(sd)
-
-      // ─── 2. Fetch all student report cards to match in memory safely ─────
-      const { data: reportCardsList, error: rcListError } = await supabase
-        .from('report_cards')
-        .select('*')
-        .eq('student_id', user.id)
-
-      if (rcListError) {
-        console.error('Error fetching report card:', rcListError)
-      }
-
-      const cleanTerm = selectedTerm.toLowerCase().replace(/term/i, '').trim()
-      const cleanYear = selectedYear.trim()
-
-      const matchedCard = (reportCardsList || []).find((rc: any) => {
-        const rcTerm = (rc.term || rc.term_name || rc.term_code || '').toLowerCase().replace(/term/i, '').trim()
-        const rcYear = (rc.academic_year || rc.session_year || rc.session || '').trim()
-        return rcTerm === cleanTerm && rcYear === cleanYear
+      const subjectsForApi = subjs.map((s) => ({ name: s.subject, score: s.total }))
+      const response = await fetch('/api/generate-comments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          studentName: (std.display_name || std.full_name || 'Student').split(' ')[0],
+          averageScore: Math.round(avg),
+          subjects: subjectsForApi,
+          className: targetClass || std.class,
+          gender: std.gender || 'male',
+        }),
       })
 
-      if (!matchedCard) {
-        setHasReport(false)
+      if (!response.ok) throw new Error('Generation failed')
+      const data = await response.json()
+      const generatedRemark = data.principal_comment || data.comment
+
+      const { error: saveError } = await supabase
+        .from('report_cards')
+        .update({ principal_comment: generatedRemark })
+        .eq('id', reportCardId)
+
+      if (saveError) {
+        console.error('Failed to save principal comment:', saveError)
+        toast.error('AI generated comment could not be saved to DB')
+      } else {
+        setPrincipalComment(generatedRemark)
+        setTempPrincipalComment(generatedRemark)
+        toast.success('AI comment generated and saved successfully!')
+      }
+    } catch (err) {
+      console.error('Error generating comment:', err)
+      toast.error('Failed to generate comments. Please try again.')
+    } finally {
+      setGeneratingComments(false)
+    }
+  }, [reportCardId])
+
+  // ─── Load Report Card & Data Composition ─────────────────────────────────
+  const loadReportCard = useCallback(async () => {
+    if (!reportCardId) {
+      toast.error('No report card ID provided')
+      setLoading(false)
+      return
+    }
+
+    setLoading(true)
+    try {
+      const { data: rc, error: rcError } = await supabase
+        .from('report_cards')
+        .select('*')
+        .eq('id', reportCardId)
+        .maybeSingle()
+
+      if (rcError) {
+        console.error('Error fetching report card:', rcError)
+        toast.error('Failed to load report card')
         setLoading(false)
         return
       }
 
-      if (matchedCard.status !== 'published') {
-        setHasReport(false)
-        setReportNotPublished(true)
+      if (!rc) {
+        toast.error('Report card not found')
         setLoading(false)
         return
       }
 
-      setReportCard(matchedCard)
-
-      // ─── 3. Get Class Teacher Name (same as admin report view) ─────────────
-      const className = matchedCard.class || matchedCard.class_name || sd.class
-      if (className) {
+      setReportCard(rc)
+      setTeacherComment(rc.teacher_comment || '')
+      setPrincipalComment(rc.principal_comment || '')
+      setTempPrincipalComment(rc.principal_comment || '')
+      
+      // Fetch teacher assigned to class
+      if (rc.class) {
         const { data: teacherClassData } = await supabase
           .from('teacher_classes')
           .select(`
@@ -619,83 +543,100 @@ export default function PupilReportCardPage() {
               display_name
             )
           `)
-          .eq('class_name', className)
+          .eq('class_name', rc.class)
           .maybeSingle()
 
         if (teacherClassData?.teacher) {
-          const tProfile: any = teacherClassData.teacher
+          const tProfile = teacherClassData.teacher as unknown as StudentProfile
           setClassTeacher(tProfile.full_name || tProfile.display_name || 'Class Teacher')
-        } else if (matchedCard.generated_by) {
+        } else if (rc.generated_by) {
           const { data: genUser } = await supabase
             .from('profiles')
             .select('full_name, display_name')
-            .eq('id', matchedCard.generated_by)
+            .eq('id', rc.generated_by)
             .maybeSingle()
           if (genUser) {
             setClassTeacher(genUser.full_name || genUser.display_name || 'Class Teacher')
           }
         }
-      } else if (matchedCard.generated_by) {
-        const { data: genUser } = await supabase
+      }
+
+      // Fetch dynamic resumption date
+      const academicYear = rc.session_year || rc.academic_year
+      const dynamicResume = await fetchResumptionDate(rc.term, academicYear)
+      if (dynamicResume) {
+        setResumptionDate(dynamicResume)
+      }
+
+      // Fetch student profile
+      let loadedStudent: StudentProfile | null = null
+      if (rc.student_id) {
+        const { data: studentData } = await supabase
           .from('profiles')
-          .select('full_name, display_name')
-          .eq('id', matchedCard.generated_by)
+          .select('*')
+          .eq('id', rc.student_id)
           .maybeSingle()
-        if (genUser) {
-          setClassTeacher(genUser.full_name || genUser.display_name || 'Class Teacher')
+
+        if (studentData) {
+          setStudent(studentData)
+          loadedStudent = studentData
+          // Load attendance for student with report card aggregate fallbacks
+          await loadAttendance(rc.student_id, rc.term, academicYear, rc)
         }
       }
 
-      // ─── 4. Resumption Date & Attendance ──────────────────────────────────
-      const dynamicResume = await fetchResumptionDate(selectedTerm, selectedYear)
-      if (dynamicResume) setResumptionDate(dynamicResume)
-
-      await loadAttendance(user.id, selectedTerm, selectedYear)
-
-      // ─── 5. Load Subject Scores from primary_scores ───────────────────────
-      const { data: scores, error: scoresError } = await supabase
-        .from('primary_scores')
-        .select('*')
-        .eq('student_id', user.id)
-        .eq('term', selectedTerm)
-        .eq('academic_year', selectedYear)
-
-      let rawScores = scores || []
-
-      if (rawScores.length === 0 && (matchedCard.subjects || matchedCard.subjects_data)) {
-        rawScores = matchedCard.subjects || matchedCard.subjects_data || []
+      // Load scores from primary_scores table
+      let scoresData: any[] = []
+      if (rc.student_id && rc.term && academicYear) {
+        const { data: result } = await supabase
+          .from('primary_scores')
+          .select('*')
+          .eq('student_id', rc.student_id)
+          .eq('term', rc.term)
+          .eq('academic_year', academicYear)
+        
+        scoresData = result || []
       }
 
-      if (rawScores.length === 0) {
-        setHasReport(false)
-        setLoading(false)
-        return
+      let subjectsData: any[] = []
+      if (scoresData.length > 0) {
+        subjectsData = scoresData.map((s) => {
+          const ca = s.ca_score || 0
+          const exam = s.exam_score || 0
+          const total = ca + exam
+          const subjectName = normalizeSubjectName(s.subject)
+          const displayName = SUBJECT_DISPLAY_NAMES[subjectName] || subjectName
+          return {
+            subject: displayName,
+            subject_display: displayName,
+            ca,
+            exam,
+            total,
+            remark: getRemark(total),
+          }
+        })
+      } else {
+        subjectsData = rc.subjects || []
       }
-
-      // ─── 6. Process and Deduplicate Scores ─────────────────────────────────
-      const processed: SubjectScore[] = rawScores.map((s: any) => {
-        const ca = Number(s.ca_score ?? s.ca ?? 0)
-        const exam = Number(s.exam_score ?? s.exam ?? 0)
-        const total = Number(s.total ?? (ca + exam))
-        const remark = s.remark || getRemark(total)
-        const rawName = s.subject || s.name || 'Subject'
-        const subjectName = normalizeSubjectName(rawName)
-        const displayName = SUBJECT_DISPLAY_NAMES[subjectName] || subjectName
-
-        return {
-          subject: displayName,
-          subject_display: displayName,
-          ca,
-          exam,
-          total,
-          remark,
-        }
-      })
 
       const subjectMap = new Map<string, SubjectScore>()
-      processed.forEach(s => {
-        const existing = subjectMap.get(s.subject)
-        if (!existing || s.total > existing.total) subjectMap.set(s.subject, s)
+      subjectsData.forEach((s: any) => {
+        const subject = s.subject || s.name || 'Unknown'
+        const caVal = s.ca !== undefined ? s.ca : 0
+        const examVal = s.exam !== undefined ? s.exam : 0
+        const total = s.total !== undefined ? s.total : (caVal + examVal)
+        const existing = subjectMap.get(subject)
+        
+        if (!existing || total > existing.total) {
+          subjectMap.set(subject, {
+            subject: subject,
+            subject_display: s.subject_display || s.subject || subject,
+            ca: caVal,
+            exam: examVal,
+            total: total,
+            remark: s.remark || getRemark(total),
+          })
+        }
       })
 
       const sortedSubjects = Array.from(subjectMap.values()).sort((a, b) => {
@@ -703,7 +644,6 @@ export default function PupilReportCardPage() {
       })
 
       setSubjects(sortedSubjects)
-      setHasReport(true)
 
       const total = sortedSubjects.reduce((sum, s) => sum + s.total, 0)
       const avg = sortedSubjects.length > 0 ? total / sortedSubjects.length : 0
@@ -711,32 +651,64 @@ export default function PupilReportCardPage() {
       setAverageScore(avg)
       setOverallRemark(getRemark(avg))
 
-      const tComment = matchedCard.teacher_comment || matchedCard.teacher_comments || matchedCard.teacher_remark || ''
-      const pComment = matchedCard.principal_comment || matchedCard.principal_comments || matchedCard.principal_remark || matchedCard.headmaster_comment || ''
-      setTeacherComment(tComment)
-      setPrincipalComment(pComment)
-
-    } catch (e) {
-      console.error('Error loading report card:', e)
-      toast.error('Failed to load report card')
+    } catch (error) {
+      console.error('Error loading report card:', error)
+      toast.error('Failed to load report card details')
     } finally {
       setLoading(false)
     }
-  }, [selectedTerm, selectedYear, router, fetchResumptionDate, loadAttendance])
+  }, [reportCardId, fetchResumptionDate, loadAttendance])
 
-  // ─── Initial Load ─────────────────────────────────────────────────────────
   useEffect(() => {
-    const init = async () => {
-      await Promise.all([loadSchoolSettings(), loadTerms()])
+    loadSchoolSettings()
+    loadReportCard()
+  }, [loadSchoolSettings, loadReportCard])
+
+  // ─── Manual Action System Remark Regeneration ──────────────────────────────
+  const handleRegeneratePrincipal = useCallback(async () => {
+    if (!student || subjects.length === 0) {
+      toast.error('Student details and scores are required to generate a comment')
+      return
     }
-    init()
-  }, [loadSchoolSettings, loadTerms])
+    await generateAndSavePrincipalComment(student, subjects, averageScore, reportCard?.class)
+  }, [student, subjects, averageScore, reportCard?.class, generateAndSavePrincipalComment])
 
-  useEffect(() => {
-    if (selectedTerm && selectedYear) loadScores()
-  }, [selectedTerm, selectedYear, loadScores])
+  // ─── Save Manual Comments ──────────────────────────────────────────────────
+  const handleSaveTeacherComment = async () => {
+    try {
+      const targetComment = tempTeacherComment !== '' ? tempTeacherComment : teacherComment
+      const { error } = await supabase
+        .from('report_cards')
+        .update({ teacher_comment: targetComment })
+        .eq('id', reportCardId)
 
-  const ratings = generateRatings(averageScore)
+      if (error) throw error
+      setTeacherComment(targetComment)
+      setEditingTeacher(false)
+      toast.success('Teacher comment saved successfully!')
+    } catch (error) {
+      console.error('Error saving teacher comment:', error)
+      toast.error('Failed to save comment')
+    }
+  }
+
+  const handleSavePrincipalComment = async () => {
+    try {
+      const targetComment = tempPrincipalComment !== '' ? tempPrincipalComment : principalComment
+      const { error } = await supabase
+        .from('report_cards')
+        .update({ principal_comment: targetComment })
+        .eq('id', reportCardId)
+
+      if (error) throw error
+      setPrincipalComment(targetComment)
+      setEditingPrincipal(false)
+      toast.success('Principal comment saved successfully!')
+    } catch (error) {
+      console.error('Error saving principal comment:', error)
+      toast.error('Failed to save comment')
+    }
+  }
 
   if (loading) {
     return (
@@ -749,19 +721,21 @@ export default function PupilReportCardPage() {
     )
   }
 
-  if (!student) {
+  if (!reportCard) {
     return (
       <div className="flex flex-col items-center justify-center gap-4 min-h-[60vh] p-4">
-        <p className="text-red-600 font-medium text-sm text-center">Student profile not found.</p>
+        <FileX className="h-10 w-10 text-red-600" />
+        <p className="text-red-600 font-medium text-sm text-center">Report card not found.</p>
         <Button onClick={() => router.back()} size="sm">Go Back</Button>
       </div>
     )
   }
 
-  const fullName = student.display_name || student.full_name || 'Student'
+  const ratings = generateRatings(averageScore)
+  const fullName = reportCard.student_name || student?.display_name || student?.full_name || 'Student'
   const fmtAvg = averageScore.toFixed(2)
-  const termLabel = availableTerms.find(t => t.value === selectedTerm)?.label || selectedTerm
-  const academicYear = selectedYear
+  const termLabel = reportCard.term || 'First'
+  const academicYear = reportCard.session_year || reportCard.academic_year || 'N/A'
   const totalMarksObtained = totalScore
   const totalMarksObtainable = subjects.length * MAX_SCORE_PER_SUBJECT
   const attendancePercentage = attendance.totalDays > 0
@@ -790,119 +764,62 @@ export default function PupilReportCardPage() {
   const nextTermFormatted = getResumeDateString()
   const fullSchoolName = getFullSchoolName(school, student?.class || reportCard?.class)
 
+  // Safe fallback description for empty principal remarks
+  const fallbackPrincipalRemark = averageScore >= 50 
+    ? 'Promising academic status. Consistent work and preparation will secure better outcomes next term.' 
+    : 'Requires specialized attention and consistent remedial studying. Focus on foundational subjects.'
+
   return (
     <div className="w-full max-w-5xl mx-auto px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6 pb-24 sm:pb-6 space-y-3 sm:space-y-4 print:p-0 print:max-w-none print:space-y-0 bg-slate-100 print:bg-white min-h-screen">
 
-      {/* ─── Controls Bar ─── */}
+      {/* ═══ ADMIN CONTROLS BAR ═══ */}
       <div className="no-print bg-white rounded-xl border border-gray-200 shadow-sm p-3 sm:p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
             <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-800 flex items-center gap-1.5">
-              📄 <span>My Report Card</span>
+              📄 <span>Report Card View</span>
             </h1>
             <p className="text-[10px] sm:text-xs text-gray-500 mt-0.5">
-              View &amp; print your performance report
+              {fullName} · {termLabel} Term · {academicYear}
             </p>
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
-            <Button
-              variant="outline" size="sm"
-              onClick={() => router.push('/pupil/dashboard')}
-              className="h-8 text-xs px-2 sm:px-3 gap-1"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden sm:inline">Dashboard</span>
-            </Button>
-            <Button
-              variant="ghost" size="sm"
-              onClick={() => router.back()}
-              className="h-8 text-xs px-2 sm:px-3 gap-1"
-            >
+            <Button variant="ghost" size="sm" onClick={() => router.back()} className="h-8 text-xs px-2 sm:px-3 gap-1">
               <ArrowLeft className="h-3.5 w-3.5 shrink-0" />
               <span className="hidden sm:inline">Back</span>
             </Button>
+            {subjects.length > 0 && (
+              <Button onClick={handlePrint} className="h-8 bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 gap-1.5 shrink-0">
+                <Printer className="h-3.5 w-3.5 shrink-0" />
+                <span className="hidden xs:inline">Print / </span>Download
+              </Button>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-end gap-2">
-          <div className="space-y-0.5 flex-1 min-w-[100px] max-w-[160px]">
-            <label className="text-[10px] sm:text-xs font-medium text-gray-500 block">Term</label>
-            <Select value={selectedTerm} onValueChange={setSelectedTerm}>
-              <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm w-full bg-white">
-                <SelectValue placeholder="Select term" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableTerms.map(t => (
-                  <SelectItem key={t.value} value={t.value} className="text-xs sm:text-sm">
-                    {t.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        {reportCard.status && (
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-slate-500">Status:</span>
+            <span className={cn(
+              'text-xs font-bold px-2 py-1 rounded-full border',
+              reportCard.status === 'published' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+              reportCard.status === 'approved' ? 'bg-blue-50 text-blue-700 border-blue-200' :
+              reportCard.status === 'generated' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+              'bg-rose-50 text-rose-700 border-rose-200'
+            )}>
+              {reportCard.status.charAt(0).toUpperCase() + reportCard.status.slice(1)}
+            </span>
           </div>
-
-          <div className="space-y-0.5 flex-1 min-w-[90px] max-w-[140px]">
-            <label className="text-[10px] sm:text-xs font-medium text-gray-500 block">Session</label>
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger className="h-8 sm:h-9 text-xs sm:text-sm w-full bg-white">
-                <SelectValue placeholder="Select year" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableYears.map(y => (
-                  <SelectItem key={y} value={y} className="text-xs sm:text-sm">{y}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {hasReport && (
-            <Button
-              onClick={handlePrint}
-              className="h-8 sm:h-9 bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm px-3 gap-1.5 ml-auto shrink-0"
-            >
-              <Printer className="h-3.5 w-3.5 shrink-0" />
-              <span className="hidden xs:inline">Print / </span>Download
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* ─── Empty / Unreleased States ─── */}
-      {!hasReport && reportNotPublished && (
-        <div className="bg-white rounded-xl border border-amber-200 shadow-sm py-12 sm:py-16 px-4 sm:px-6 text-center">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-100 flex items-center justify-center mx-auto mb-4">
-            <Lock className="h-8 w-8 sm:h-10 sm:w-10 text-amber-500" />
-          </div>
-          <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-2">
-            Report Card Not Yet Released
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-500 leading-relaxed max-w-xs sm:max-w-sm mx-auto">
-            Your report card for {termLabel} Term, {selectedYear} has been prepared but not yet released.
-          </p>
-        </div>
-      )}
-
-      {!hasReport && !reportNotPublished && (
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm py-12 sm:py-16 px-4 sm:px-6 text-center">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-4">
-            <FileX className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
-          </div>
-          <h2 className="text-base sm:text-lg font-bold text-gray-800 mb-2">
-            No Report Card Available
-          </h2>
-          <p className="text-xs sm:text-sm text-gray-500 leading-relaxed max-w-xs sm:max-w-sm mx-auto">
-            No approved report card found for {fullName} for {termLabel} Term, {selectedYear}.
-          </p>
-        </div>
-      )}
-
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {/*  REPORT CARD — FULL PREMIUM CERTIFICATE PRINT LAYOUT            */}
+      {/*  REPORT CARD — PRINT STYLED TEMPLATE WITH WATERMARK            */}
       {/* ═══════════════════════════════════════════════════════════════ */}
-      {hasReport && (
+      {subjects.length > 0 && (
         <div ref={printRef} className="print-card">
           <div className="bg-white w-full shadow-xl print:shadow-none relative overflow-hidden">
-            {/* Outer Decorative Board Frame */}
+            {/* Outer Decorative Board frame */}
             <div className="absolute inset-0 border-[4px] border-blue-800 print:border-blue-900 pointer-events-none" style={{ zIndex: 20 }} />
             <div className="absolute inset-[6px] border-[2px] border-blue-600 print:border-blue-700 pointer-events-none" style={{ zIndex: 20 }} />
             <div className="absolute inset-[10px] border-[1px] border-blue-400/60 pointer-events-none" style={{ zIndex: 20 }} />
@@ -919,7 +836,7 @@ export default function PupilReportCardPage() {
                 <img
                   src={school.logo_url}
                   alt=""
-                  className="w-[380px] h-[380px] sm:w-[450px] sm:h-[450px] print:w-[400px] print:h-[400px] object-contain select-none"
+                  className="w-[380px] h-[380px] sm:w-[450px] sm:h-[450px] print:w-[350px] print:h-[350px] object-contain select-none"
                   style={{ opacity: 0.08, filter: 'grayscale(20%)' }}
                   draggable={false}
                 />
@@ -929,11 +846,10 @@ export default function PupilReportCardPage() {
             </div>
 
             {/* Content Container */}
-            <div className="relative p-4 sm:p-5 print:p-3" style={{ zIndex: 2 }}>
-
+            <div className="relative p-4 sm:p-5 print:p-4" style={{ zIndex: 2 }}>
+              
               {/* Header Grid */}
               <div className="flex items-start gap-3 sm:gap-4 pb-2">
-                {/* School Logo */}
                 <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 print:w-14 print:h-14 border-2 border-blue-800 rounded-lg flex items-center justify-center bg-white p-1 shadow-sm">
                   {school.logo_url ? (
                     <img src={school.logo_url} alt="School logo" className="w-full h-full object-contain" />
@@ -942,9 +858,8 @@ export default function PupilReportCardPage() {
                   )}
                 </div>
 
-                {/* School Info */}
                 <div className="flex-1 text-center min-w-0">
-                  <h1 className="text-lg sm:text-xl md:text-[22px] print:text-lg font-black text-blue-900 tracking-wide leading-none uppercase">
+                  <h1 className="text-lg sm:text-xl md:text-[22px] print:text-[18px] font-black text-blue-900 tracking-wide leading-none uppercase">
                     {fullSchoolName}
                   </h1>
                   <div className="flex items-center justify-center gap-1 mt-1 text-[9px] sm:text-[10px] print:text-[9px] text-slate-600">
@@ -964,19 +879,16 @@ export default function PupilReportCardPage() {
                   <div className="mt-1 inline-flex items-center gap-1 bg-amber-50/90 border border-amber-200 rounded-full px-3 py-0.5">
                     <Award className="h-2.5 w-2.5 text-amber-600" />
                     <p className="text-[9px] sm:text-[10px] print:text-[9px] italic text-amber-700 font-semibold">
-                      "{school.motto}"
+                      &quot;{school.motto}&quot;
                     </p>
                   </div>
                 </div>
 
-                {/* Student Photo — Passport size */}
-                <div
-                  className={cn(
-                    "shrink-0 overflow-hidden bg-slate-50 shadow-sm border-2 border-blue-800",
-                    "w-[56px] h-[72px] sm:w-[68px] sm:h-[90px] print:w-[65px] print:h-[85px]",
-                    "rounded-sm"
-                  )}
-                >
+                {/* Passport photo box */}
+                <div className={cn(
+                  "shrink-0 overflow-hidden bg-slate-50 shadow-sm border-2 border-blue-800 rounded-sm",
+                  "w-[56px] h-[72px] sm:w-[68px] sm:h-[90px] print:w-[62px] print:h-[80px]"
+                )}>
                   {student?.photo_url ? (
                     <img
                       src={student.photo_url}
@@ -1016,11 +928,11 @@ export default function PupilReportCardPage() {
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="font-bold text-blue-800 w-20 shrink-0 uppercase text-[9px] tracking-wide">Adm. No:</span>
-                    <span className="font-black text-slate-900 border-b border-dotted border-slate-400 flex-1 pb-0.5">{student.admission_number || student.vin_id || '—'}</span>
+                    <span className="font-black text-slate-900 border-b border-dotted border-slate-400 flex-1 pb-0.5">{reportCard.student_admission_number || student?.admission_number || '—'}</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="font-bold text-blue-800 w-20 shrink-0 uppercase text-[9px] tracking-wide">Class:</span>
-                    <span className="font-black text-slate-900 border-b border-dotted border-slate-400 flex-1 pb-0.5">{reportCard?.class || student.class || '—'}</span>
+                    <span className="font-black text-slate-900 border-b border-dotted border-slate-400 flex-1 pb-0.5">{reportCard.class || student?.class || '—'}</span>
                   </div>
                   <div className="flex items-baseline gap-1.5">
                     <span className="font-bold text-blue-800 w-20 shrink-0 uppercase text-[9px] tracking-wide">Term:</span>
@@ -1038,8 +950,8 @@ export default function PupilReportCardPage() {
               </div>
 
               {/* Main Score Grid + Sidebar */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_215px] gap-2 print:grid print:grid-cols-[1fr_200px] print:gap-2 items-stretch">
-
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_215px] gap-2 print:grid-cols-[1fr_200px] print:gap-2 items-stretch">
+                
                 {/* Score list column */}
                 <div className="min-w-0 flex flex-col gap-2">
                   <div className="border-2 border-blue-800 rounded-lg overflow-hidden bg-white/90">
@@ -1095,13 +1007,52 @@ export default function PupilReportCardPage() {
 
                   {/* Class Teacher Remark Panel */}
                   <div className="border-2 border-purple-700 rounded-lg overflow-hidden flex-1 flex flex-col bg-white/90 min-h-[85px]">
-                    <div className="bg-gradient-to-r from-purple-700 to-purple-600 text-white px-2 py-1 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
-                      <Sparkles className="h-2.5 w-2.5" />
-                      Class Teacher's Remark
+                    <div className="bg-gradient-to-r from-purple-700 to-purple-600 text-white px-2 py-1 text-[9px] font-black uppercase tracking-wider flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-1">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Class Teacher&apos;s Remark
+                      </div>
+                      <div className="no-print flex items-center gap-1">
+                        {!editingTeacher ? (
+                          <button
+                            onClick={() => {
+                              setTempTeacherComment(teacherComment)
+                              setEditingTeacher(true)
+                            }}
+                            className="h-4 w-4 rounded bg-white/20 hover:bg-white/30 flex items-center justify-center"
+                          >
+                            <Edit3 className="h-2.5 w-2.5" />
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={handleSaveTeacherComment}
+                              className="h-4 px-1 rounded bg-emerald-500 hover:bg-emerald-600 flex items-center gap-0.5 text-[8px] font-bold"
+                            >
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Save
+                            </button>
+                            <button
+                              onClick={() => setEditingTeacher(false)}
+                              className="h-4 w-4 rounded bg-white/20 hover:bg-white/30 flex items-center justify-center"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 p-2 text-[9px] italic leading-relaxed bg-gradient-to-r from-purple-50/50 to-white/70">
-                      {teacherComment || <span className="text-slate-400 not-italic">No teacher remark entered yet.</span>}
-                    </div>
+                    {editingTeacher ? (
+                      <Textarea
+                        value={tempTeacherComment}
+                        onChange={(e) => setTempTeacherComment(e.target.value)}
+                        className="flex-1 min-h-[50px] text-[9px] rounded-none border-0 focus-visible:ring-0 resize-none bg-purple-50/30"
+                        placeholder="Enter class teacher's remark..."
+                      />
+                    ) : (
+                      <div className="flex-1 p-2 text-[9px] italic leading-relaxed bg-gradient-to-r from-purple-50/50 to-white/70">
+                        {teacherComment || <span className="text-slate-400 not-italic">No teacher remark entered yet.</span>}
+                      </div>
+                    )}
                     <div className="px-2 py-0.5 text-[8px] text-purple-700 border-t border-purple-200 bg-purple-50/40 font-bold flex items-center justify-between shrink-0">
                       <span>Signed: {classTeacher}</span>
                       <span className="border-b border-dotted border-purple-400 w-16 inline-block" />
@@ -1110,13 +1061,90 @@ export default function PupilReportCardPage() {
 
                   {/* Head Master/Mistress Remark Panel */}
                   <div className="border-2 border-blue-700 rounded-lg overflow-hidden flex-1 flex flex-col bg-white/90 min-h-[85px]">
-                    <div className="bg-gradient-to-r from-blue-700 to-blue-600 text-white px-2 py-1 text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
-                      <ClipboardCheck className="h-2.5 w-2.5" />
-                      Head Master/Mistress's Remark
+                    <div className="bg-gradient-to-r from-blue-700 to-blue-600 text-white px-2 py-1 text-[9px] font-black uppercase tracking-wider flex items-center justify-between shrink-0">
+                      <div className="flex items-center gap-1">
+                        <ClipboardCheck className="h-2.5 w-2.5" />
+                        Head Master/Mistress&apos;s Remark
+                      </div>
+                      <div className="no-print flex items-center gap-1">
+                        {!editingPrincipal ? (
+                          <>
+                            <button
+                              onClick={handleRegeneratePrincipal}
+                              disabled={generatingComments}
+                              className="h-4 px-1 rounded bg-white/20 hover:bg-white/30 flex items-center gap-0.5 text-[8px] font-bold"
+                            >
+                              {generatingComments ? (
+                                <Loader2 className="h-2.5 w-2.5 animate-spin" />
+                              ) : (
+                                <>
+                                  <RotateCcw className="h-2.5 w-2.5" /> Auto-Generate Comment
+                                </>
+                              )}
+                            </button>
+                            <button
+                              onClick={() => {
+                                setTempPrincipalComment(principalComment)
+                                setEditingPrincipal(true)
+                              }}
+                              className="h-4 w-4 rounded bg-white/20 hover:bg-white/30 flex items-center justify-center"
+                            >
+                              <Edit3 className="h-2.5 w-2.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={handleSavePrincipalComment}
+                              className="h-4 px-1 rounded bg-emerald-500 hover:bg-emerald-600 flex items-center gap-0.5 text-[8px] font-bold"
+                            >
+                              <CheckCircle2 className="h-2.5 w-2.5" /> Save
+                            </button>
+                            <button
+                              onClick={() => setEditingPrincipal(false)}
+                              className="h-4 w-4 rounded bg-white/20 hover:bg-white/30 flex items-center justify-center"
+                            >
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 p-2 text-[9px] italic leading-relaxed bg-gradient-to-r from-blue-50/50 to-white/70">
-                      {principalComment || <span className="text-slate-400 not-italic">No remark entered yet.</span>}
-                    </div>
+                    {editingPrincipal ? (
+                      <Textarea
+                        value={tempPrincipalComment}
+                        onChange={(e) => setTempPrincipalComment(e.target.value)}
+                        className="flex-1 min-h-[50px] text-[9px] rounded-none border-0 focus-visible:ring-0 resize-none bg-blue-50/30"
+                        placeholder="Enter head master/mistress's remark..."
+                      />
+                    ) : (
+                      <div className="flex-1 p-2 text-[9px] italic leading-relaxed bg-gradient-to-r from-blue-50/50 to-white/70">
+                        {principalComment || (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="text-slate-600">{fallbackPrincipalRemark}</span>
+                            <div className="no-print">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleRegeneratePrincipal}
+                                disabled={generatingComments}
+                                className="mt-1 h-6 text-[8px] text-blue-700 bg-blue-50 hover:bg-blue-100 py-1 px-2 border border-blue-200"
+                              >
+                                {generatingComments ? (
+                                  <span className="flex items-center gap-1">
+                                    <Loader2 className="h-2.5 w-2.5 animate-spin" /> Generating AI Comment...
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1">
+                                    <Sparkles className="h-2.5 w-2.5 text-amber-500 fill-amber-500" /> Click to Generate AI Comment
+                                  </span>
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="px-2 py-0.5 text-[8px] text-blue-700 border-t border-blue-200 bg-blue-50/40 font-bold flex items-center justify-between shrink-0">
                       <span>Signed: Head Master/Mistress</span>
                       <span className="border-b border-dotted border-blue-400 w-16 inline-block" />
@@ -1186,7 +1214,7 @@ export default function PupilReportCardPage() {
                     </div>
                     <div className="p-1.5 space-y-0.5 text-[9px]">
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-600 font-semibold">Total</span>
+                        <span className="text-slate-600 font-semibold">Total Days</span>
                         <span className="font-black text-slate-900 tabular-nums">
                           {attendance.totalDays > 0 ? attendance.totalDays : "—"}
                         </span>
@@ -1214,7 +1242,7 @@ export default function PupilReportCardPage() {
                       {attendance.totalDays > 0 && (
                         <div className="pt-1 border-t border-blue-100">
                           <div className="flex justify-between items-center mb-0.5">
-                            <span className="text-slate-500 font-bold text-[8px] uppercase">Rate</span>
+                            <span className="text-slate-500 font-bold text-[8px] uppercase">Attendance Rate</span>
                             <span className={cn(
                               "font-black text-[10px] tabular-nums",
                               attendancePercentage >= 90 ? "text-emerald-600" :
@@ -1270,7 +1298,7 @@ export default function PupilReportCardPage() {
                     </div>
                   </div>
 
-                  {/* Rating keys & grading scale */}
+                  {/* Rating keys & grading scale configurations */}
                   <div className="border border-blue-300 rounded-lg overflow-hidden bg-white/90">
                     <div className="bg-blue-50 text-blue-800 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-center border-b border-blue-200">
                       Rating Key
@@ -1329,9 +1357,9 @@ export default function PupilReportCardPage() {
         </div>
       )}
 
-      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      {/* Page Footer */}
       <div className="no-print text-center text-xs text-slate-400 pt-4 mt-6 border-t border-slate-200/50">
-        <p>Vincollins Schools Pupil • Report Card</p>
+        <p>Vincollins Schools Admin · Report Card Dashboard</p>
         <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
       </div>
 

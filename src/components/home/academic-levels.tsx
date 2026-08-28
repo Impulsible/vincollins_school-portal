@@ -36,7 +36,7 @@ type Level = {
 const levels: Level[] = [
   {
     number: '01',
-    title: 'Crèche / Playgroup',
+    title: 'Playgroup',
     subtitle: 'Early Childhood Development',
     description:
       'A safe, secure and nurturing space where our youngest learners begin their journey through play, discovery and gentle care.',

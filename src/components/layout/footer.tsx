@@ -95,7 +95,7 @@ const socialLinks = [
 
 const footerNavItems = {
   academics: [
-    { id: 'creche',   title: 'Crèche / Playgroup', href: '/academics/creche-playgroup' },
+    { id: 'Playgroup',   title: 'Playgroup', href: '/academics/playgroup' },
     { id: 'nursery',  title: 'Nursery',             href: '/academics/nursery' },
     { id: 'primary',  title: 'Primary',             href: '/academics/primary' },
     { id: 'college',  title: 'College',             href: '/academics/college' },
@@ -374,14 +374,14 @@ export function Footer() {
 
             {/* Tagline */}
             <p className="text-[13.5px] leading-[1.75] text-white/55 max-w-sm">
-              Providing quality education from Crèche to College. Nurturing
-              future leaders with excellence, integrity, and innovation since 2022.
+              Providing quality education from Playgroup to College. Nurturing
+              future leaders with excellence, integrity, and innovation since 2010.
             </p>
 
             {/* Stat badges */}
             <div className="flex flex-wrap gap-2.5">
               {[
-                { icon: Award,  label: '4+ Years' },
+                { icon: Award,  label: '10+ Years' },
                 { icon: Shield, label: 'Accredited' },
                 { icon: Heart,  label: '50+ Alumni' },
               ].map(({ icon: Icon, label }) => (

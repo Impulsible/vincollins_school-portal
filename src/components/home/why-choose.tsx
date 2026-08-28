@@ -231,7 +231,7 @@ export const WhyChoose = () => {
             {/* Heading */}
             <h2 className="font-serif text-3xl font-bold leading-[1.1] tracking-tight text-slate-900 sm:text-4xl lg:text-5xl">
               Why Families Choose{' '}
-              <span className="italic text-[#0A2472]">Vincollins</span>
+              <span className="italic text-[#0A2472]">Vincollins Schools</span>
             </h2>
 
             {/* Sub-heading */}
