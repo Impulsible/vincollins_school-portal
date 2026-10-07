@@ -23,7 +23,7 @@ export const HeroSection = () => {
             <span className="relative inline-flex h-2 w-2 rounded-full bg-white" />
           </span>
           <p className="text-xs font-semibold tracking-wide text-white sm:text-sm">
-            <span className="sm:hidden">Admissions Open · 2025/2026</span>
+            <span className="sm:hidden">Admissions Open</span>
             <span className="hidden sm:inline">Admissions Open for Academic Year 2025/2026</span>
           </p>
           <Link
@@ -106,7 +106,7 @@ export const HeroSection = () => {
               </button>
             </Link>
 
-            <Link href="/portal/login" className="w-full sm:w-auto">
+            <Link href="/portal" className="w-full sm:w-auto">
               <button className="inline-flex w-full items-center justify-center gap-2 rounded-full border border-white/40 bg-white/10 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 hover:border-white/60 hover:bg-white/20 sm:w-auto">
                 Login to Portal
               </button>
@@ -200,7 +200,7 @@ export const HeroSection = () => {
                 </button>
               </Link>
 
-              <Link href="/portal/login">
+              <Link href="/portal">
                 <button className="inline-flex items-center gap-2 rounded-full border border-white/40 bg-white/8 px-7 py-3.5 text-sm font-semibold text-white backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5 hover:border-white/60 hover:bg-white/15">
                   Login to Portal
                 </button>

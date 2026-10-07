@@ -11,7 +11,7 @@ import {
   X, ChevronRight, Info, CheckCircle, AlertCircle, AlertTriangle,
   Shield, Activity, TrendingUp, Zap, Sun, Moon, Sunset, Sunrise,
   Calendar, Clock, Timer, Quote, GraduationCap, RefreshCw,
-  BookOpen, Users, Sparkles,
+  BookOpen, Users, Sparkles, RotateCcw,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 
@@ -32,7 +32,45 @@ interface AdminBannerProps {
   className?: string
   onDismiss?: () => void
   userName?: string
+  userId?: string          // 👈 NEW — scopes the timer per user
   termInfo?: { term: string; session: string } | null
+}
+
+// ── Session persistence helpers ────────────────────────────────────────────────
+const SESSION_PREFIX = 'admin_session_start'
+
+/** Storage key per user (falls back to global if no userId) */
+function sessionKey(userId?: string) {
+  return userId ? `${SESSION_PREFIX}:${userId}` : SESSION_PREFIX
+}
+
+/** Read stored session start (returns null if none) */
+function readSessionStart(userId?: string): Date | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = localStorage.getItem(sessionKey(userId))
+    if (!raw) return null
+    const d = new Date(raw)
+    return isNaN(d.getTime()) ? null : d
+  } catch {
+    return null
+  }
+}
+
+/** Write session start */
+function writeSessionStart(userId: string | undefined, date: Date) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(sessionKey(userId), date.toISOString())
+  } catch {}
+}
+
+/** Clear session start — call this from your logout handler */
+export function resetAdminSession(userId?: string) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.removeItem(sessionKey(userId))
+  } catch {}
 }
 
 // ── Quote bank (unchanged) ─────────────────────────────────────────────────────
@@ -88,8 +126,6 @@ const BANNER_CFG: Record<BannerType, {
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'admin_session_start'
-
 function getTimePeriod(h: number): TimePeriod {
   if (h >= 4  && h < 6)  return 'dawn'
   if (h >= 6  && h < 12) return 'morning'
@@ -146,15 +182,17 @@ function ClockTile({
   label,
   children,
   accent = false,
+  onReset,
 }: {
   icon: React.ElementType
   label: string
   children: React.ReactNode
   accent?: boolean
+  onReset?: () => void
 }) {
   return (
     <div className={cn(
-      'relative flex flex-col gap-1 rounded-xl border px-3 py-2.5 backdrop-blur-sm',
+      'relative flex flex-col gap-1 rounded-xl border px-3 py-2.5 backdrop-blur-sm group',
       accent
         ? 'border-amber-300/25 bg-gradient-to-br from-amber-400/12 via-amber-300/6 to-transparent'
         : 'border-white/10 bg-white/6',
@@ -164,6 +202,18 @@ function ClockTile({
         <span className={cn('text-[9px] font-black uppercase tracking-widest', accent ? 'text-amber-200/70' : 'text-blue-200/55')}>
           {label}
         </span>
+        {onReset && (
+          <button
+            type="button"
+            onClick={onReset}
+            title="Reset session timer"
+            className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity
+                       w-4 h-4 rounded flex items-center justify-center
+                       hover:bg-white/10 text-white/40 hover:text-white/80"
+          >
+            <RotateCcw className="w-2.5 h-2.5" />
+          </button>
+        )}
       </div>
       <div className="text-white font-bold tabular-nums leading-none">{children}</div>
     </div>
@@ -183,7 +233,6 @@ function BannerStrip({ banner, onDismiss }: { banner: BannerMessage; onDismiss: 
       transition={{ duration: 0.25, ease: 'easeInOut' }}
       className={cn('overflow-hidden rounded-xl border backdrop-blur-sm', cfg.bg, cfg.border)}
     >
-      {/* left accent bar */}
       <div className="flex">
         <div className={cn('w-1 shrink-0 rounded-l-xl', cfg.bar)} />
         <div className="flex items-start gap-3 px-4 py-3 flex-1 min-w-0">
@@ -229,7 +278,7 @@ function BannerStrip({ banner, onDismiss }: { banner: BannerMessage; onDismiss: 
 }
 
 // ── Main Banner ────────────────────────────────────────────────────────────────
-export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminBannerProps) {
+export function AdminBanner({ className, onDismiss, userName, userId, termInfo }: AdminBannerProps) {
   const [now,          setNow]          = useState<Date>(() => new Date())
   const [sessionStart, setSessionStart] = useState<Date | null>(null)
   const [quoteIndex,   setQuoteIndex]   = useState(0)
@@ -239,20 +288,43 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
 
   const firstName = (userName?.split(' ')[0] || 'Admin')
 
-  // Clock
+  // ── Persistent session clock ────────────────────────────────────────────────
+  // On mount: read stored session start; if none, create one.
+  // We DO NOT clear on unload — timer persists across tab close / logout
+  // unless resetAdminSession() is explicitly called.
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) setSessionStart(new Date(stored))
-    else {
-      const s = new Date()
-      localStorage.setItem(STORAGE_KEY, s.toISOString())
-      setSessionStart(s)
+    const existing = readSessionStart(userId)
+    if (existing) {
+      setSessionStart(existing)
+    } else {
+      const fresh = new Date()
+      writeSessionStart(userId, fresh)
+      setSessionStart(fresh)
     }
+
     const tick = setInterval(() => setNow(new Date()), 1000)
-    const clear = () => localStorage.removeItem(STORAGE_KEY)
-    window.addEventListener('beforeunload', clear)
-    return () => { clearInterval(tick); window.removeEventListener('beforeunload', clear) }
-  }, [])
+    return () => clearInterval(tick)
+  }, [userId])
+
+  // Handle user switch (logout → different login) — restart timer for new user
+  useEffect(() => {
+    if (!userId) return
+    const existing = readSessionStart(userId)
+    if (!existing) {
+      const fresh = new Date()
+      writeSessionStart(userId, fresh)
+      setSessionStart(fresh)
+    } else {
+      setSessionStart(existing)
+    }
+  }, [userId])
+
+  // Manual reset handler
+  const handleResetSession = useCallback(() => {
+    const fresh = new Date()
+    writeSessionStart(userId, fresh)
+    setSessionStart(fresh)
+  }, [userId])
 
   // Load banners
   useEffect(() => {
@@ -290,12 +362,12 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
   const dateShort    = useMemo(() => now.toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' }), [now])
   const onlineFull   = useMemo(() => {
     if (!sessionStart) return '00:00:00'
-    const t = Math.floor((now.getTime() - sessionStart.getTime()) / 1000)
+    const t = Math.max(0, Math.floor((now.getTime() - sessionStart.getTime()) / 1000))
     return [Math.floor(t/3600), Math.floor((t%3600)/60), t%60].map(n => String(n).padStart(2,'0')).join(':')
   }, [now, sessionStart])
   const onlineShort  = useMemo(() => {
     if (!sessionStart) return '0m'
-    const t = Math.floor((now.getTime() - sessionStart.getTime()) / 1000)
+    const t = Math.max(0, Math.floor((now.getTime() - sessionStart.getTime()) / 1000))
     const h = Math.floor(t/3600), m = Math.floor((t%3600)/60)
     return h > 0 ? `${h}h ${m}m` : `${m}m`
   }, [now, sessionStart])
@@ -318,15 +390,7 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
 
   return (
     <div className={cn('space-y-2.5', className)}>
-
-      {/*
-        ══════════════════════════════════════════════════════════
-        HERO BANNER
-        Layout:
-          [Left: greeting + name + term badge]  [Right: clock tiles]
-          [Bottom: quote strip]
-        ══════════════════════════════════════════════════════════
-      */}
+      {/* HERO BANNER */}
       <div
         className="relative w-full overflow-hidden rounded-2xl shadow-lg ring-1 ring-white/10"
         style={{
@@ -334,7 +398,6 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
           isolation: 'isolate',
         }}
       >
-        {/* Decorative glows */}
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-blue-500/10 blur-3xl" />
           <div className="absolute -bottom-16 -left-16 w-60 h-60 rounded-full bg-indigo-600/10 blur-3xl" />
@@ -342,8 +405,7 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
         </div>
 
         <div className="relative z-10">
-
-          {/* ── TOP BAR: portal label + live badge ────────────────────────── */}
+          {/* TOP BAR */}
           <div className="flex items-center justify-between px-5 pt-4 pb-0">
             <div className="flex items-center gap-2">
               <div className="h-7 w-7 rounded-lg bg-white/10 border border-white/15 flex items-center justify-center">
@@ -363,45 +425,31 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
             </div>
 
             <div className="flex items-center gap-3">
-              {/* Term badge */}
-              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full
-                              bg-white/8 border border-white/10">
+              <div className="hidden sm:flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/8 border border-white/10">
                 <BookOpen className="h-3 w-3 text-blue-300/70" />
-                <span className="text-[10px] font-semibold text-blue-200/70">
-                  {academicInfo.term}
-                </span>
+                <span className="text-[10px] font-semibold text-blue-200/70">{academicInfo.term}</span>
               </div>
-              {/* Live dot */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full
-                              bg-emerald-400/10 border border-emerald-400/25">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-400/10 border border-emerald-400/25">
                 <LivePulse />
-                <span className="text-[10px] font-black text-emerald-300 uppercase tracking-wider">
-                  Live
-                </span>
+                <span className="text-[10px] font-black text-emerald-300 uppercase tracking-wider">Live</span>
               </div>
             </div>
           </div>
 
-          {/* ── MAIN CONTENT: 2-col on md+ ─────────────────────────────────── */}
+          {/* MAIN CONTENT */}
           <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4 px-5 py-5">
-
-            {/* LEFT: greeting + name */}
             <div className="flex flex-col justify-center gap-2 min-w-0">
-              {/* Greeting line */}
               <div className="flex items-center gap-2">
-                <div className="h-6 w-6 rounded-lg bg-amber-400/15 border border-amber-300/20
-                                flex items-center justify-center shrink-0">
+                <div className="h-6 w-6 rounded-lg bg-amber-400/15 border border-amber-300/20 flex items-center justify-center shrink-0">
                   <GreetIcon className="h-3.5 w-3.5 text-amber-300" />
                 </div>
                 <span className="text-[12px] text-blue-100/70 font-medium">{greeting}</span>
               </div>
 
-              {/* Name */}
               <div>
                 <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">
                   Welcome back,{' '}
-                  <span className="bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-200
-                                   bg-clip-text text-transparent">
+                  <span className="bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-200 bg-clip-text text-transparent">
                     {firstName}
                   </span>
                 </h1>
@@ -410,15 +458,13 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
                 </p>
               </div>
 
-              {/* Quick-info pills row */}
               <div className="flex flex-wrap items-center gap-2 mt-1">
                 {[
                   { icon: Activity,  label: 'All systems operational', color: 'text-emerald-300', bg: 'bg-emerald-400/10 border-emerald-400/20' },
                   { icon: TrendingUp, label: 'Real-time sync active',  color: 'text-blue-300',    bg: 'bg-blue-400/10 border-blue-400/20' },
                   { icon: Zap,        label: 'Optimal performance',    color: 'text-amber-300',   bg: 'bg-amber-400/10 border-amber-400/20' },
                 ].map(({ icon: Icon, label, color, bg }) => (
-                  <div key={label}
-                    className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold', bg, color)}>
+                  <div key={label} className={cn('flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-semibold', bg, color)}>
                     <Icon className={cn('h-3 w-3 shrink-0', color)} />
                     <span className="text-white/70">{label}</span>
                   </div>
@@ -426,15 +472,13 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
               </div>
             </div>
 
-            {/* RIGHT: clock tiles */}
+            {/* CLOCK TILES */}
             <div className="flex flex-row md:flex-col gap-2 md:w-44">
-              {/* Date */}
               <ClockTile icon={Calendar} label="Date">
                 <span className="md:hidden text-[11px]">{dateShort}</span>
                 <span className="hidden md:block text-[12px] leading-snug">{dateLong}</span>
               </ClockTile>
 
-              {/* Time */}
               <ClockTile icon={Clock} label="Time">
                 <span className="md:hidden flex items-baseline gap-1">
                   <span className="font-mono text-[12px]">{timeShort.time}</span>
@@ -446,15 +490,15 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
                 </span>
               </ClockTile>
 
-              {/* Session timer */}
-              <ClockTile icon={Timer} label="Online" accent>
+              {/* PERSISTENT Online tile with reset button */}
+              <ClockTile icon={Timer} label="Online" accent onReset={handleResetSession}>
                 <span className="md:hidden font-mono text-[12px]">{onlineShort}</span>
                 <span className="hidden md:block font-mono text-[14px] tracking-tight">{onlineFull}</span>
               </ClockTile>
             </div>
           </div>
 
-          {/* ── QUOTE STRIP ──────────────────────────────────────────────────── */}
+          {/* QUOTE STRIP */}
           <div className="mx-5 mb-4 rounded-xl border border-white/8 bg-white/4 backdrop-blur-sm px-4 py-3">
             <AnimatePresence mode="wait">
               <motion.div
@@ -465,8 +509,7 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
                 transition={{ duration: 0.3, ease: 'easeOut' }}
                 className="flex items-start gap-3"
               >
-                <div className="h-7 w-7 rounded-lg bg-amber-400/12 border border-amber-300/20
-                                flex items-center justify-center shrink-0 mt-0.5">
+                <div className="h-7 w-7 rounded-lg bg-amber-400/12 border border-amber-300/20 flex items-center justify-center shrink-0 mt-0.5">
                   <Quote className="h-3.5 w-3.5 text-amber-300" />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -480,9 +523,7 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
                     </div>
                     <button
                       onClick={() => setQuoteIndex(i => i + 1)}
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold
-                                 border border-white/10 hover:border-white/25 text-white/40 hover:text-white/70
-                                 hover:bg-white/8 transition-all duration-200"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-semibold border border-white/10 hover:border-white/25 text-white/40 hover:text-white/70 hover:bg-white/8 transition-all duration-200"
                     >
                       <RefreshCw className="w-2.5 h-2.5" />
                       New quote
@@ -494,11 +535,10 @@ export function AdminBanner({ className, onDismiss, userName, termInfo }: AdminB
           </div>
         </div>
 
-        {/* Bottom accent bar */}
         <div className="h-0.5 bg-gradient-to-r from-amber-500 via-amber-300 to-yellow-200" />
       </div>
 
-      {/* ── Alert strips ────────────────────────────────────────────────────── */}
+      {/* Alert strips */}
       <AnimatePresence initial={false}>
         {banners.map(banner => (
           <BannerStrip key={banner.id} banner={banner} onDismiss={handleDismiss} />

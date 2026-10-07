@@ -86,14 +86,14 @@ const MANAGEMENT_TILES = [
   },
 ]
 
-// ── Tone Palette (single source of truth) ────────────────────────────
+// ── Tone Palette ─────────────────────────────────────────────────────
 const TONES = {
   emerald: { icon: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-100', accent: 'bg-emerald-500', from: 'from-emerald-500', to: 'to-teal-600', hover: 'hover:border-emerald-200' },
-  blue: { icon: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100', accent: 'bg-blue-500', from: 'from-blue-500', to: 'to-indigo-600', hover: 'hover:border-blue-200' },
-  amber: { icon: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100', accent: 'bg-amber-500', from: 'from-amber-500', to: 'to-orange-600', hover: 'hover:border-amber-200' },
-  violet: { icon: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-100', accent: 'bg-violet-500', from: 'from-violet-500', to: 'to-purple-600', hover: 'hover:border-violet-200' },
-  cyan: { icon: 'text-cyan-600', bg: 'bg-cyan-50', border: 'border-cyan-100', accent: 'bg-cyan-500', from: 'from-cyan-500', to: 'to-blue-600', hover: 'hover:border-cyan-200' },
-  slate: { icon: 'text-slate-600', bg: 'bg-slate-100', border: 'border-slate-200', accent: 'bg-slate-500', from: 'from-slate-500', to: 'to-slate-600', hover: 'hover:border-slate-300' },
+  blue:    { icon: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-100',    accent: 'bg-blue-500',    from: 'from-blue-500',    to: 'to-indigo-600',  hover: 'hover:border-blue-200' },
+  amber:   { icon: 'text-amber-600',   bg: 'bg-amber-50',   border: 'border-amber-100',   accent: 'bg-amber-500',   from: 'from-amber-500',   to: 'to-orange-600',  hover: 'hover:border-amber-200' },
+  violet:  { icon: 'text-violet-600',  bg: 'bg-violet-50',  border: 'border-violet-100',  accent: 'bg-violet-500',  from: 'from-violet-500',  to: 'to-purple-600',  hover: 'hover:border-violet-200' },
+  cyan:    { icon: 'text-cyan-600',    bg: 'bg-cyan-50',    border: 'border-cyan-100',    accent: 'bg-cyan-500',    from: 'from-cyan-500',    to: 'to-blue-600',    hover: 'hover:border-cyan-200' },
+  slate:   { icon: 'text-slate-600',   bg: 'bg-slate-100',  border: 'border-slate-200',   accent: 'bg-slate-500',   from: 'from-slate-500',   to: 'to-slate-600',   hover: 'hover:border-slate-300' },
 } as const
 
 // ── Animations ───────────────────────────────────────────────────────
@@ -310,7 +310,6 @@ function UserBreakdown({ stats, loading }: { stats: Stats; loading: boolean }) {
 
   return (
     <div className="space-y-3">
-      {/* Stacked bar */}
       <div className="h-2 bg-slate-100 rounded-full overflow-hidden flex">
         {segments.map(({ label, pct, tone }) => (
           <motion.div
@@ -323,7 +322,6 @@ function UserBreakdown({ stats, loading }: { stats: Stats; loading: boolean }) {
         ))}
       </div>
 
-      {/* Legend */}
       <div className="space-y-1.5">
         {segments.map(({ label, value, pct, tone }) => (
           <div key={label} className="flex items-center gap-2">
@@ -463,6 +461,7 @@ export default function AdminDashboardPage() {
         <motion.div variants={fadeInUp}>
           <AdminBanner
             userName={user?.full_name || user?.first_name || 'Admin'}
+            userId={user?.id}
             termInfo={{
               term: schoolSettings?.current_term || 'Not Set',
               session: schoolSettings?.current_session || 'Not Set',
@@ -570,7 +569,6 @@ export default function AdminDashboardPage() {
             {/* School Info Card */}
             <motion.div variants={fadeInUp}>
               <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
-                {/* Header with logo */}
                 <div
                   className="relative h-20"
                   style={{
@@ -606,7 +604,6 @@ export default function AdminDashboardPage() {
                     Administration Portal
                   </p>
 
-                  {/* Term info inline */}
                   <div className="mt-4 pt-4 border-t border-slate-100 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1.5">
