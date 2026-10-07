@@ -106,7 +106,7 @@ export const CTA = () => {
               {...makeAnim(0.36)}
               className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center"
             >
-              <Link href="/admissions" className="w-full sm:w-auto">
+              <Link href="/admission" className="w-full sm:w-auto">
                 <button className="group inline-flex w-full items-center justify-center gap-2 rounded-full bg-gradient-to-br from-[#F5A623] to-amber-500 px-8 py-4 text-sm font-bold text-slate-900 shadow-[0_10px_40px_rgba(245,166,35,0.4)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_16px_50px_rgba(245,166,35,0.55)] sm:w-auto">
                   <Sparkles className="h-4 w-4" />
                   Enroll Now

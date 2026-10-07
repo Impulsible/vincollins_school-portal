@@ -130,12 +130,6 @@ const getDepartment = (value?: string) =>
 const getTitleLabel = (value?: string) =>
   TITLES.find((t) => t.value === value)?.label ?? ''
 
-const generateEmail = (firstName: string, lastName: string): string => {
-  const f = firstName.toLowerCase().replace(/[^a-z]/g, '').substring(0, 15) || 'user'
-  const l = lastName.toLowerCase().replace(/[^a-z]/g, '').substring(0, 15) || 'account'
-  return `${f}.${l}@vincollins.edu.ng`
-}
-
 const buildFullName = (f: StaffFormData) =>
   [f.first_name, f.middle_name, f.last_name].filter(Boolean).join(' ')
 
@@ -338,20 +332,30 @@ export default function StaffManagement({ staff, onRefresh, loading = false }: S
     setModal('edit')
   }
 
+  // ─── CREATE Handler ──────────────────────────────────────────────────────
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // Validation
-    if (!createForm.first_name.trim()) return toast.error('First name is required')
-    if (!createForm.last_name.trim()) return toast.error('Last name is required')
-    if (!createForm.department) return toast.error('Please select a department')
+    if (!createForm.first_name.trim()) {
+      toast.error('First name is required')
+      return
+    }
+    if (!createForm.last_name.trim()) {
+      toast.error('Last name is required')
+      return
+    }
+    if (!createForm.department) {
+      toast.error('Please select a department')
+      return
+    }
 
     setIsSubmitting(true)
     try {
-      const email = generateEmail(createForm.first_name, createForm.last_name)
       const fullName = buildFullName(createForm)
 
-      const payload: any = {
+      // Build the payload. The API handles email generation and duplicate checks.
+      const payload: Record<string, any> = {
         first_name: createForm.first_name.trim(),
         middle_name: createForm.middle_name.trim() || '',
         last_name: createForm.last_name.trim(),
@@ -359,34 +363,51 @@ export default function StaffManagement({ staff, onRefresh, loading = false }: S
         display_name: fullName,
         department: createForm.department,
         role: 'staff',
-        email,
       }
+
       if (createForm.phone.trim()) payload.phone = createForm.phone.trim()
       if (createForm.address.trim()) payload.address = createForm.address.trim()
       if (createForm.gender) payload.gender = createForm.gender
       if (createForm.title) payload.title = createForm.title
-      if (createForm.date_joined) payload.join_year = new Date(createForm.date_joined).getFullYear().toString()
+      if (createForm.date_joined) {
+        payload.join_year = new Date(createForm.date_joined).getFullYear().toString()
+      }
+
+      console.log('📤 [StaffManagement] Submitting payload:', payload)
 
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
+
       const data = await res.json()
-      if (!res.ok || !data.success) throw new Error(data.error || 'Failed to create staff')
+      console.log('📥 [StaffManagement] API response:', data)
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || `Failed to create staff (HTTP ${res.status})`)
+      }
 
       const vinId = data.user?.vin_id || data.credentials?.vin_id || 'N/A'
-      toast.success(`Staff added! VIN: ${vinId}`, { duration: 6000 })
+      const email = data.user?.email || data.credentials?.email || 'N/A'
+
+      toast.success(
+        `Staff created successfully!\nEmail: ${email}\nVIN / Password: ${vinId}`,
+        { duration: 10000 }
+      )
+
       setCreateForm(EMPTY_FORM)
       closeModal()
       await onRefresh()
-    } catch (e: any) {
-      toast.error(e.message)
+    } catch (err: any) {
+      console.error('❌ [StaffManagement] Create failed:', err)
+      toast.error(err.message || 'An unexpected error occurred')
     } finally {
       setIsSubmitting(false)
     }
   }
 
+  // ─── UPDATE Handler ──────────────────────────────────────────────────────
   const handleSaveEdit = async () => {
     if (!selected) return
     setIsSubmitting(true)
@@ -408,6 +429,7 @@ export default function StaffManagement({ staff, onRefresh, loading = false }: S
     }
   }
 
+  // ─── DELETE Handler ──────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!selected) return
     setIsSubmitting(true)
@@ -425,6 +447,7 @@ export default function StaffManagement({ staff, onRefresh, loading = false }: S
     }
   }
 
+  // ─── TOGGLE Status Handler ───────────────────────────────────────────────
   const handleToggleStatus = async (m: Staff) => {
     try {
       const res = await fetch('/api/admin/users', {
@@ -848,6 +871,9 @@ export default function StaffManagement({ staff, onRefresh, loading = false }: S
                     .{(createForm.last_name || 'last').toLowerCase().replace(/[^a-z]/g, '') || 'last'}
                     @vincollins.edu.ng
                   </code>
+                  <p className="text-[9px] text-blue-500 mt-1">
+                    If this email exists, a number suffix will be added automatically.
+                  </p>
                 </div>
               </div>
             </div>
