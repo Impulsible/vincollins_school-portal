@@ -40,6 +40,35 @@ function generateVINId(role: string, year: number): string {
   return `${prefix}-${year}-${randomNum}`
 }
 
+// ─── Helper: Check admission number uniqueness ────────────────────────────────
+async function checkAdmissionNumberUnique(
+  supabaseAdmin: ReturnType<typeof getSupabaseAdmin>,
+  admissionNumber: string,
+  excludeUserId?: string
+): Promise<{ unique: boolean; conflictName?: string }> {
+  const admNo = admissionNumber.trim().toUpperCase()
+  if (!admNo) return { unique: true }  // empty → always allowed
+
+  let query = supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, display_name')
+    .eq('admission_number', admNo)
+
+  if (excludeUserId) {
+    query = query.neq('id', excludeUserId)
+  }
+
+  const { data } = await query.maybeSingle()
+
+  if (data) {
+    return {
+      unique: false,
+      conflictName: data.full_name || data.display_name || 'another pupil',
+    }
+  }
+  return { unique: true }
+}
+
 // ─── GET: Fetch users ─────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
   try {
@@ -95,7 +124,7 @@ export async function POST(req: NextRequest) {
     const role = (body.role || '').toLowerCase()
     const studentClass = body.class || body.studentClass || ''
     const department = body.department || ''
-    const admissionNumber = body.admission_number || body.admissionNumber || ''
+    const admissionNumber = (body.admission_number || body.admissionNumber || '').trim().toUpperCase()
     const admissionYear = body.admission_year || body.admissionYear
     const gender = body.gender || null
     const customEmail = body.email || body.customEmail || ''
@@ -125,6 +154,17 @@ export async function POST(req: NextRequest) {
         { success: false, error: 'Class and Admission Year are required for student accounts.' },
         { status: 400 }
       )
+    }
+
+    // ─── 1b. Admission Number — OPTIONAL but must be unique if provided ─
+    if (admissionNumber) {
+      const { unique, conflictName } = await checkAdmissionNumberUnique(supabaseAdmin, admissionNumber)
+      if (!unique) {
+        return NextResponse.json(
+          { success: false, error: `Admission number "${admissionNumber}" already exists for ${conflictName}` },
+          { status: 409 }
+        )
+      }
     }
 
     // Parse Integer fields safely
@@ -251,7 +291,8 @@ export async function POST(req: NextRequest) {
     if (role === 'student' || role === 'pupil') {
       if (studentClass.trim()) profileData.class = studentClass.trim()
       if (admissionYear && !isNaN(parseInt(admissionYear))) profileData.admission_year = parseInt(admissionYear)
-      if (admissionNumber.trim()) profileData.admission_number = admissionNumber.trim()
+      // 👇 Admission number is OPTIONAL — store null if not provided
+      profileData.admission_number = admissionNumber || null
       if (guardianName.trim()) profileData.guardian_name = guardianName.trim()
       if (guardianPhone.trim()) profileData.guardian_phone = guardianPhone.trim()
       if (guardianEmail.trim()) profileData.guardian_email = guardianEmail.trim()
@@ -309,54 +350,79 @@ export async function PUT(req: NextRequest) {
     const supabaseAdmin = getSupabaseAdmin()
     const body = await req.json()
 
-    const {
-      id,
-      first_name,
-      middle_name,
-      last_name,
-      class: studentClass,
-      gender,
-      phone,
-      address,
-      date_of_birth,
-      guardian_name,
-      guardian_phone,
-      guardian_email,
-      admission_number,
-      admission_year,
-      is_active,
-      role,
-      full_name,
-      department,
-      title,
-    } = body
+    const { id, is_active } = body
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 })
+    }
+
+    // ─── 1. Admission Number — OPTIONAL but must be unique if provided ──
+    // Only check if the client explicitly sent the field
+    const hasAdmissionNumberField = 'admission_number' in body
+    const rawAdmissionNumber = hasAdmissionNumberField
+      ? (body.admission_number || '').toString().trim().toUpperCase()
+      : undefined
+
+    if (hasAdmissionNumberField && rawAdmissionNumber) {
+      const { unique, conflictName } = await checkAdmissionNumberUnique(
+        supabaseAdmin,
+        rawAdmissionNumber,
+        id
+      )
+      if (!unique) {
+        return NextResponse.json(
+          { success: false, error: `Admission number "${rawAdmissionNumber}" already exists for ${conflictName}` },
+          { status: 409 }
+        )
+      }
     }
 
     const updateData: Record<string, any> = {
       updated_at: new Date().toISOString(),
     }
 
-    if (first_name) updateData.first_name = capitalizeWords(first_name.trim())
-    if (last_name) updateData.last_name = capitalizeWords(last_name.trim())
-    if (middle_name) updateData.middle_name = capitalizeWords(middle_name.trim())
-    if (full_name) updateData.full_name = full_name
-    if (studentClass) updateData.class = studentClass
-    if (gender) updateData.gender = gender
-    if (phone) updateData.phone = phone
-    if (address) updateData.address = address
-    if (date_of_birth) updateData.date_of_birth = date_of_birth
-    if (guardian_name) updateData.guardian_name = guardian_name
-    if (guardian_phone) updateData.guardian_phone = guardian_phone
-    if (guardian_email) updateData.guardian_email = guardian_email
-    if (admission_number) updateData.admission_number = admission_number
-    if (admission_year) updateData.admission_year = parseInt(admission_year)
-    if (is_active !== undefined) updateData.is_active = is_active
-    if (role) updateData.role = role
-    if (department) updateData.department = department
-    if (title) updateData.title = title
+    // ─── 2. Apply optional fields only when present in payload ──────────
+    // For text fields, allow empty string → store as null (clears the field)
+    if ('first_name' in body && body.first_name !== undefined)
+      updateData.first_name = capitalizeWords(String(body.first_name).trim())
+    if ('last_name' in body && body.last_name !== undefined)
+      updateData.last_name = capitalizeWords(String(body.last_name).trim())
+    if ('middle_name' in body && body.middle_name !== undefined)
+      updateData.middle_name = body.middle_name ? capitalizeWords(String(body.middle_name).trim()) : null
+    if ('full_name' in body && body.full_name !== undefined)
+      updateData.full_name = body.full_name || null
+    if ('class' in body && body.class !== undefined)
+      updateData.class = body.class || null
+    if ('gender' in body && body.gender !== undefined)
+      updateData.gender = body.gender || null
+    if ('phone' in body && body.phone !== undefined)
+      updateData.phone = body.phone || null
+    if ('address' in body && body.address !== undefined)
+      updateData.address = body.address || null
+    if ('date_of_birth' in body && body.date_of_birth !== undefined)
+      updateData.date_of_birth = body.date_of_birth || null
+    if ('guardian_name' in body && body.guardian_name !== undefined)
+      updateData.guardian_name = body.guardian_name || null
+    if ('guardian_phone' in body && body.guardian_phone !== undefined)
+      updateData.guardian_phone = body.guardian_phone || null
+    if ('guardian_email' in body && body.guardian_email !== undefined)
+      updateData.guardian_email = body.guardian_email || null
+
+    // 👇 Admission number — store null if empty/cleared
+    if (hasAdmissionNumberField) {
+      updateData.admission_number = rawAdmissionNumber || null
+    }
+
+    if ('admission_year' in body && body.admission_year !== undefined && body.admission_year !== '')
+      updateData.admission_year = parseInt(body.admission_year)
+    if (is_active !== undefined)
+      updateData.is_active = is_active
+    if ('role' in body && body.role)
+      updateData.role = body.role
+    if ('department' in body && body.department !== undefined)
+      updateData.department = body.department || null
+    if ('title' in body && body.title !== undefined)
+      updateData.title = body.title || null
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')

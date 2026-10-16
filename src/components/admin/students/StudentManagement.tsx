@@ -372,19 +372,18 @@ export function StudentManagement() {
       toast.error('Please select a class')
       return
     }
-    if (!createForm.admission_number.trim()) {
-      toast.error('Admission number is required')
-      return
-    }
+    // 👇 Admission number is now OPTIONAL — no required check
 
-    // ── Check duplicate admission number ─────────────────────────────────
+    // ── Check duplicate admission number (only if provided) ──────────────
     const admNo = createForm.admission_number.trim().toUpperCase()
-    const duplicate = students.find(
-      (s) => s.admission_number?.toUpperCase() === admNo
-    )
-    if (duplicate) {
-      toast.error(`Admission number "${admNo}" already exists for ${duplicate.full_name}`)
-      return
+    if (admNo) {
+      const duplicate = students.find(
+        (s) => s.admission_number?.toUpperCase() === admNo
+      )
+      if (duplicate) {
+        toast.error(`Admission number "${admNo}" already exists for ${duplicate.full_name}`)
+        return
+      }
     }
 
     setIsSubmitting(true)
@@ -395,7 +394,7 @@ export function StudentManagement() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...createForm,
-          admission_number: admNo,
+          admission_number: admNo,  // may be empty string
           role: 'pupil',
           full_name: fullName,
           display_name: fullName,
@@ -417,22 +416,20 @@ export function StudentManagement() {
   const handleSaveEdit = async () => {
     if (!selectedStudent) return
 
-    // ── Validate required fields ─────────────────────────────────────────
-    if (!editForm.admission_number?.trim()) {
-      toast.error('Admission number is required')
-      return
-    }
+    // 👇 Admission number is now OPTIONAL — no required check
 
-    // ── Check duplicate admission number (excluding self) ────────────────
-    const admNo = editForm.admission_number.trim().toUpperCase()
-    const duplicate = students.find(
-      (s) =>
-        s.id !== selectedStudent.id &&
-        s.admission_number?.toUpperCase() === admNo
-    )
-    if (duplicate) {
-      toast.error(`Admission number "${admNo}" already exists for ${duplicate.full_name}`)
-      return
+    // ── Check duplicate admission number (only if provided, excluding self) ─
+    const admNo = (editForm.admission_number || '').trim().toUpperCase()
+    if (admNo) {
+      const duplicate = students.find(
+        (s) =>
+          s.id !== selectedStudent.id &&
+          s.admission_number?.toUpperCase() === admNo
+      )
+      if (duplicate) {
+        toast.error(`Admission number "${admNo}" already exists for ${duplicate.full_name}`)
+        return
+      }
     }
 
     setIsSubmitting(true)
@@ -443,7 +440,7 @@ export function StudentManagement() {
         body: JSON.stringify({
           id: selectedStudent.id,
           ...editForm,
-          admission_number: admNo,
+          admission_number: admNo,  // may be empty string
         }),
       })
       const data = await res.json()
@@ -881,15 +878,15 @@ export function StudentManagement() {
                       onChange={(e) => setCreateForm({ ...createForm, admission_year: e.target.value })}
                       className="h-10 rounded-xl border-slate-200 text-sm" />
                   </Field>
+                  {/* 👇 Admission No. is now OPTIONAL */}
                   <Field
-                    label="Admission No. *"
+                    label="Admission No."
                     id="ano"
-                    helper="Must be unique"
+                    helper="Optional · Must be unique if provided"
                   >
                     <Input
                       id="ano"
                       value={createForm.admission_number}
-                      required
                       placeholder="e.g. PUP001"
                       onChange={(e) => setCreateForm({ ...createForm, admission_number: e.target.value.toUpperCase() })}
                       className="h-10 rounded-xl border-slate-200 text-sm font-mono"
@@ -1021,11 +1018,12 @@ export function StudentManagement() {
                   onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
                   className="h-10 rounded-xl border-slate-200 text-sm" />
               </Field>
-              <Field label="Admission No. *" id="ean" helper="Must be unique">
+              {/* 👇 Admission No. is now OPTIONAL */}
+              <Field label="Admission No." id="ean" helper="Optional · Must be unique if provided">
                 <Input
                   id="ean"
                   value={editForm.admission_number || ''}
-                  required
+                  placeholder="e.g. PUP001"
                   onChange={(e) => setEditForm({ ...editForm, admission_number: e.target.value.toUpperCase() })}
                   className="h-10 rounded-xl border-slate-200 text-sm font-mono"
                 />
