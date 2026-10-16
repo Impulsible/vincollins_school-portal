@@ -32,12 +32,13 @@ interface AdminBannerProps {
   className?: string
   onDismiss?: () => void
   userName?: string
-  userId?: string          // 👈 NEW — scopes the timer per user
+  userId?: string
   termInfo?: { term: string; session: string } | null
 }
 
 // ── Session persistence helpers ────────────────────────────────────────────────
 const SESSION_PREFIX = 'admin_session_start'
+const MAX_SESSION_HOURS = 12
 
 /** Storage key per user (falls back to global if no userId) */
 function sessionKey(userId?: string) {
@@ -112,6 +113,60 @@ const QUOTE_BANK: Record<TimePeriod, Array<{ text: string; author: string; role:
     { text: "Tomorrow is a new day with new opportunities to impact lives. Rest well — you've earned it.", author: 'Educational Wisdom', role: 'School Leadership' },
   ],
 }
+
+// ── 12 Nigerian Language Greetings (mirrors StaffWelcomeBanner) ────────────────
+interface GreetingItem {
+  text: string
+  emoji: string
+  lang: string
+}
+
+function getGreetingsList(hour: number): GreetingItem[] {
+  if (hour < 12) return [
+    { text: 'Good Morning', emoji: '🌅', lang: 'English' },
+    { text: 'Ẹ kaarọ', emoji: '🍎', lang: 'Yoruba' },
+    { text: 'Ina kwana', emoji: '🌻', lang: 'Hausa' },
+    { text: 'Ụtụtụ ọma', emoji: '🎨', lang: 'Igbo' },
+    { text: 'How far this morning', emoji: '☕', lang: 'Pidgin' },
+    { text: 'Emesiere', emoji: '🖍️', lang: 'Efik' },
+    { text: "Ob'owia", emoji: '🪁', lang: 'Edo' },
+    { text: 'Msugh u nder', emoji: '🧸', lang: 'Tiv' },
+    { text: 'Awee', emoji: '🌼', lang: 'Urhobo' },
+    { text: 'Na kpere', emoji: '🏫', lang: 'Igala' },
+    { text: 'Nua', emoji: '☀️', lang: 'Ijaw' },
+    { text: 'Ndawunyo', emoji: '🌟', lang: 'Kanuri' },
+  ]
+  if (hour < 17) return [
+    { text: 'Good Afternoon', emoji: '☀️', lang: 'English' },
+    { text: 'Ẹ kaasan', emoji: '🍉', lang: 'Yoruba' },
+    { text: 'Ina wuni', emoji: '🦋', lang: 'Hausa' },
+    { text: 'Ehihie ọma', emoji: '🧩', lang: 'Igbo' },
+    { text: 'How far this afternoon', emoji: '😎', lang: 'Pidgin' },
+    { text: 'Mesiere', emoji: '📚', lang: 'Efik' },
+    { text: "Ob'avan", emoji: '⚽', lang: 'Edo' },
+    { text: 'Msugh u pande', emoji: '🌳', lang: 'Tiv' },
+    { text: 'Awee', emoji: '✏️', lang: 'Urhobo' },
+    { text: 'Na rolu', emoji: '🏕️', lang: 'Igala' },
+    { text: 'Nua', emoji: '🎨', lang: 'Ijaw' },
+    { text: 'Kiari ndaso', emoji: '🌞', lang: 'Kanuri' },
+  ]
+  return [
+    { text: 'Good Evening', emoji: '🌙', lang: 'English' },
+    { text: 'Ẹ kalẹ', emoji: '🦉', lang: 'Yoruba' },
+    { text: 'Barka da yamma', emoji: '📖', lang: 'Hausa' },
+    { text: 'Mgbede ọma', emoji: '✨', lang: 'Igbo' },
+    { text: 'How far this evening', emoji: '🌟', lang: 'Pidgin' },
+    { text: 'Esiere', emoji: '🏠', lang: 'Efik' },
+    { text: "Ob'ota", emoji: '🌌', lang: 'Edo' },
+    { text: 'Msugh u aikeghe', emoji: '⛺', lang: 'Tiv' },
+    { text: 'Awee', emoji: '🛋️', lang: 'Urhobo' },
+    { text: 'Na rọle', emoji: '🧩', lang: 'Igala' },
+    { text: 'Nua', emoji: '🕯️', lang: 'Ijaw' },
+    { text: 'Kajiri ndaso', emoji: '🌜', lang: 'Kanuri' },
+  ]
+}
+
+const LANGUAGE_ROTATION_MS = 4500
 
 // ── Banner config ──────────────────────────────────────────────────────────────
 const BANNER_CFG: Record<BannerType, {
@@ -284,22 +339,29 @@ export function AdminBanner({ className, onDismiss, userName, userId, termInfo }
   const [quoteIndex,   setQuoteIndex]   = useState(0)
   const [banners,      setBanners]      = useState<BannerMessage[]>([])
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set())
+  const [greetingIndex, setGreetingIndex] = useState(0)   // 👈 NEW
   const initialised = useRef(false)
 
   const firstName = (userName?.split(' ')[0] || 'Admin')
 
   // ── Persistent session clock ────────────────────────────────────────────────
   // On mount: read stored session start; if none, create one.
-  // We DO NOT clear on unload — timer persists across tab close / logout
-  // unless resetAdminSession() is explicitly called.
+  // Auto-restart if stored session is older than MAX_SESSION_HOURS (12h).
   useEffect(() => {
     const existing = readSessionStart(userId)
+    const nowDate = new Date()
+
     if (existing) {
-      setSessionStart(existing)
+      const diffHours = (nowDate.getTime() - existing.getTime()) / (1000 * 60 * 60)
+      if (diffHours > MAX_SESSION_HOURS) {
+        writeSessionStart(userId, nowDate)
+        setSessionStart(nowDate)
+      } else {
+        setSessionStart(existing)
+      }
     } else {
-      const fresh = new Date()
-      writeSessionStart(userId, fresh)
-      setSessionStart(fresh)
+      writeSessionStart(userId, nowDate)
+      setSessionStart(nowDate)
     }
 
     const tick = setInterval(() => setNow(new Date()), 1000)
@@ -354,6 +416,25 @@ export function AdminBanner({ className, onDismiss, userName, userId, termInfo }
   const hour         = now.getHours()
   const period       = useMemo(() => getTimePeriod(hour), [hour])
   const GreetIcon    = useMemo(() => getGreetingIcon(hour), [hour])
+
+  // 👇 NEW — 12 Nigerian language greetings, bucketed by time-of-day
+  const greetingsList = useMemo(() => getGreetingsList(hour), [hour])
+
+  // 👇 NEW — auto-rotate language every 4.5s
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setGreetingIndex((prev) => (prev + 1) % greetingsList.length)
+    }, LANGUAGE_ROTATION_MS)
+    return () => clearInterval(timer)
+  }, [greetingsList.length])
+
+  // 👇 NEW — tap-to-cycle
+  const cycleLanguage = () => {
+    setGreetingIndex((prev) => (prev + 1) % greetingsList.length)
+  }
+
+  const currentGreeting = greetingsList[greetingIndex] ?? greetingsList[0]
+
   const greeting     = useMemo(() => hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 21 ? 'Good evening' : 'Good night', [hour])
   const quote        = useMemo(() => { const p = QUOTE_BANK[period]; return p[(getDayOfYear() + quoteIndex) % p.length] }, [period, quoteIndex])
   const timeFull     = useMemo(() => fmt12(now, true),  [now])
@@ -446,16 +527,43 @@ export function AdminBanner({ className, onDismiss, userName, userId, termInfo }
                 <span className="text-[12px] text-blue-100/70 font-medium">{greeting}</span>
               </div>
 
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-                  Welcome back,{' '}
-                  <span className="bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-200 bg-clip-text text-transparent">
-                    {firstName}
-                  </span>
-                </h1>
-                <p className="text-[11px] text-blue-200/50 mt-1 font-medium">
-                  Here&apos;s your dashboard overview for today
-                </p>
+              {/* 👇 REPLACED: Now uses rotating Nigerian-language greeting with tap-to-cycle */}
+              <div
+                className="min-h-[64px] sm:min-h-[72px] flex flex-col justify-center cursor-pointer select-none rounded-lg hover:bg-white/5 transition-colors w-fit p-1 -ml-1 focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                onClick={cycleLanguage}
+                onKeyDown={(e) => e.key === 'Enter' && cycleLanguage()}
+                role="button"
+                tabIndex={0}
+                aria-label="Switch greeting language"
+                title="Tap to switch language"
+              >
+                <AnimatePresence mode="popLayout">
+                  <motion.div
+                    key={currentGreeting.text}
+                    initial={{ opacity: 0, y: 28, rotateX: -50, scale: 0.9 }}
+                    animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -28, rotateX: 50, scale: 0.9 }}
+                    transition={{ type: 'spring', stiffness: 280, damping: 18, mass: 0.8 }}
+                    className="flex flex-col gap-1"
+                    style={{ transformOrigin: 'center center' }}
+                  >
+                    <h1 className="text-2xl sm:text-3xl font-black text-white leading-tight drop-shadow-md flex flex-wrap items-center gap-x-2">
+                      <span className="text-2xl sm:text-3xl">{currentGreeting.emoji}</span>
+                      <span>{currentGreeting.text},</span>
+                      <span className="bg-gradient-to-r from-amber-300 via-yellow-200 to-amber-200 bg-clip-text text-transparent">
+                        {firstName}!
+                      </span>
+                    </h1>
+
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium tracking-wide uppercase bg-white/10 text-amber-200/90 border border-white/10 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                        {currentGreeting.lang}
+                      </span>
+                      <span className="text-[10px] text-white/40 hidden sm:inline">tap to change</span>
+                    </div>
+                  </motion.div>
+                </AnimatePresence>
               </div>
 
               <div className="flex flex-wrap items-center gap-2 mt-1">
