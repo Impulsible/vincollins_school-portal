@@ -1,6 +1,5 @@
 /* eslint-disable react-hooks/preserve-manual-memoization */
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
@@ -8,16 +7,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Card, CardContent } from '@/components/ui/card'
 import { 
   GraduationCap, Quote, Calendar, Flame, 
-  Clock, CheckCircle2, Users, Award,
-  FileText, BookOpen, FileCheck, Sparkles, Timer,
-  TrendingUp, BarChart3, AlertCircle, Loader2,
-  School, Target, Zap, Sun, Sunrise, Sunset, Moon,
-  ChevronRight, Star
+  Clock, Users, Award, FileText, Sparkles, 
+  Timer, TrendingUp, Loader2, School, BookOpen
 } from 'lucide-react'
-import { cn } from '@/lib/utils'
 import { motion, AnimatePresence } from 'framer-motion'
 import { supabase } from '@/lib/supabase/client'
 
@@ -67,21 +61,21 @@ export interface StaffWelcomeBannerProps {
   termInfo?: TermInfo
 }
 
-const STORAGE_KEY = 'staff_session_start'
+const MAX_SESSION_HOURS = 12
 
-// Personalized Quotes (kept as they are not database data)
+// Personalized Quotes for Early Education
 const quotes = {
   morning: [
-    { text: "Every student can learn, just not on the same day, or in the same way.", author: "George Evans" },
+    { text: "Every child is a different kind of flower, and all together, they make this world a beautiful garden.", author: "Unknown" },
     { text: "The art of teaching is the art of assisting discovery.", author: "Mark Van Doren" },
-    { text: "The influence of a good teacher can never be erased.", author: "Unknown" },
+    { text: "Children learn more from what you are than what you teach.", author: "W.E.B. Du Bois" },
     { text: "Your work today shapes the leaders of tomorrow.", author: "Educational Wisdom" },
     { text: "Start where you are. Use what you have. Do what you can.", author: "Arthur Ashe" },
   ],
   afternoon: [
-    { text: "Education is not the filling of a pail, but the lighting of a fire.", author: "William Butler Yeats" },
+    { text: "Play is often talked about as if it were a relief from serious learning. But for children, play is serious learning.", author: "Mr. Rogers" },
     { text: "Teaching is the one profession that creates all other professions.", author: "Unknown" },
-    { text: "The roots of education are bitter, but the fruit is sweet.", author: "Aristotle" },
+    { text: "The greatest sign of success for a teacher is to be able to say, 'The children are now working as if I did not exist.'", author: "Maria Montessori" },
     { text: "Intelligence plus character — that is the goal of true education.", author: "Martin Luther King Jr." },
     { text: "The great teacher inspires.", author: "William Arthur Ward" },
   ],
@@ -111,10 +105,16 @@ const getPersonalizedQuote = (hour: number, firstName: string) => {
 
 // ─── Helper Functions ──────────────────────────────────────────────────────────
 const getFirstName = (profile?: StaffProfile | null): string => {
-  if (profile?.first_name) return profile.first_name
-  if (profile?.full_name) return profile.full_name.split(' ')[0]
-  if (profile?.name) return profile.name.split(' ')[0]
-  return 'Teacher'
+  if (profile?.first_name && profile.first_name.trim()) {
+    const clean = profile.first_name.trim().split(/\s+/)[0]
+    return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase()
+  }
+  const rawName = (profile?.full_name || profile?.name || '').trim()
+  if (!rawName) return 'Teacher'
+  
+  const parts = rawName.split(/\s+/)
+  const selected = parts.length >= 2 ? parts[1] : parts[0]
+  return selected.charAt(0).toUpperCase() + selected.slice(1).toLowerCase()
 }
 
 const getInitials = (profile?: StaffProfile | null): string => {
@@ -133,25 +133,12 @@ const getTitleLabel = (title?: string) => {
   return title ? map[title.toLowerCase()] ?? '' : ''
 }
 
-const formatDate = (dateString: string) => {
-  if (!dateString) return 'N/A'
-  try {
-    const date = new Date(dateString)
-    if (isNaN(date.getTime())) return 'N/A'
-    return new Intl.DateTimeFormat('en-NG', {
-      month: 'short',
-      day: 'numeric',
-    }).format(date)
-  } catch {
-    return 'N/A'
-  }
-}
-
 // ─── Main Component ────────────────────────────────────────────────────────────
 export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWelcomeBannerProps) {
   const [currentTime, setCurrentTime] = useState<Date>(new Date())
   const [sessionStart, setSessionStart] = useState<Date | null>(null)
   const [activeTab, setActiveTab] = useState<string>('assignments')
+  const [greetingIndex, setGreetingIndex] = useState(0)
   
   // ─── Database-fetched data ──────────────────────────────────────────────────
   const [assignments, setAssignments] = useState<any[]>([])
@@ -160,26 +147,36 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
   const [performance, setPerformance] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  // ─── Session Timer ──────────────────────────────────────────────────────────
+  // ─── Clock Mount ───────────────────────────────────────────────────────────
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored) {
-      setSessionStart(new Date(stored))
-    } else {
-      const start = new Date()
-      localStorage.setItem(STORAGE_KEY, start.toISOString())
-      setSessionStart(start)
-    }
-
+    setCurrentTime(new Date())
     const timer = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
 
+  // ─── Session Timer (Persists on Reload, Restarts on Login/12h Timeout) ─────
   useEffect(() => {
-    const handleClear = () => localStorage.removeItem(STORAGE_KEY)
-    window.addEventListener('beforeunload', handleClear)
-    return () => window.removeEventListener('beforeunload', handleClear)
-  }, [])
+    if (!profile?.id) return
+
+    const storageKey = `staff_session_${profile.id}`
+    const stored = localStorage.getItem(storageKey)
+    const now = new Date()
+
+    if (stored) {
+      const storedTime = new Date(stored)
+      const diffHours = (now.getTime() - storedTime.getTime()) / (1000 * 60 * 60)
+
+      if (diffHours > MAX_SESSION_HOURS) {
+        localStorage.setItem(storageKey, now.toISOString())
+        setSessionStart(now)
+      } else {
+        setSessionStart(storedTime)
+      }
+    } else {
+      localStorage.setItem(storageKey, now.toISOString())
+      setSessionStart(now)
+    }
+  }, [profile?.id])
 
   // ─── Fetch Data from Database ──────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -191,26 +188,21 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
     try {
       setLoading(true)
 
-      // 1. Fetch assignments from database
       const { data: assignmentData } = await supabase
         .from('assignments')
         .select('*')
         .eq('teacher_id', profile.id)
         .order('created_at', { ascending: false })
         .limit(5)
-
       setAssignments(assignmentData || [])
 
-      // 2. Fetch pupils from database
       const { data: pupilData } = await supabase
         .from('profiles')
         .select('id, full_name, class, class_arm, role')
         .in('role', ['student', 'pupil'])
         .eq('is_active', true)
-
       setPupils(pupilData || [])
 
-      // 3. Fetch scores from database
       const pupilIds = (pupilData || []).map((p: any) => p.id)
       let scoresData: any[] = []
       if (pupilIds.length > 0) {
@@ -221,7 +213,6 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
         scoresData = data || []
       }
 
-      // 4. Calculate class data from database
       if (pupilData) {
         const classMap = new Map<string, { pupils: any[]; scores: number[] }>()
         pupilData.forEach((p: any) => {
@@ -259,7 +250,6 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
         classData.sort((a, b) => a.class_name.localeCompare(b.class_name))
         setClasses(classData)
 
-        // 5. Calculate overall performance from database
         if (scoresData.length > 0) {
           const total = scoresData.reduce((acc: number, s: any) => acc + (s.total_score || 0), 0)
           setPerformance(Math.round(total / scoresData.length))
@@ -276,14 +266,66 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
     fetchData()
   }, [fetchData])
 
-  // ─── Computed Values ─────────────────────────────────────────────────────────
-  const getGreeting = useCallback(() => {
-    const hour = currentTime.getHours()
-    if (hour < 12) return { text: 'Good Morning', emoji: '🌅' }
-    if (hour < 17) return { text: 'Good Afternoon', emoji: '☀️' }
-    return { text: 'Good Evening', emoji: '🌙' }
-  }, [currentTime])
+  // ─── Computed Values & 12 Nigerian Language Rotator ────────────────────────
+  const currentHour = currentTime.getHours()
 
+  const greetingsList = useMemo(() => {
+    if (currentHour < 12) return [
+      { text: 'Good Morning', emoji: '🌅', lang: 'English' },
+      { text: 'Ẹ kaarọ', emoji: '🍎', lang: 'Yoruba' },
+      { text: 'Ina kwana', emoji: '🌻', lang: 'Hausa' },
+      { text: 'Ụtụtụ ọma', emoji: '🎨', lang: 'Igbo' },
+      { text: 'How far this morning', emoji: '☕', lang: 'Pidgin' },
+      { text: 'Emesiere', emoji: '🖍️', lang: 'Efik' },
+      { text: "Ob'owia", emoji: '🪁', lang: 'Edo' },
+      { text: 'Msugh u nder', emoji: '🧸', lang: 'Tiv' },
+      { text: 'Awee', emoji: '🌼', lang: 'Urhobo' },
+      { text: 'Na kpere', emoji: '🏫', lang: 'Igala' },
+      { text: 'Nua', emoji: '☀️', lang: 'Ijaw' },
+      { text: 'Ndawunyo', emoji: '🌟', lang: 'Kanuri' },
+    ]
+    if (currentHour < 17) return [
+      { text: 'Good Afternoon', emoji: '☀️', lang: 'English' },
+      { text: 'Ẹ kaasan', emoji: '🍉', lang: 'Yoruba' },
+      { text: 'Ina wuni', emoji: '🦋', lang: 'Hausa' },
+      { text: 'Ehihie ọma', emoji: '🧩', lang: 'Igbo' },
+      { text: 'How far this afternoon', emoji: '😎', lang: 'Pidgin' },
+      { text: 'Mesiere', emoji: '📚', lang: 'Efik' },
+      { text: "Ob'avan", emoji: '⚽', lang: 'Edo' },
+      { text: 'Msugh u pande', emoji: '🌳', lang: 'Tiv' },
+      { text: 'Awee', emoji: '✏️', lang: 'Urhobo' },
+      { text: 'Na rolu', emoji: '🏕️', lang: 'Igala' },
+      { text: 'Nua', emoji: '🎨', lang: 'Ijaw' },
+      { text: 'Kiari ndaso', emoji: '🌞', lang: 'Kanuri' },
+    ]
+    return [
+      { text: 'Good Evening', emoji: '🌙', lang: 'English' },
+      { text: 'Ẹ kalẹ', emoji: '🦉', lang: 'Yoruba' },
+      { text: 'Barka da yamma', emoji: '📖', lang: 'Hausa' },
+      { text: 'Mgbede ọma', emoji: '✨', lang: 'Igbo' },
+      { text: 'How far this evening', emoji: '🌟', lang: 'Pidgin' },
+      { text: 'Esiere', emoji: '🏠', lang: 'Efik' },
+      { text: "Ob'ota", emoji: '🌌', lang: 'Edo' },
+      { text: 'Msugh u aikeghe', emoji: '⛺', lang: 'Tiv' },
+      { text: 'Awee', emoji: '🛋️', lang: 'Urhobo' },
+      { text: 'Na rọle', emoji: '🧩', lang: 'Igala' },
+      { text: 'Nua', emoji: '🕯️', lang: 'Ijaw' },
+      { text: 'Kajiri ndaso', emoji: '🌜', lang: 'Kanuri' },
+    ]
+  }, [currentHour])
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setGreetingIndex((prev) => (prev + 1) % greetingsList.length)
+    }, 4500)
+    return () => clearInterval(timer)
+  }, [greetingsList.length])
+
+  const cycleLanguage = () => {
+    setGreetingIndex((prev) => (prev + 1) % greetingsList.length)
+  }
+
+  const currentGreeting = greetingsList[greetingIndex]
   const firstName = getFirstName(profile)
   const initials = getInitials(profile)
   const avatarUrl = profile?.photo_url || profile?.avatar_url || undefined
@@ -314,7 +356,6 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
     return getPersonalizedQuote(currentTime.getHours(), firstName)
   }, [currentTime, firstName])
 
-  const greeting = getGreeting()
   const weekDisplay = termInfo?.displayWeek || ''
   const roleDisplay = profile?.role === 'admin' ? 'Administrator' : 
                       profile?.role === 'staff' || profile?.role === 'teacher' ? 'Teacher' : 
@@ -327,7 +368,7 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
   const tabContent: Record<string, React.ReactNode> = {
     assignments: (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-800">Recent Assignments</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Recent Assignments</h3>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
@@ -335,25 +376,28 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
         ) : assignments.length > 0 ? (
           <div className="space-y-2">
             {assignments.slice(0, 5).map((assignment: any) => (
-              <div key={assignment.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50">
+              <div key={assignment.id} className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                 <div>
-                  <p className="text-sm font-medium text-slate-800">{assignment.title}</p>
-                  <p className="text-xs text-slate-500">{assignment.subject}</p>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{assignment.title}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{assignment.subject}</p>
                 </div>
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="text-xs border-slate-200 dark:border-slate-700 dark:text-slate-300">
                   {assignment.status || 'Draft'}
                 </Badge>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500 text-center py-8">No assignments yet</p>
+          <div className="flex flex-col items-center justify-center py-8 text-slate-400 dark:text-slate-500">
+            <BookOpen className="h-8 w-8 mb-2 opacity-50" />
+            <p className="text-sm">No homework or tasks assigned yet.</p>
+          </div>
         )}
       </div>
     ),
     classes: (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-800">My Classes</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">My Classes</h3>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
@@ -361,12 +405,14 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
         ) : classes.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {classes.slice(0, 4).map((cls) => (
-              <div key={cls.id} className="p-3 rounded-xl bg-slate-50">
+              <div key={cls.id} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50">
                 <div className="flex items-center justify-between">
-                  <span className="font-medium text-slate-800">{cls.class_name}</span>
-                  <Badge className="bg-blue-100 text-blue-700">{cls.pupil_count} pupils</Badge>
+                  <span className="font-medium text-slate-800 dark:text-slate-200">{cls.class_name}</span>
+                  <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 border-none">
+                    {cls.pupil_count} pupils
+                  </Badge>
                 </div>
-                <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
+                <div className="flex items-center gap-4 mt-2 text-xs text-slate-500 dark:text-slate-400">
                   <span>Avg: {cls.average_score}%</span>
                   <span>Pending: {cls.pending_grading}</span>
                 </div>
@@ -374,13 +420,16 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
             ))}
           </div>
         ) : (
-          <p className="text-sm text-slate-500 text-center py-8">No classes assigned</p>
+          <div className="flex flex-col items-center justify-center py-8 text-slate-400 dark:text-slate-500">
+            <School className="h-8 w-8 mb-2 opacity-50" />
+            <p className="text-sm">No classes assigned yet.</p>
+          </div>
         )}
       </div>
     ),
     performance: (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-800">Performance Overview</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Performance Overview</h3>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
@@ -388,27 +437,27 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
         ) : (
           <div className="bg-gradient-to-br from-indigo-500 to-blue-700 rounded-xl p-4 text-white">
             <p className="text-3xl font-bold">{performance}%</p>
-            <p className="text-sm text-white/80">Average Performance</p>
+            <p className="text-sm text-white/80">Average Class Performance</p>
           </div>
         )}
       </div>
     ),
     pupils: (
       <div className="space-y-3">
-        <h3 className="text-sm font-semibold text-slate-800">Total Pupils</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Total Pupils</h3>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-blue-500" />
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-3">
-            <div className="p-3 rounded-xl bg-blue-50 text-center">
-              <p className="text-2xl font-bold text-blue-600">{totalPupils}</p>
-              <p className="text-xs text-slate-500">Total</p>
+            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-center border border-blue-100 dark:border-blue-800/50">
+              <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{totalPupils}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Enrolled</p>
             </div>
-            <div className="p-3 rounded-xl bg-emerald-50 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{stats?.activeStudents || 0}</p>
-              <p className="text-xs text-slate-500">Active</p>
+            <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 text-center border border-emerald-100 dark:border-emerald-800/50">
+              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{stats?.activeStudents || 0}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Active Today</p>
             </div>
           </div>
         )}
@@ -430,24 +479,24 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
         suppressHydrationWarning
       >
         {/* Background Accents */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 rounded-full blur-2xl" />
+        <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-amber-500/10 to-orange-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-48 h-48 bg-gradient-to-tr from-emerald-500/10 to-teal-500/10 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6">
-          <div className="flex-1">
+        <div className="relative z-10 flex flex-row justify-between items-start gap-4 sm:gap-6 w-full">
+          <div className="flex-1 min-w-0">
+            
             {/* Date & Week Badge Row */}
             <div className="flex flex-wrap items-center gap-2 mb-2 sm:mb-3">
-              <span className="text-xl sm:text-2xl">{greeting.emoji}</span>
-              <span className="text-xs sm:text-sm font-medium bg-white/15 px-2 sm:px-3 py-1 rounded-full backdrop-blur-sm text-white">
+              <span className="text-xs sm:text-sm font-medium bg-white/15 px-2 sm:px-3 py-1 rounded-full backdrop-blur-sm text-white border border-white/10">
                 {formattedDate}
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-medium bg-cyan-400/10 px-2 sm:px-3 py-1 rounded-full text-cyan-200 border border-cyan-400/20">
                 <Clock className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 {formattedTime}
               </span>
-              <span className="inline-flex items-center gap-1.5 font-mono text-xs sm:text-sm font-medium bg-white/10 px-2 sm:px-3 py-1 rounded-full text-blue-200">
+              <span className="inline-flex items-center gap-1.5 font-mono text-xs sm:text-sm font-medium bg-white/10 px-2 sm:px-3 py-1 rounded-full text-blue-200 border border-white/5">
                 <Timer className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                {onlineDuration}
+                Session: {onlineDuration}
               </span>
               {weekDisplay && (
                 <span className="inline-flex items-center gap-1 text-xs sm:text-sm font-medium bg-amber-400/10 px-2 sm:px-3 py-1 rounded-full text-amber-200 border border-amber-400/20">
@@ -457,14 +506,54 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
               )}
             </div>
 
-            {/* Main Greeting */}
-            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1 sm:mb-2 text-white drop-shadow-sm">
-              {greeting.text}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200">{displayName}</span>!
-            </h1>
+            {/* Rotator Greeting + Language Chip */}
+            <div 
+              className="min-h-[52px] sm:min-h-[60px] flex flex-col justify-center cursor-pointer mb-1 sm:mb-2 select-none rounded-lg hover:bg-white/5 transition-colors w-fit p-1 -ml-1 focus:outline-none focus:ring-2 focus:ring-amber-400/50"
+              onClick={cycleLanguage}
+              onKeyDown={(e) => e.key === 'Enter' && cycleLanguage()}
+              role="button"
+              tabIndex={0}
+              aria-label="Switch greeting language"
+              title="Tap to switch language"
+            >
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={currentGreeting.text}
+                  initial={{ opacity: 0, y: 28, rotateX: -50, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -28, rotateX: 50, scale: 0.9 }}
+                  transition={{ 
+                    type: "spring", 
+                    stiffness: 280, 
+                    damping: 18,
+                    mass: 0.8
+                  }}
+                  className="flex flex-col gap-1"
+                  style={{ transformOrigin: "center center" }}
+                >
+                  <div className="text-2xl sm:text-3xl md:text-4xl font-bold text-white drop-shadow-sm flex flex-wrap items-center gap-x-2">
+                    <span className="text-2xl sm:text-3xl md:text-4xl mr-1 pb-0.5">{currentGreeting.emoji}</span>
+                    <span>{currentGreeting.text},</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-200">
+                      {displayName}!
+                    </span>
+                  </div>
+                  
+                  {/* Language indicator pill */}
+                  <div className="flex items-center gap-1.5 ml-1">
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium tracking-wide uppercase bg-white/10 text-amber-200/90 border border-white/10 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                      {currentGreeting.lang}
+                    </span>
+                    <span className="text-[10px] text-white/40 hidden sm:inline">tap to change</span>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
             {/* Personalized Quote */}
             {quote.text && (
-              <div className="flex items-start gap-2 mb-3 sm:mb-4 max-w-2xl">
+              <div className="flex items-start gap-2 mb-3 sm:mb-4 max-w-2xl pl-1 mt-1">
                 <Quote className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-400/60 shrink-0 mt-0.5 sm:mt-1" />
                 <div>
                   <p className="text-gray-200 text-xs sm:text-sm md:text-base italic leading-relaxed line-clamp-2">
@@ -478,7 +567,7 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
             )}
 
             {/* Badges */}
-            <div className="flex flex-wrap gap-1.5 sm:gap-2">
+            <div className="flex flex-wrap gap-1.5 sm:gap-2 pl-1">
               <Badge className="bg-white/15 text-white border-0 text-xs sm:text-sm">
                 <GraduationCap className="h-3 w-3 mr-1" />
                 {profile?.department || 'General Department'}
@@ -490,17 +579,14 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
             </div>
           </div>
 
-          {/* Avatar */}
-          <div className="relative group hidden sm:block">
-            <Avatar className="h-20 w-20 sm:h-24 sm:w-24 md:h-28 md:w-28 ring-4 ring-white/20 shadow-xl">
+          {/* Avatar Area Mobile Ready */}
+          <div className="relative group shrink-0 mt-1">
+            <Avatar className="h-14 w-14 sm:h-20 sm:w-20 md:h-28 md:w-28 ring-4 ring-white/20 shadow-xl">
               <AvatarImage src={avatarUrl} />
-              <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white text-2xl sm:text-3xl font-bold">
+              <AvatarFallback className="bg-gradient-to-br from-amber-500 to-orange-600 text-white text-xl sm:text-2xl md:text-3xl font-bold">
                 {initials}
               </AvatarFallback>
             </Avatar>
-            <div className="absolute -bottom-2 -right-2 w-5 h-5 sm:w-6 sm:h-6 bg-emerald-500 rounded-full ring-2 ring-white flex items-center justify-center">
-              <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 bg-white rounded-full animate-pulse" />
-            </div>
           </div>
         </div>
 
@@ -520,42 +606,42 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
         {/* Stats Section */}
         <div className="relative z-10 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-white/15">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
-            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors">
+            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors border border-white/5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white group-hover:text-amber-200 transition-colors">
                   {assignments.length}
                 </p>
-                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300 opacity-60" />
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-blue-300 opacity-60 group-hover:opacity-100 transition-opacity" />
               </div>
               <p className="text-[10px] sm:text-xs md:text-sm text-gray-300">Assignments</p>
             </div>
 
-            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors">
+            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors border border-white/5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white group-hover:text-amber-200 transition-colors">
                   {classes.length}
                 </p>
-                <School className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300 opacity-60" />
+                <School className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-300 opacity-60 group-hover:opacity-100 transition-opacity" />
               </div>
               <p className="text-[10px] sm:text-xs md:text-sm text-gray-300">Classes</p>
             </div>
 
-            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors">
+            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors border border-white/5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white group-hover:text-amber-200 transition-colors">
                   {performance}%
                 </p>
-                <Award className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-300 opacity-60" />
+                <Award className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-300 opacity-60 group-hover:opacity-100 transition-opacity" />
               </div>
               <p className="text-[10px] sm:text-xs md:text-sm text-gray-300">Avg Performance</p>
             </div>
 
-            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors">
+            <div className="group cursor-default bg-white/5 rounded-xl p-2.5 sm:p-3 hover:bg-white/10 transition-colors border border-white/5">
               <div className="flex items-center justify-between mb-1">
                 <p className="text-xl sm:text-2xl md:text-3xl font-bold text-white group-hover:text-amber-200 transition-colors">
                   {totalPupils}
                 </p>
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-300 opacity-60" />
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-cyan-300 opacity-60 group-hover:opacity-100 transition-opacity" />
               </div>
               <p className="text-[10px] sm:text-xs md:text-sm text-gray-300">Total Pupils</p>
             </div>
@@ -565,14 +651,16 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
           {termInfo && termInfo.currentWeek > 0 && (
             <div className="mt-3 sm:mt-4">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] sm:text-xs text-gray-300">{termInfo.termName} Term Progress</span>
-                <span className="text-[10px] sm:text-xs text-gray-300">{termInfo.displayWeek}</span>
+                <span className="text-[10px] sm:text-xs text-gray-300 font-medium">{termInfo.termName} Term Progress</span>
+                <span className="text-[10px] sm:text-xs text-amber-200 font-medium">{termInfo.displayWeek}</span>
               </div>
-              <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div className="h-2 bg-black/20 rounded-full overflow-hidden border border-white/5">
                 <div
-                  className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700"
+                  className="h-full bg-gradient-to-r from-amber-400 to-amber-500 rounded-full transition-all duration-700 relative"
                   style={{ width: `${termInfo.weekProgress}%` }}
-                />
+                >
+                  <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]" style={{ transform: 'skewX(-20deg)' }} />
+                </div>
               </div>
             </div>
           )}
@@ -582,12 +670,12 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
       {/* ═══════════════════════════════════════════════════════════════════ */}
       {/* TABS SECTION                                                  */}
       {/* ═══════════════════════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-2xl border border-slate-200/70 shadow-sm overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/70 dark:border-slate-800 shadow-sm overflow-hidden transition-colors">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-4 w-full rounded-none border-b border-slate-200 bg-slate-50/50 p-0 h-auto">
+          <TabsList className="grid grid-cols-4 w-full rounded-none border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 p-0 h-auto">
             <TabsTrigger 
               value="assignments" 
-              className="flex items-center gap-2 py-3 rounded-none data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
+              className="flex items-center gap-2 py-3 rounded-none text-slate-600 dark:text-slate-400 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all"
             >
               <FileText className="h-4 w-4" />
               <span className="hidden sm:inline">Assignments</span>
@@ -595,7 +683,7 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
             </TabsTrigger>
             <TabsTrigger 
               value="classes" 
-              className="flex items-center gap-2 py-3 rounded-none data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
+              className="flex items-center gap-2 py-3 rounded-none text-slate-600 dark:text-slate-400 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all"
             >
               <School className="h-4 w-4" />
               <span className="hidden sm:inline">Classes</span>
@@ -603,7 +691,7 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
             </TabsTrigger>
             <TabsTrigger 
               value="performance" 
-              className="flex items-center gap-2 py-3 rounded-none data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
+              className="flex items-center gap-2 py-3 rounded-none text-slate-600 dark:text-slate-400 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all"
             >
               <TrendingUp className="h-4 w-4" />
               <span className="hidden sm:inline">Performance</span>
@@ -611,7 +699,7 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
             </TabsTrigger>
             <TabsTrigger 
               value="pupils" 
-              className="flex items-center gap-2 py-3 rounded-none data-[state=active]:bg-white data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600"
+              className="flex items-center gap-2 py-3 rounded-none text-slate-600 dark:text-slate-400 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 transition-all"
             >
               <Users className="h-4 w-4" />
               <span className="hidden sm:inline">Pupils</span>
@@ -619,7 +707,7 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
             </TabsTrigger>
           </TabsList>
 
-          <div className="p-4 sm:p-6">
+          <div className="p-4 sm:p-6 bg-white dark:bg-slate-900 transition-colors">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -628,7 +716,7 @@ export default function StaffWelcomeBanner({ profile, stats, termInfo }: StaffWe
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.2 }}
               >
-                <TabsContent value={activeTab} className="mt-0">
+                <TabsContent value={activeTab} className="mt-0 outline-none">
                   {tabContent[activeTab]}
                 </TabsContent>
               </motion.div>

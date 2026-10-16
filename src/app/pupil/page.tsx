@@ -36,6 +36,7 @@ interface PupilProfile {
   full_name: string
   display_name: string
   email: string
+  first_name?: string          // 👈 FIX #1: Added
   class?: string
   class_arm?: string
   phone?: string
@@ -60,6 +61,7 @@ interface ProfileRow {
   full_name: string
   display_name: string
   email: string
+  first_name?: string
   class?: string
   class_arm?: string
   phone?: string
@@ -73,7 +75,6 @@ interface ProfileRow {
   admission_number?: string
   admission_year?: number
   role?: string
-  first_name?: string
 }
 
 interface Assignment {
@@ -429,9 +430,7 @@ export default function PupilDashboardPage() {
           .eq('id', contextUser.id)
           .single() as any
 
-        // ✅ FIX: Handle error properly
         if (error) {
-          // Check if error is "no rows returned" (PGRST116)
           if (error.code === 'PGRST116') {
             console.log('ℹ️ [Dashboard] No profile found for user, using user data...')
             setProfile(null)
@@ -451,6 +450,7 @@ export default function PupilDashboardPage() {
             full_name: profileData.full_name || profileData.display_name || 'Pupil',
             display_name: profileData.display_name,
             email: profileData.email,
+            first_name: profileData.first_name || '',  // 👈 FIX #2: Added
             class: profileData.class,
             class_arm: profileData.class_arm,
             phone: profileData.phone,
@@ -483,7 +483,6 @@ export default function PupilDashboardPage() {
       return
     }
 
-    // ✅ FIX: Accept both 'student' and 'pupil' roles
     if (!authLoading && contextUser?.role?.toLowerCase() !== 'student' && contextUser?.role?.toLowerCase() !== 'pupil') {
       router.replace('/portal')
     }
@@ -597,7 +596,7 @@ export default function PupilDashboardPage() {
           console.log('ℹ️ Term progress table not found')
         }
 
-        // ─── ✅ Fetch Subject Scores from primary_scores ──────────────────
+        // ─── Fetch Subject Scores from primary_scores ──────────────────
         let subjectStats = {
           completedSubjects: 0,
           totalSubjects: TOTAL_SUBJECTS,
@@ -609,7 +608,7 @@ export default function PupilDashboardPage() {
 
         try {
           console.log('📊 [Dashboard] Fetching subject scores for pupil:', userId)
-          
+
           const { data: scores, error: scoresError } = await supabase
             .from('primary_scores')
             .select('subject, ca_score, exam_score, total_score')
@@ -619,12 +618,12 @@ export default function PupilDashboardPage() {
 
           if (!scoresError && scores) {
             console.log('✅ [Dashboard] Found scores:', scores.length)
-            
+
             const subjectMap: Record<string, { ca: number; exam: number; total: number }> = {}
             PRIMARY_SUBJECTS.forEach(sub => {
               subjectMap[sub] = { ca: 0, exam: 0, total: 0 }
             })
-            
+
             scores.forEach((score: any) => {
               const subject = score.subject
               if (subjectMap[subject]) {
@@ -640,19 +639,19 @@ export default function PupilDashboardPage() {
                 }
               }
             })
-            
+
             let completed = 0
             let totalMarks = 0
-            
+
             Object.values(subjectMap).forEach(({ ca, exam, total }) => {
               if (ca > 0 && exam > 0) {
                 completed++
                 totalMarks += total
               }
             })
-            
+
             const avgPercentage = completed > 0 ? Math.round((totalMarks / completed) * 100) / 100 : 0
-            
+
             subjectStats = {
               completedSubjects: completed,
               totalSubjects: TOTAL_SUBJECTS,
@@ -661,7 +660,7 @@ export default function PupilDashboardPage() {
               totalMarksPossible: TOTAL_SUBJECTS * 100,
               subjectScores: subjectMap
             }
-            
+
             console.log('📊 [Dashboard] Subject stats:', subjectStats)
           } else {
             console.log('ℹ️ No scores found or error fetching:', scoresError)
@@ -836,7 +835,6 @@ export default function PupilDashboardPage() {
     return <LoadingTimeoutError onRetry={handleRetry} />
   }
 
-  // ✅ FIXED: Accept both 'student' and 'pupil' roles
   if (!contextUser || (contextUser.role !== 'student' && contextUser.role !== 'pupil')) {
     console.log('🚫 [Dashboard] User not valid, returning null')
     return null
@@ -848,6 +846,7 @@ export default function PupilDashboardPage() {
     full_name: profile?.full_name || contextUser.full_name || contextUser.first_name || 'Pupil',
     display_name: profile?.display_name || contextUser.full_name || contextUser.first_name || 'Pupil',
     email: profile?.email || contextUser.email || '',
+    first_name: profile?.first_name || contextUser.first_name || '',  // 👈 FIX #3: Added
     class: profile?.class || contextUser.class || '',
     class_arm: profile?.class_arm || contextUser.class_arm || '',
     phone: profile?.phone,
@@ -928,9 +927,10 @@ export default function PupilDashboardPage() {
         )}
       </AnimatePresence>
 
-      {/* ✅ Banner - Now passing marksObtained */}
+      {/* Banner — now passing firstName (FIX #4) */}
       <PupilBanner
         fullName={profileForTab.full_name || 'Pupil'}
+        firstName={profileForTab.first_name}   // 👈 FIX #4: THE KEY FIX
         pupilId={profileForTab.id}
         class={profileForTab.class}
         classArm={profileForTab.class_arm}
@@ -942,7 +942,7 @@ export default function PupilDashboardPage() {
           completedSubjects: subjectStats.completedSubjects,
           totalSubjects: subjectStats.totalSubjects,
           averagePercentage: subjectStats.averagePercentage,
-          marksObtained: subjectStats.totalMarksObtained, // ✅ ADD THIS
+          marksObtained: subjectStats.totalMarksObtained,
           pendingTheoryCount: 0,
         }}
         onTabChange={handleTabChange}

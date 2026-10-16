@@ -5,7 +5,7 @@
 
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Sparkles, Rocket, Clock, Timer, Wifi, WifiOff, CheckCircle2, RefreshCw,
+  Sparkles, Rocket, Clock, Timer, CheckCircle2, RefreshCw,
   GraduationCap, TrendingUp, Quote, BookOpen, Star, PartyPopper,
   FileText, Pencil, Heart, Zap, Trophy, Target,
 } from 'lucide-react'
@@ -32,6 +32,7 @@ interface AcademicStats {
 
 interface PupilBannerProps {
   fullName: string
+  firstName?: string
   className?: string
   class?: string
   classArm?: string
@@ -61,6 +62,8 @@ const TOTAL_SUBJECTS = 22
 const MINIMUM_SUBJECTS = 20
 const MARKS_PER_SUBJECT = 100
 const QUOTE_ROTATION_MS = 15000
+const LANGUAGE_ROTATION_MS = 4500
+const MAX_SESSION_HOURS = 12
 
 const PRIMARY_SUBJECTS = [
   'English', 'Mathematics', 'Basic Science', 'Social Studies', 'Phonics',
@@ -71,7 +74,7 @@ const PRIMARY_SUBJECTS = [
   'Home Economics', 'Physical and Health Education',
 ]
 
-const TITLE_PREFIXES = ['dr.', 'dr', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms']
+const TITLE_PREFIXES = ['dr.', 'dr', 'prof.', 'prof', 'mr.', 'mr', 'mrs.', 'mrs', 'ms.', 'ms', 'master', 'master.']
 
 const CONFETTI_COLORS = [
   'bg-pink-400', 'bg-yellow-400', 'bg-cyan-400',
@@ -118,23 +121,27 @@ const REMARK_TIERS = [
   { min: 0, remark: 'Fair', emoji: '💪', gradient: 'from-orange-500 to-red-600' },
 ]
 
-const GREETINGS = [
-  { until: 6, text: 'Good Night', emoji: '🌙', sub: 'Rest well, champion!' },
-  { until: 12, text: 'Good Morning', emoji: '☀️', sub: 'Ready to be amazing today?' },
-  { until: 17, text: 'Good Afternoon', emoji: '🌤️', sub: "You're doing so well!" },
-  { until: 21, text: 'Good Evening', emoji: '🌅', sub: 'Time to review your day!' },
-  { until: 24, text: 'Good Night', emoji: '🌙', sub: 'Sweet dreams, superstar!' },
-]
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
-const getFirstName = (fullName: string): string => {
+/**
+ * Extract true First Name (Given Name).
+ * 1. Priority: Explicit `firstName` prop from database column `profile.first_name`
+ * 2. Handle titles (e.g., "Master Muaz" → "Muaz")
+ * 3. Default to first word (`parts[0]`) for standard "First Last" order
+ */
+const extractFirstName = (fullName: string, explicitFirstName?: string): string => {
+  if (explicitFirstName && explicitFirstName.trim()) {
+    return explicitFirstName.trim()
+  }
   if (!fullName) return 'Student'
-  const parts = fullName.trim().split(/\s+/)
-  if (parts.length < 2) return parts[0] || 'Student'
 
-  const [first, second] = parts
-  if (TITLE_PREFIXES.includes(first.toLowerCase())) return second || first
-  return second.length <= first.length ? second : first
+  const parts = fullName.trim().split(/\s+/)
+  if (parts.length === 0) return 'Student'
+
+  if (TITLE_PREFIXES.includes(parts[0].toLowerCase()) && parts.length > 1) {
+    return parts[1]
+  }
+
+  return parts[0]
 }
 
 const getQuoteSet = (hour: number) => {
@@ -153,9 +160,6 @@ const getPersonalizedQuote = (hour: number, firstName: string) => {
     author: quote.author,
   }
 }
-
-const getGreeting = (hour: number) =>
-  GREETINGS.find(g => hour < g.until) ?? GREETINGS[GREETINGS.length - 1]
 
 const getRemarkData = (avg: number) =>
   REMARK_TIERS.find(t => avg >= t.min) ?? REMARK_TIERS[REMARK_TIERS.length - 1]
@@ -224,20 +228,18 @@ const ConfettiPiece = ({ delay, color, x, rot, duration }: {
 
 // ── Meta Badge ───────────────────────────────────────────────────────────────
 const MetaBadge = ({
-  icon: Icon, children, tone = 'default', className: cls, pulse,
+  icon: Icon, children, tone = 'default', className: cls,
 }: {
   icon?: React.ComponentType<{ className?: string }>
   children: React.ReactNode
-  tone?: 'default' | 'cyan' | 'violet' | 'emerald' | 'gray' | 'yellow' | 'orange'
+  tone?: 'default' | 'cyan' | 'violet' | 'emerald' | 'yellow' | 'orange'
   className?: string
-  pulse?: boolean
 }) => {
   const tones = {
     default: 'bg-white/10 text-white/90 border-white/10',
     cyan: 'bg-cyan-400/15 text-cyan-200 border-cyan-400/20',
     violet: 'bg-violet-400/15 text-violet-200 border-violet-400/20',
     emerald: 'bg-emerald-400/20 text-emerald-200 border-emerald-400/30',
-    gray: 'bg-gray-400/20 text-gray-300 border-gray-400/30',
     yellow: 'bg-yellow-400/20 text-yellow-200 border-yellow-400/30',
     orange: 'bg-orange-400/20 text-orange-200 border-orange-400/30',
   }
@@ -246,15 +248,6 @@ const MetaBadge = ({
       'inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full border backdrop-blur-sm',
       tones[tone], cls
     )}>
-      {pulse && (
-        <motion.span
-          animate={{ scale: [1, 1.4, 1] }}
-          transition={{ duration: 2, repeat: Infinity }}
-          className={cn('w-1.5 h-1.5 rounded-full',
-            tone === 'emerald' ? 'bg-emerald-400' : 'bg-gray-400'
-          )}
-        />
-      )}
       {Icon && <Icon className="h-3 w-3" />}
       {children}
     </span>
@@ -381,12 +374,10 @@ const TermProgressBar = ({ value, isComplete }: { value: number; isComplete: boo
 }
 
 // ── Animated Ring ────────────────────────────────────────────────────────────
-const AnimatedRing = ({ isOnline, isTermComplete }: { isOnline: boolean; isTermComplete: boolean }) => {
+const AnimatedRing = ({ isTermComplete }: { isTermComplete: boolean }) => {
   const colors = isTermComplete
     ? 'from-yellow-400 via-amber-400 to-orange-400'
-    : isOnline
-      ? 'from-emerald-400 via-teal-400 to-cyan-400'
-      : 'from-gray-400 via-gray-500 to-gray-600'
+    : 'from-emerald-400 via-teal-400 to-cyan-400'
 
   const ringLayers = [
     { inset: 'inset-0', opacity: 'opacity-70', duration: 12, direction: 360 },
@@ -489,6 +480,7 @@ const EncouragementBanner = ({
 // ═══════════════════════════════════════════════════════════════════
 export function PupilBanner({
   fullName,
+  firstName: propFirstName,
   className,
   class: pupilClass,
   classArm,
@@ -502,32 +494,54 @@ export function PupilBanner({
   const [mounted, setMounted] = useState(false)
   const [currentTime, setCurrentTime] = useState<Date | null>(null)
   const [sessionStart, setSessionStart] = useState<Date | null>(null)
-  const [isOnline, setIsOnline] = useState(true)
   const [avatarError, setAvatarError] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [showCelebration, setShowCelebration] = useState(false)
   const [showTermComplete, setShowTermComplete] = useState(false)
   const [quoteKey, setQuoteKey] = useState(0)
+  const [greetingIndex, setGreetingIndex] = useState(0)
   const [academicStats, setAcademicStats] = useState<AcademicStats>(EMPTY_STATS)
   const [loading, setLoading] = useState(true)
   const prevAvg = useRef(0)
   const hasShownTermCompleteToast = useRef(false)
 
-  // ─── Mount + Live Clock + Session Timer ────────────────────────────────
+  // ─── First Name Calculation ──────────────────────────────────────────
+  const firstName = useMemo(
+    () => extractFirstName(fullName || 'Student', propFirstName),
+    [fullName, propFirstName]
+  )
+
+  // ─── Clock Mount ───────────────────────────────────────────────────────
   useEffect(() => {
-    const now = new Date()
     setMounted(true)
-    setCurrentTime(now)
-    setSessionStart(now)
+    setCurrentTime(new Date())
     const t = setInterval(() => setCurrentTime(new Date()), 1000)
     return () => clearInterval(t)
   }, [])
 
-  // ─── Reset timer on user switch ────────────────────────────────────────
+  // ─── Session Timer — persists on reload, restarts on login / 12h stale ─
   useEffect(() => {
     if (!mounted || !pupilId) return
-    setSessionStart(new Date())
-  }, [pupilId, mounted])
+
+    const storageKey = `pupil_session_${pupilId}`
+    const stored = localStorage.getItem(storageKey)
+    const now = new Date()
+
+    if (stored) {
+      const storedTime = new Date(stored)
+      const diffHours = (now.getTime() - storedTime.getTime()) / (1000 * 60 * 60)
+
+      if (diffHours > MAX_SESSION_HOURS) {
+        localStorage.setItem(storageKey, now.toISOString())
+        setSessionStart(now)
+      } else {
+        setSessionStart(storedTime)
+      }
+    } else {
+      localStorage.setItem(storageKey, now.toISOString())
+      setSessionStart(now)
+    }
+  }, [mounted, pupilId])
 
   // ─── Fetch Stats ───────────────────────────────────────────────────────
   const fetchStats = useCallback(async () => {
@@ -627,24 +641,66 @@ export function PupilBanner({
     return () => clearInterval(interval)
   }, [])
 
-  // ─── Online/offline ────────────────────────────────────────────────────
+  // ─── 12 Nigerian language greetings ────────────────────────────────────
+  const currentHour = currentTime?.getHours() ?? 9
+
+  const greetingsList = useMemo(() => {
+    if (currentHour < 12) return [
+      { text: 'Good Morning', emoji: '🌅', lang: 'English', sub: 'Ready to be amazing today?' },
+      { text: 'Ẹ kaarọ', emoji: '🍎', lang: 'Yoruba', sub: 'Ready to be amazing today?' },
+      { text: 'Ina kwana', emoji: '🌻', lang: 'Hausa', sub: 'Ready to be amazing today?' },
+      { text: 'Ụtụtụ ọma', emoji: '🎨', lang: 'Igbo', sub: 'Ready to be amazing today?' },
+      { text: 'How far this morning', emoji: '☕', lang: 'Pidgin', sub: 'Ready to be amazing today?' },
+      { text: 'Emesiere', emoji: '🖍️', lang: 'Efik', sub: 'Ready to be amazing today?' },
+      { text: "Ob'owia", emoji: '🪁', lang: 'Edo', sub: 'Ready to be amazing today?' },
+      { text: 'Msugh u nder', emoji: '🧸', lang: 'Tiv', sub: 'Ready to be amazing today?' },
+      { text: 'Awee', emoji: '🌼', lang: 'Urhobo', sub: 'Ready to be amazing today?' },
+      { text: 'Na kpere', emoji: '🏫', lang: 'Igala', sub: 'Ready to be amazing today?' },
+      { text: 'Nua', emoji: '☀️', lang: 'Ijaw', sub: 'Ready to be amazing today?' },
+      { text: 'Ndawunyo', emoji: '🌟', lang: 'Kanuri', sub: 'Ready to be amazing today?' },
+    ]
+    if (currentHour < 17) return [
+      { text: 'Good Afternoon', emoji: '☀️', lang: 'English', sub: "You're doing so well!" },
+      { text: 'Ẹ kaasan', emoji: '🍉', lang: 'Yoruba', sub: "You're doing so well!" },
+      { text: 'Ina wuni', emoji: '🦋', lang: 'Hausa', sub: "You're doing so well!" },
+      { text: 'Ehihie ọma', emoji: '🧩', lang: 'Igbo', sub: "You're doing so well!" },
+      { text: 'How far this afternoon', emoji: '😎', lang: 'Pidgin', sub: "You're doing so well!" },
+      { text: 'Mesiere', emoji: '📚', lang: 'Efik', sub: "You're doing so well!" },
+      { text: "Ob'avan", emoji: '⚽', lang: 'Edo', sub: "You're doing so well!" },
+      { text: 'Msugh u pande', emoji: '🌳', lang: 'Tiv', sub: "You're doing so well!" },
+      { text: 'Awee', emoji: '✏️', lang: 'Urhobo', sub: "You're doing so well!" },
+      { text: 'Na rolu', emoji: '🏕️', lang: 'Igala', sub: "You're doing so well!" },
+      { text: 'Nua', emoji: '🎨', lang: 'Ijaw', sub: "You're doing so well!" },
+      { text: 'Kiari ndaso', emoji: '🌞', lang: 'Kanuri', sub: "You're doing so well!" },
+    ]
+    return [
+      { text: 'Good Evening', emoji: '🌙', lang: 'English', sub: 'Time to review your day!' },
+      { text: 'Ẹ kalẹ', emoji: '🦉', lang: 'Yoruba', sub: 'Time to review your day!' },
+      { text: 'Barka da yamma', emoji: '📖', lang: 'Hausa', sub: 'Time to review your day!' },
+      { text: 'Mgbede ọma', emoji: '✨', lang: 'Igbo', sub: 'Time to review your day!' },
+      { text: 'How far this evening', emoji: '🌟', lang: 'Pidgin', sub: 'Time to review your day!' },
+      { text: 'Esiere', emoji: '🏠', lang: 'Efik', sub: 'Time to review your day!' },
+      { text: "Ob'ota", emoji: '🌌', lang: 'Edo', sub: 'Time to review your day!' },
+      { text: 'Msugh u aikeghe', emoji: '⛺', lang: 'Tiv', sub: 'Time to review your day!' },
+      { text: 'Awee', emoji: '🛋️', lang: 'Urhobo', sub: 'Time to review your day!' },
+      { text: 'Na rọle', emoji: '🧩', lang: 'Igala', sub: 'Time to review your day!' },
+      { text: 'Nua', emoji: '🕯️', lang: 'Ijaw', sub: 'Time to review your day!' },
+      { text: 'Kajiri ndaso', emoji: '🌜', lang: 'Kanuri', sub: 'Time to review your day!' },
+    ]
+  }, [currentHour])
+
   useEffect(() => {
-    const handleOnline = () => {
-      setIsOnline(true)
-      setSessionStart(new Date())
-      toast.info('🌐 Back online!', { duration: 3000 })
-    }
-    const handleOffline = () => {
-      setIsOnline(false)
-      toast.warning('📡 You\'re offline.', { duration: 3000 })
-    }
-    window.addEventListener('online', handleOnline)
-    window.addEventListener('offline', handleOffline)
-    return () => {
-      window.removeEventListener('online', handleOnline)
-      window.removeEventListener('offline', handleOffline)
-    }
-  }, [])
+    const timer = setInterval(() => {
+      setGreetingIndex((prev) => (prev + 1) % greetingsList.length)
+    }, LANGUAGE_ROTATION_MS)
+    return () => clearInterval(timer)
+  }, [greetingsList.length])
+
+  const cycleLanguage = () => {
+    setGreetingIndex((prev) => (prev + 1) % greetingsList.length)
+  }
+
+  const currentGreeting = greetingsList[greetingIndex] ?? greetingsList[0]
 
   // ─── Grade celebration ─────────────────────────────────────────────────
   useEffect(() => {
@@ -677,14 +733,13 @@ export function PupilBanner({
 
   // ─── Welcome toast ─────────────────────────────────────────────────────
   useEffect(() => {
-    if (!mounted || !fullName || loading) return
-    const fn = getFirstName(fullName)
+    if (!mounted || !firstName || loading) return
     const t = setTimeout(
-      () => toast.success(`👋 Welcome back, ${fn}! Ready to shine?`, { duration: 3000, icon: '🎒', position: 'top-center' }),
+      () => toast.success(`👋 Welcome back, ${firstName}! Ready to shine?`, { duration: 3000, icon: '🎒', position: 'top-center' }),
       600
     )
     return () => clearTimeout(t)
-  }, [mounted, fullName, loading])
+  }, [mounted, firstName, loading])
 
   // ─── Refresh ───────────────────────────────────────────────────────────
   const handleRefresh = () => {
@@ -715,12 +770,9 @@ export function PupilBanner({
   ), [])
 
   // ─── Computed values ───────────────────────────────────────────────────
-  const firstName = getFirstName(fullName || 'Student')
-  const hour = currentTime?.getHours() ?? 9
-  const greeting = useMemo(() => getGreeting(hour), [hour])
   const quote = useMemo(
-    () => getPersonalizedQuote(new Date().getHours(), firstName),
-    [firstName, quoteKey]
+    () => getPersonalizedQuote(currentHour, firstName),
+    [firstName, quoteKey, currentHour]
   )
 
   const formattedDate = currentTime?.toLocaleDateString('en-NG', {
@@ -740,7 +792,6 @@ export function PupilBanner({
   const showRemark = avg > 0
   const remarkData = getRemarkData(avg)
   const avatarLetter = firstName.charAt(0).toUpperCase()
-  const StatusIcon = isOnline ? Wifi : WifiOff
 
   const encouragement: 'complete' | 'almost' | 'keepgoing' | null = isComplete
     ? 'complete'
@@ -804,10 +855,9 @@ export function PupilBanner({
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="flex flex-wrap items-center gap-1.5 mb-3"
+          className="flex flex-wrap items-center gap-1.5 mb-3 pr-10"
         >
           <MetaBadge>
-            <span className="text-sm">{greeting.emoji}</span>
             {formattedDate}
           </MetaBadge>
 
@@ -818,36 +868,16 @@ export function PupilBanner({
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
-                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded-full text-white/70 border border-white/10 cursor-help">
+                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-medium bg-white/10 backdrop-blur-sm px-2.5 py-1 rounded-full text-blue-200 border border-white/10 cursor-help">
                   <Timer className="h-3 w-3" />
-                  {onlineDuration}
+                  Session: {onlineDuration}
                 </span>
               </TooltipTrigger>
               <TooltipContent side="bottom">
-                <p>⏱️ Session time</p>
+                <p>⏱️ Session time (persists on reload)</p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="cursor-help">
-                  <MetaBadge tone={isOnline ? 'emerald' : 'gray'} pulse={isOnline}>
-                    <StatusIcon className="h-2.5 w-2.5" />
-                    {isOnline ? 'Online' : 'Offline'}
-                  </MetaBadge>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent side="bottom">
-                <p>{isOnline ? '✅ You are connected' : '❌ No internet connection'}</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <MetaBadge icon={GraduationCap} tone="violet">
-            {currentTerm} Term
-          </MetaBadge>
 
           {isComplete && (
             <motion.span animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 1.2, repeat: Infinity }}>
@@ -866,7 +896,7 @@ export function PupilBanner({
             transition={{ delay: 0.3, type: 'spring', stiffness: 120 }}
             className="relative shrink-0 self-center sm:self-auto"
           >
-            <AnimatedRing isOnline={isOnline} isTermComplete={isComplete} />
+            <AnimatedRing isTermComplete={isComplete} />
 
             <Avatar className="relative h-20 w-20 md:h-24 md:w-24 ring-0 shadow-2xl border-2 border-white/20">
               {photoUrl && !avatarError && (
@@ -876,48 +906,73 @@ export function PupilBanner({
                 {avatarLetter}
               </AvatarFallback>
             </Avatar>
-
-            <motion.div
-              animate={isOnline ? { scale: [1, 1.3, 1] } : {}}
-              transition={{ duration: 2, repeat: Infinity }}
-              className={cn(
-                'absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full ring-2 ring-white flex items-center justify-center',
-                isOnline ? 'bg-emerald-500' : 'bg-gray-500'
-              )}
-            >
-              <StatusIcon className="h-2.5 w-2.5 text-white" />
-            </motion.div>
           </motion.div>
 
           <div className="flex-1 min-w-0">
-            <motion.div initial={{ x: -24, opacity: 0 }} animate={{ x: 0, opacity: 1 }} transition={{ delay: 0.35 }}>
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white leading-tight drop-shadow-md">
-                {greeting.text},{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-amber-300 to-violet-300">
-                  {firstName}
-                </span>!
-              </h1>
-              <p className="text-xs md:text-sm text-white/60 font-medium mt-0.5 mb-1.5">{greeting.sub}</p>
-            </motion.div>
+            {/* Language Rotator Greeting */}
+            <div
+              className="min-h-[56px] sm:min-h-[64px] flex flex-col justify-center cursor-pointer select-none rounded-lg hover:bg-white/5 transition-colors w-fit p-1 -ml-1 mb-1 focus:outline-none focus:ring-2 focus:ring-emerald-400/40"
+              onClick={cycleLanguage}
+              onKeyDown={(e) => e.key === 'Enter' && cycleLanguage()}
+              role="button"
+              tabIndex={0}
+              aria-label="Switch greeting language"
+              title="Tap to switch language"
+            >
+              <AnimatePresence mode="popLayout">
+                <motion.div
+                  key={currentGreeting.text}
+                  initial={{ opacity: 0, y: 28, rotateX: -50, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -28, rotateX: 50, scale: 0.9 }}
+                  transition={{ type: 'spring', stiffness: 280, damping: 18, mass: 0.8 }}
+                  className="flex flex-col gap-1"
+                  style={{ transformOrigin: 'center center' }}
+                >
+                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold text-white leading-tight drop-shadow-md flex flex-wrap items-center gap-x-2">
+                    <span className="text-2xl md:text-3xl lg:text-4xl">{currentGreeting.emoji}</span>
+                    <span>{currentGreeting.text},</span>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-amber-300 to-violet-300">
+                      {firstName}!
+                    </span>
+                  </h1>
 
-            {quote.text && (
-              <motion.div
-                key={quoteKey}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                transition={{ duration: 0.6 }}
-                className="flex items-start gap-2 bg-white/10 backdrop-blur-sm rounded-xl p-2 border border-white/10 max-w-lg mb-2"
-              >
-                <Quote className="h-3 w-3 text-amber-400/60 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-white/80 text-[10px] sm:text-xs italic leading-relaxed line-clamp-2">
-                    &ldquo;{quote.text}&rdquo;
-                  </p>
-                  <p className="text-[8px] text-white/40 mt-0.5 font-medium">— {quote.author}</p>
-                </div>
-              </motion.div>
-            )}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-medium tracking-wide uppercase bg-white/10 text-emerald-200/90 border border-white/10 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                      {currentGreeting.lang}
+                    </span>
+                    <span className="text-[10px] text-white/40 hidden sm:inline">tap to change</span>
+                    <span className="text-xs md:text-sm text-white/60 font-medium">{currentGreeting.sub}</span>
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            </div>
+
+            {/* Jump-Free Quote Rotator */}
+            <div className="min-h-[64px] flex items-center mb-2">
+              <AnimatePresence mode="popLayout">
+                {quote.text && (
+                  <motion.div
+                    key={quoteKey}
+                    initial={{ opacity: 0, y: 15, rotateX: -45, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, rotateX: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -15, rotateX: 45, scale: 0.95 }}
+                    transition={{ duration: 0.6, type: 'spring', stiffness: 220, damping: 20 }}
+                    className="flex items-start gap-2 bg-white/10 backdrop-blur-sm rounded-xl p-2.5 border border-white/10 max-w-lg w-full"
+                    style={{ transformOrigin: 'center center' }}
+                  >
+                    <Quote className="h-3 w-3 text-amber-400/60 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-white/80 text-[10px] sm:text-xs italic leading-relaxed line-clamp-2">
+                        &ldquo;{quote.text}&rdquo;
+                      </p>
+                      <p className="text-[8px] text-white/40 mt-0.5 font-medium">— {quote.author}</p>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             <motion.div
               initial={{ y: 10, opacity: 0 }}

@@ -1,19 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
-  ArrowLeft, Users, Calendar,
-  ChevronLeft, ChevronRight, CheckCircle2, XCircle,
-  Loader2, AlertCircle, UserCheck, UserX,
-  Clock, Shield, TrendingUp, BookOpen, Save,
-  RefreshCw,
+  ArrowLeft, Users, Calendar, Loader2, AlertCircle, 
+  BookOpen, Save, RefreshCw, Plus, Minus, Info, ClipboardCheck, Sparkles
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -22,17 +18,16 @@ import { cn } from '@/lib/utils'
 
 interface Pupil {
   id: string
-  student_id: string  // ✅ Changed from pupil_id to student_id
+  student_id: string
   pupil_name: string
   photo_url?: string | null
   avatar_url?: string | null
 }
 
-interface AttendanceRecord {
-  student_id: string  // ✅ Changed from pupil_id to student_id
-  date: string
-  status: 'present' | 'absent' | null
-  locked: boolean
+interface TermlyAttendance {
+  student_id: string
+  days_present: number
+  days_absent: number
 }
 
 interface TermInfo {
@@ -41,22 +36,6 @@ interface TermInfo {
   session_year: string
   start_date: string
   end_date: string
-}
-
-interface WeekDay {
-  date: Date
-  dateStr: string
-  dayName: string
-  dayShort: string
-  isToday: boolean
-}
-
-interface Week {
-  weekNumber: number
-  weekLabel: string
-  days: WeekDay[]
-  startDate: Date
-  endDate: Date
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -72,52 +51,18 @@ const normalizeClassName = (name: string): string => {
 const classNamesMatch = (a: string, b: string) =>
   !!a && !!b && normalizeClassName(a) === normalizeClassName(b)
 
-const toDateStr = (d: Date) => d.toISOString().split('T')[0]
-
-const DAY_NAMES  = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-const DAY_SHORTS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']
-
-function buildTermWeeks(startDate: Date, endDate: Date): Week[] {
-  const weeks: Week[] = []
-  const cursor = new Date(startDate)
-  cursor.setHours(0, 0, 0, 0)
-  const dow = cursor.getDay()
-  cursor.setDate(cursor.getDate() + (dow === 0 ? -6 : 1 - dow))
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  let weekNum = 1
-  while (cursor <= endDate) {
-    const days: WeekDay[] = []
-    for (let i = 0; i < 5; i++) {
-      const d = new Date(cursor)
-      d.setDate(cursor.getDate() + i)
-      days.push({
-        date: d,
-        dateStr: toDateStr(d),
-        dayName: DAY_NAMES[i],
-        dayShort: DAY_SHORTS[i],
-        isToday: toDateStr(d) === toDateStr(today),
-      })
-    }
-    const weekEnd = new Date(cursor)
-    weekEnd.setDate(cursor.getDate() + 4)
-    weeks.push({ 
-      weekNumber: weekNum, 
-      weekLabel: `Week ${weekNum}`, 
-      days, 
-      startDate: new Date(cursor), 
-      endDate: weekEnd 
-    })
-    cursor.setDate(cursor.getDate() + 7)
-    weekNum++
+// Helper to calculate total weekdays between two dates (estimated term school days)
+function calculateTermWeekdays(start: string, end: string): number {
+  const startDate = new Date(start)
+  const endDate = new Date(end)
+  let count = 0
+  const cur = new Date(startDate)
+  while (cur <= endDate) {
+    const day = cur.getDay()
+    if (day !== 0 && day !== 6) count++ // Exclude Saturdays and Sundays
+    cur.setDate(cur.getDate() + 1)
   }
-  return weeks
-}
-
-function getRecord(records: AttendanceRecord[], studentId: string, dateStr: string) {
-  return records.find(r => r.student_id === studentId && r.date === dateStr)
+  return count || 90 // Default fallback estimate
 }
 
 // ── Loading ───────────────────────────────────────────────────────────────────
@@ -132,134 +77,9 @@ function LoadingScreen() {
             <Users className="h-8 w-8 text-white" />
           </div>
         </div>
-        <p className="font-semibold text-slate-700">Loading attendance...</p>
-        <p className="text-sm text-slate-400 mt-1">Fetching pupil records</p>
+        <p className="font-semibold text-slate-700">Loading Termly Attendance...</p>
+        <p className="text-sm text-slate-400 mt-1">Fetching student records</p>
       </div>
-    </div>
-  )
-}
-
-// ── Attendance Toggle Cell ────────────────────────────────────────────────────
-
-function AttendanceCell({
-  record,
-  isLocked,
-  isFuture,
-  onChange,
-}: {
-  record: AttendanceRecord | undefined
-  isLocked: boolean
-  isFuture: boolean
-  onChange: (status: 'present' | 'absent' | null) => void
-}) {
-  const status = record?.status ?? null
-  const cellLocked = isLocked || record?.locked || isFuture
-
-  const cycle = () => {
-    if (cellLocked) return
-    if (status === null) onChange('present')
-    else if (status === 'present') onChange('absent')
-    else onChange(null)
-  }
-
-  // Locked / future placeholder
-  if (cellLocked && status === null) {
-    return (
-      <div className="flex flex-col items-center gap-1.5">
-        <div className={cn(
-          'w-10 h-10 rounded-2xl flex items-center justify-center',
-          isFuture
-            ? 'bg-slate-50 border border-dashed border-slate-200'
-            : 'bg-slate-100 border border-slate-200'
-        )}>
-          {isFuture
-            ? <Clock className="h-4 w-4 text-slate-300" />
-            : <Shield className="h-4 w-4 text-slate-300" />}
-        </div>
-        <span className="text-[10px] font-medium text-slate-300 leading-none">
-          {isFuture ? 'Soon' : 'Locked'}
-        </span>
-      </div>
-    )
-  }
-
-  // Interactive toggle
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <button
-        onClick={cycle}
-        disabled={cellLocked}
-        title={
-          cellLocked
-            ? 'Locked'
-            : status === null
-            ? 'Click to mark present'
-            : status === 'present'
-            ? 'Click to mark absent'
-            : 'Click to clear'
-        }
-        className={cn(
-          'relative w-10 h-10 rounded-2xl border-2 flex items-center justify-center',
-          'transition-all duration-200 ease-out',
-          'focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1',
-
-          status === null && !cellLocked && [
-            'bg-white border-slate-200',
-            'hover:border-blue-300 hover:bg-blue-50/40',
-            'hover:scale-105 active:scale-95',
-            'focus-visible:ring-blue-300',
-          ],
-
-          status === 'present' && [
-            'bg-emerald-500 border-emerald-600',
-            'shadow-md shadow-emerald-200/70',
-            !cellLocked && 'hover:bg-emerald-600 hover:scale-105 active:scale-95',
-            'focus-visible:ring-emerald-400',
-          ],
-
-          status === 'absent' && [
-            'bg-rose-500 border-rose-600',
-            'shadow-md shadow-rose-200/70',
-            !cellLocked && 'hover:bg-rose-600 hover:scale-105 active:scale-95',
-            'focus-visible:ring-rose-400',
-          ],
-
-          cellLocked && status !== null && 'opacity-80 cursor-not-allowed',
-          cellLocked && status === null && 'cursor-not-allowed',
-        )}
-      >
-        {status === 'present' && !cellLocked && (
-          <span className="absolute inset-0 rounded-2xl animate-ping bg-emerald-400 opacity-20" />
-        )}
-
-        {status === 'present' && (
-          <CheckCircle2 className="h-5 w-5 text-white drop-shadow-sm" />
-        )}
-        {status === 'absent' && (
-          <XCircle className="h-5 w-5 text-white drop-shadow-sm" />
-        )}
-        {status === null && (
-          <div className={cn(
-            'w-2.5 h-2.5 rounded-full transition-colors duration-200',
-            'bg-slate-200 group-hover:bg-blue-300'
-          )} />
-        )}
-
-        {cellLocked && status !== null && (
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center">
-            <Shield className="h-2.5 w-2.5 text-slate-400" />
-          </span>
-        )}
-      </button>
-
-      <span className={cn(
-        'text-[10px] font-semibold leading-none tracking-wide',
-        status === 'present' && 'text-emerald-600',
-        status === 'absent'  && 'text-rose-500',
-        status === null      && 'text-slate-300',
-      )}>
-        {status === 'present' ? 'P' : status === 'absent' ? 'A' : '·'}
-      </span>
     </div>
   )
 }
@@ -273,14 +93,22 @@ export default function MarkAttendancePage() {
   const classNameFromUrl = decodeURIComponent(params.className as string)
 
   const [pupils, setPupils] = useState<Pupil[]>([])
-  const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [termInfo, setTermInfo] = useState<TermInfo | null>(null)
-  const [termWeeks, setTermWeeks] = useState<Week[]>([])
-  const [currentWeekIndex, setCurrentWeekIndex] = useState(0)
+  const [attendanceData, setAttendanceData] = useState<Record<string, TermlyAttendance>>({})
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState<string | null>(null)
-  const [lockedDates, setLockedDates] = useState<Set<string>>(new Set())
+  const [saving, setSaving] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
   const [matchedClassName, setMatchedClassName] = useState(classNameFromUrl)
+  
+  // Custom states for batch tools
+  const [batchPresentVal, setBatchPresentVal] = useState<number | ''>('')
+  const [batchAbsentVal, setBatchAbsentVal] = useState<number | ''>(0)
+
+  // Calculate estimated total term days
+  const totalEstimatedTermDays = useMemo(() => {
+    if (!termInfo) return 90
+    return calculateTermWeekdays(termInfo.start_date, termInfo.end_date)
+  }, [termInfo])
 
   // ─── Fetch ───────────────────────────────────────────────────────────────────
 
@@ -290,7 +118,10 @@ export default function MarkAttendancePage() {
     try {
       // Fetch term settings
       const { data: settings } = await supabase
-        .from('school_settings').select('current_term, current_session').single()
+        .from('school_settings')
+        .select('current_term, current_session')
+        .single()
+
       if (!settings) { 
         toast.error('No school settings found')
         setLoading(false)
@@ -298,9 +129,11 @@ export default function MarkAttendancePage() {
       }
 
       const { data: termData } = await supabase
-        .from('terms').select('*')
+        .from('terms')
+        .select('*')
         .eq('term_code', settings.current_term)
-        .eq('session_year', settings.current_session).single()
+        .eq('session_year', settings.current_session)
+        .single()
       
       if (!termData) { 
         toast.error('Term not found')
@@ -308,16 +141,12 @@ export default function MarkAttendancePage() {
         return 
       }
       setTermInfo(termData)
+      setBatchPresentVal(calculateTermWeekdays(termData.start_date, termData.end_date))
 
-      const weeks = buildTermWeeks(new Date(termData.start_date), new Date(termData.end_date))
-      setTermWeeks(weeks)
-      const todayStr = toDateStr(new Date())
-      const idx = weeks.findIndex(w => w.days.some(d => d.dateStr === todayStr))
-      setCurrentWeekIndex(idx >= 0 ? idx : weeks.length - 1)
-
-      // Fetch all pupils to find matching class
+      // Match correct className
       const { data: allPupils } = await supabase
-        .from('profiles').select('id, display_name, class, photo_url, avatar_url')
+        .from('profiles')
+        .select('id, display_name, class, photo_url, avatar_url')
         .in('role', ['pupil', 'student'])
         .eq('is_active', true)
 
@@ -331,175 +160,227 @@ export default function MarkAttendancePage() {
 
       // Fetch pupils in the matched class
       const { data: pupilsData } = await supabase
-        .from('profiles').select('id, display_name, photo_url, avatar_url')
+        .from('profiles')
+        .select('id, display_name, photo_url, avatar_url')
         .in('role', ['pupil', 'student'])
         .eq('class', matched)
         .eq('is_active', true)
         .order('display_name')
 
-      setPupils(
-        (pupilsData ?? []).map((p: any) => ({
-          id: p.id,
-          student_id: p.id,  // ✅ Changed from pupil_id to student_id
-          pupil_name: p.display_name || 'Unknown',
-          photo_url: p.photo_url || p.avatar_url || null,
-        }))
-      )
+      const loadedPupils = (pupilsData ?? []).map((p: any) => ({
+        id: p.id,
+        student_id: p.id,
+        pupil_name: p.display_name || 'Unknown',
+        photo_url: p.photo_url || p.avatar_url || null,
+      }))
+      setPupils(loadedPupils)
 
-      const studentIds = (pupilsData ?? []).map((p: any) => p.id)
+      const studentIds = loadedPupils.map(p => p.student_id)
       if (studentIds.length > 0) {
+        // Fetch termly aggregate records
         const { data: recs } = await supabase
-          .from('attendance_records')
-          .select('student_id, date, status, locked')  // ✅ Changed from pupil_id to student_id
-          .in('student_id', studentIds)                // ✅ Changed from pupil_id to student_id
+          .from('term_attendance')
+          .select('student_id, days_present, days_absent')
+          .in('student_id', studentIds)
           .eq('term_code', termData.term_code)
           .eq('session_year', termData.session_year)
 
-        const typedRecs: AttendanceRecord[] = (recs ?? []).map((r: any) => ({
-          student_id: r.student_id,  // ✅ Changed from pupil_id to student_id
-          date: r.date,
-          status: r.status, 
-          locked: r.locked ?? false,
-        }))
-        setRecords(typedRecs)
-        setLockedDates(new Set(typedRecs.filter(r => r.locked).map(r => r.date)))
+        const initialData: Record<string, TermlyAttendance> = {}
+        
+        // Populate fetched items
+        recs?.forEach((r: any) => {
+          initialData[r.student_id] = {
+            student_id: r.student_id,
+            days_present: Number(r.days_present ?? 0),
+            days_absent: Number(r.days_absent ?? 0)
+          }
+        })
+
+        // Fill remaining pupils with default 0s
+        loadedPupils.forEach(p => {
+          if (!initialData[p.student_id]) {
+            initialData[p.student_id] = {
+              student_id: p.student_id,
+              days_present: 0,
+              days_absent: 0
+            }
+          }
+        })
+
+        setAttendanceData(initialData)
       }
     } catch (err) {
       console.error('Error fetching data:', err)
       toast.error('Failed to load attendance data')
     } finally {
       setLoading(false)
+      setIsDirty(false)
     }
   }, [classNameFromUrl, user?.id])
 
   useEffect(() => { fetchAll() }, [fetchAll])
 
-  // ─── Handlers ────────────────────────────────────────────────────────────────
+  // ─── Input Handlers ──────────────────────────────────────────────────────────
 
-  const handleCellChange = (studentId: string, dateStr: string, status: 'present' | 'absent' | null) => {
-    setRecords(prev => {
-      const existing = prev.find(r => r.student_id === studentId && r.date === dateStr)
-      if (existing) {
-        if (status === null) return prev.filter(r => !(r.student_id === studentId && r.date === dateStr))
-        return prev.map(r => r.student_id === studentId && r.date === dateStr ? { ...r, status } : r)
+  const handleValueChange = (studentId: string, field: 'days_present' | 'days_absent', value: number) => {
+    const cleanValue = Math.max(0, Math.floor(value)) // Prevent negative numbers/decimals
+    setAttendanceData(prev => ({
+      ...prev,
+      [studentId]: {
+        ...prev[studentId],
+        [field]: cleanValue
       }
-      if (status === null) return prev
-      return [...prev, { student_id: studentId, date: dateStr, status, locked: false }]
-    })
+    }))
+    setIsDirty(true)
   }
 
-  const saveDay = async (dateStr: string) => {
+  const handleIncrement = (studentId: string, field: 'days_present' | 'days_absent') => {
+    const currentVal = attendanceData[studentId]?.[field] ?? 0
+    handleValueChange(studentId, field, currentVal + 1)
+  }
+
+  const handleDecrement = (studentId: string, field: 'days_present' | 'days_absent') => {
+    const currentVal = attendanceData[studentId]?.[field] ?? 0
+    handleValueChange(studentId, field, currentVal - 1)
+  }
+
+  // Batch Auto-fill helper (saves time for teachers)
+  const applyBatchValues = () => {
+    if (batchPresentVal === '') {
+      toast.error('Please input a valid target number for Days Present')
+      return
+    }
+    
+    setAttendanceData(prev => {
+      const updated = { ...prev }
+      pupils.forEach(p => {
+        updated[p.student_id] = {
+          student_id: p.student_id,
+          days_present: Number(batchPresentVal),
+          days_absent: Number(batchAbsentVal)
+        }
+      })
+      return updated
+    })
+    setIsDirty(true)
+    toast.success('Successfully applied batch attendance to all pupils')
+  }
+
+  // ─── Save Operation ─────────────────────────────────────────────────────────
+
+  const handleSave = async () => {
     if (!termInfo || !user?.id) return
-    setSaving(dateStr)
+    setSaving(true)
     try {
-      const dayRecords = pupils
-        .map(p => {
-          const r = getRecord(records, p.student_id, dateStr)
-          return r ? { student_id: p.student_id, date: dateStr, status: r.status } : null
-        })
-        .filter(Boolean)
+      const payload = pupils.map(p => {
+        const data = attendanceData[p.student_id] || { days_present: 0, days_absent: 0 }
+        return {
+          student_id: p.student_id,
+          class_name: matchedClassName,
+          term_code: termInfo.term_code,
+          session_year: termInfo.session_year,
+          days_present: data.days_present,
+          days_absent: data.days_absent,
+          teacher_id: user.id,
+          updated_at: new Date().toISOString()
+        }
+      })
 
-      if (dayRecords.length > 0) {
-        const { error } = await supabase.from('attendance_records').upsert(
-          dayRecords.map(r => ({
-            student_id: r!.student_id,  // ✅ Changed from pupil_id to student_id
-            class_name: matchedClassName,
-            term_code: termInfo.term_code,
-            session_year: termInfo.session_year,
-            date: dateStr,
-            status: r!.status,
-            teacher_id: user.id,
-            locked: true,
-            locked_at: new Date().toISOString(),
-            locked_by: user.id,
-          })),
-          { onConflict: 'student_id,date,term_code,session_year' }
-        )
-        if (error) throw error
-      }
+      const { error } = await supabase
+        .from('term_attendance')
+        .upsert(payload, { onConflict: 'student_id,term_code,session_year' })
 
-      setLockedDates(prev => new Set([...prev, dateStr]))
-      setRecords(prev => prev.map(r => r.date === dateStr ? { ...r, locked: true } : r))
-      toast.success(`Locked: ${new Date(dateStr + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}`)
+      if (error) throw error
+
+      setIsDirty(false)
+      toast.success('Termly attendance saved successfully')
     } catch (error) {
-      console.error('Error saving:', error)
-      toast.error('Failed to save attendance')
+      console.error('Error saving termly aggregate data:', error)
+      toast.error('Failed to save attendance aggregate data')
     } finally {
-      setSaving(null)
+      setSaving(false)
     }
   }
 
-  const markAllForDay = (dateStr: string, status: 'present' | 'absent') => {
-    pupils.forEach(p => {
-      const r = getRecord(records, p.student_id, dateStr)
-      if (!r || r.status === null) handleCellChange(p.student_id, dateStr, status)
+  // ─── Calculations ───────────────────────────────────────────────────────────
+
+  const aggregates = useMemo(() => {
+    let sumPresent = 0
+    let sumAbsent = 0
+    let count = 0
+
+    Object.values(attendanceData).forEach(item => {
+      sumPresent += item.days_present
+      sumAbsent += item.days_absent
+      count++
     })
-  }
 
-  // ─── Derived ─────────────────────────────────────────────────────────────────
+    const totalDaysRecorded = sumPresent + sumAbsent
+    const averagePercentage = totalDaysRecorded > 0 ? Math.round((sumPresent / totalDaysRecorded) * 100) : 0
 
-  const todayStr   = toDateStr(new Date())
-  const currentWeek = termWeeks[currentWeekIndex]
-
-  const getDayStats = (dateStr: string) => ({
-    present: pupils.filter(p => getRecord(records, p.student_id, dateStr)?.status === 'present').length,
-    absent:  pupils.filter(p => getRecord(records, p.student_id, dateStr)?.status === 'absent').length,
-    unmarked: pupils.filter(p => !getRecord(records, p.student_id, dateStr)?.status).length,
-  })
-
-  const getWeekStats = (week: Week) =>
-    week.days.reduce((acc, d) => {
-      const s = getDayStats(d.dateStr)
-      return { 
-        totalPresent: acc.totalPresent + s.present, 
-        totalAbsent: acc.totalAbsent + s.absent, 
-        totalUnmarked: acc.totalUnmarked + s.unmarked 
-      }
-    }, { totalPresent: 0, totalAbsent: 0, totalUnmarked: 0 })
-
-  const getPupilWeekCount = (studentId: string, week: Week) =>
-    week.days.reduce((acc, d) => acc + (getRecord(records, studentId, d.dateStr)?.status === 'present' ? 1 : 0), 0)
+    return {
+      sumPresent,
+      sumAbsent,
+      averagePercentage,
+      count
+    }
+  }, [attendanceData])
 
   if (loading) return <LoadingScreen />
 
-  const weekStats = currentWeek ? getWeekStats(currentWeek) : null
-
-  // ─── Render ──────────────────────────────────────────────────────────────────
-
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 pb-20">
 
       {/* ── Sticky Header ─────────────────────────────────────────────────── */}
       <div className="bg-white border-b border-slate-100 sticky top-0 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-4 h-14">
-            <button
-              onClick={() => router.push('/staff/attendance')}
-              className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium"
-            >
-              <ArrowLeft className="h-4 w-4" /> Back
-            </button>
-            <div className="h-5 w-px bg-slate-200" />
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                <BookOpen className="h-4 w-4 text-white" />
-              </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800 leading-none">{classNameFromUrl}</p>
-                {termInfo && (
-                  <p className="text-[11px] text-slate-400 mt-0.5 leading-none">
-                    {termInfo.term_name} · {termInfo.session_year}
-                  </p>
-                )}
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-4">
+              <button
+                onClick={() => router.push('/staff/attendance')}
+                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-800 transition-colors text-sm font-medium"
+              >
+                <ArrowLeft className="h-4 w-4" /> Back
+              </button>
+              <div className="h-5 w-px bg-slate-200" />
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
+                  <BookOpen className="h-4.5 w-4.5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-800 leading-none">{classNameFromUrl}</p>
+                  {termInfo && (
+                    <p className="text-[11px] text-slate-400 mt-1 leading-none">
+                      {termInfo.term_name} · Termly Summary Profile
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-              <span className="px-2.5 py-1 bg-slate-100 text-slate-600 rounded-full text-xs font-semibold">
-                {pupils.length} Pupils
-              </span>
-              <span className="px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold">
-                {termWeeks.length} Weeks
-              </span>
+
+            <div className="flex items-center gap-2">
+              {isDirty && (
+                <span className="text-xs text-amber-500 font-semibold hidden md:inline-flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" /> Unsaved Changes
+                </span>
+              )}
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className={cn(
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm',
+                  isDirty 
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-200' 
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-400 cursor-not-allowed'
+                )}
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                {saving ? 'Saving...' : 'Save Termly Logs'}
+              </button>
             </div>
           </div>
         </div>
@@ -507,62 +388,92 @@ export default function MarkAttendancePage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
 
-        {/* ── Week Navigator ─────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentWeekIndex(i => Math.max(0, i - 1))}
-              disabled={currentWeekIndex === 0}
-              className="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
-            >
-              <ChevronLeft className="h-4 w-4 text-slate-600" />
-            </button>
-
-            <div className="flex items-center gap-2.5 px-4 py-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-              <Calendar className="h-4 w-4 text-blue-500 flex-shrink-0" />
-              <span className="text-sm font-bold text-slate-800">{currentWeek?.weekLabel ?? '—'}</span>
-              {currentWeek?.days.some(d => d.isToday) && (
-                <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-bold">
-                  Current
-                </span>
-              )}
-              {currentWeek && (
-                <span className="text-xs text-slate-400 hidden sm:inline">
-                  {currentWeek.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                  {' – '}
-                  {currentWeek.endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                </span>
-              )}
+        {/* ── Metric Summary Row ─────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+              <Users className="w-5 h-5" />
             </div>
-
-            <button
-              onClick={() => setCurrentWeekIndex(i => Math.min(termWeeks.length - 1, i + 1))}
-              disabled={currentWeekIndex === termWeeks.length - 1}
-              className="w-8 h-8 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
-            >
-              <ChevronRight className="h-4 w-4 text-slate-600" />
-            </button>
+            <div>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Pupils</p>
+              <p className="text-xl font-extrabold text-slate-800">{pupils.length}</p>
+            </div>
           </div>
 
-          {weekStats && (
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-full">
-                <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
-                <span className="text-xs font-bold text-emerald-700">{weekStats.totalPresent}</span>
-              </div>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 border border-rose-100 rounded-full">
-                <UserX className="h-3.5 w-3.5 text-rose-500" />
-                <span className="text-xs font-bold text-rose-600">{weekStats.totalAbsent}</span>
-              </div>
-              {weekStats.totalUnmarked > 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-100 rounded-full">
-                  <Clock className="h-3.5 w-3.5 text-amber-500" />
-                  <span className="text-xs font-bold text-amber-600">{weekStats.totalUnmarked}</span>
-                </div>
-              )}
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <ClipboardCheck className="w-5 h-5" />
             </div>
-          )}
+            <div>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Days Present</p>
+              <p className="text-xl font-extrabold text-slate-800">{aggregates.sumPresent}</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center text-rose-600">
+              <RefreshCw className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Total Days Absent</p>
+              <p className="text-xl font-extrabold text-slate-800">{aggregates.sumAbsent}</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-600">
+              <Calendar className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-slate-400 text-xs font-bold uppercase tracking-wider">Estimated Term Weekdays</p>
+              <p className="text-xl font-extrabold text-slate-800">{totalEstimatedTermDays} Days</p>
+            </div>
+          </div>
         </div>
+
+        {/* ── Bulk Management Toolset ────────────────────────────────────── */}
+        {pupils.length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-100 rounded-2xl p-4 sm:p-5">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles className="h-4 w-4 text-blue-600" />
+              <h3 className="text-sm font-extrabold text-slate-800">Batch Entry Assistant</h3>
+            </div>
+            <p className="text-xs text-slate-500 mb-4 max-w-2xl">
+              Quickly fill out typical attendance records for the entire class context at once. You can edit individual records manually afterward.
+            </p>
+            
+            <div className="flex flex-wrap items-end gap-4">
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase font-bold text-slate-400">Days Present (Base)</label>
+                <input
+                  type="number"
+                  value={batchPresentVal}
+                  onChange={(e) => setBatchPresentVal(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder={String(totalEstimatedTermDays)}
+                  className="bg-white border border-slate-200 text-slate-800 font-bold px-3 py-1.5 rounded-xl text-xs w-28 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] uppercase font-bold text-slate-400">Days Absent (Base)</label>
+                <input
+                  type="number"
+                  value={batchAbsentVal}
+                  onChange={(e) => setBatchAbsentVal(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="bg-white border border-slate-200 text-slate-800 font-bold px-3 py-1.5 rounded-xl text-xs w-28 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <button
+                type="button"
+                onClick={applyBatchValues}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs py-2 px-4 rounded-xl transition-all shadow-sm active:scale-95"
+              >
+                Apply to Class List
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Empty State ────────────────────────────────────────────────── */}
         {pupils.length === 0 && (
@@ -577,361 +488,164 @@ export default function MarkAttendancePage() {
           </div>
         )}
 
-        {/* ── Attendance Table ───────────────────────────────────────────── */}
-        {pupils.length > 0 && currentWeek && (
+        {/* ── Termly Attendance Table ────────────────────────────────────── */}
+        {pupils.length > 0 && (
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100">
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">#</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Pupil</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider text-center w-52">Days Present</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider text-center w-52">Days Absent</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider text-center w-36">Total Days</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider text-right w-32">Attendance Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {pupils.map((pupil, index) => {
+                    const record = attendanceData[pupil.student_id] || { days_present: 0, days_absent: 0 }
+                    const totalDays = record.days_present + record.days_absent
+                    const rate = totalDays > 0 ? Math.round((record.days_present / totalDays) * 100) : 0
+                    const initials = pupil.pupil_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
 
-            {/* Column headers */}
-            <div
-              className="grid border-b border-slate-100 bg-slate-50/60"
-              style={{ gridTemplateColumns: `minmax(180px,1fr) repeat(5, minmax(96px,1fr)) 90px` }}
-            >
-              {/* Pupil column */}
-              <div className="px-5 py-4 border-r border-slate-100 flex items-center gap-2">
-                <Users className="h-3.5 w-3.5 text-slate-400" />
-                <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Pupil</span>
-              </div>
+                    return (
+                      <tr key={pupil.student_id} className="hover:bg-slate-50/50 transition-colors group">
+                        {/* Number Index */}
+                        <td className="px-6 py-4 text-xs font-bold text-slate-400">
+                          {String(index + 1).padStart(2, '0')}
+                        </td>
 
-              {/* Day columns */}
-              {currentWeek.days.map(day => {
-                const stats    = getDayStats(day.dateStr)
-                const isToday  = day.isToday
-                const isLocked = lockedDates.has(day.dateStr)
-                const isFuture = day.dateStr > todayStr
-                const isSaving = saving === day.dateStr
-                const total    = pupils.length
-                const pct      = total > 0 ? Math.round((stats.present / total) * 100) : 0
+                        {/* Profile Info */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-10 h-10 border border-slate-100 shadow-sm">
+                              {pupil.photo_url ? (
+                                <AvatarImage src={pupil.photo_url} alt={pupil.pupil_name} className="object-cover" />
+                              ) : (
+                                <AvatarFallback className="bg-gradient-to-br from-blue-400 to-indigo-500 text-white text-xs font-bold">
+                                  {initials}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-slate-800 leading-tight">
+                                {pupil.pupil_name}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">Student ID: {pupil.student_id.slice(0, 8)}...</p>
+                            </div>
+                          </div>
+                        </td>
 
-                return (
-                  <div
-                    key={day.dateStr}
-                    className={cn(
-                      'px-3 py-3 border-r border-slate-100 last:border-r-0',
-                      isToday && 'bg-blue-50/50',
-                    )}
-                  >
-                    {/* Day name + date */}
-                    <div className="text-center mb-2.5">
-                      <p className={cn(
-                        'text-xs font-bold uppercase tracking-widest',
-                        isToday ? 'text-blue-600' : 'text-slate-500',
-                      )}>
-                        {day.dayShort}
-                      </p>
-                      <p className={cn(
-                        'text-[11px] font-semibold mt-0.5',
-                        isToday ? 'text-blue-400' : 'text-slate-400',
-                      )}>
-                        {day.date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric' })}
-                      </p>
-                      {isToday && (
-                        <span className="inline-block mt-1 px-2 py-0.5 bg-blue-500 text-white rounded-full text-[9px] font-bold tracking-wide">
-                          TODAY
-                        </span>
-                      )}
-                    </div>
+                        {/* Days Present Control Column */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDecrement(pupil.student_id, 'days_present')}
+                              className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 flex items-center justify-center text-slate-500 transition-all"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={record.days_present}
+                              onChange={(e) => handleValueChange(pupil.student_id, 'days_present', Number(e.target.value))}
+                              className="w-16 text-center text-sm font-extrabold bg-slate-50 text-slate-800 border border-slate-200 rounded-lg py-1 focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleIncrement(pupil.student_id, 'days_present')}
+                              className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 flex items-center justify-center text-slate-500 transition-all"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </td>
 
-                    {/* Present/Absent mini bar */}
-                    {!isFuture && (
-                      <div className="mb-2.5">
-                        <div className="flex items-center justify-center gap-2 mb-1.5">
-                          <span className="text-[11px] font-bold text-emerald-600">{stats.present}P</span>
-                          <span className="text-[10px] text-slate-300">·</span>
-                          <span className="text-[11px] font-bold text-rose-500">{stats.absent}A</span>
-                        </div>
-                        {/* Progress bar */}
-                        <div className="w-full bg-slate-100 rounded-full h-1 overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-emerald-500 transition-all duration-300"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
+                        {/* Days Absent Control Column */}
+                        <td className="px-6 py-4">
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleDecrement(pupil.student_id, 'days_absent')}
+                              className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 flex items-center justify-center text-slate-500 transition-all"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={record.days_absent}
+                              onChange={(e) => handleValueChange(pupil.student_id, 'days_absent', Number(e.target.value))}
+                              className="w-16 text-center text-sm font-extrabold bg-slate-50 text-slate-800 border border-slate-200 rounded-lg py-1 focus:ring-2 focus:ring-blue-500 outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleIncrement(pupil.student_id, 'days_absent')}
+                              className="w-8 h-8 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 active:scale-95 flex items-center justify-center text-slate-500 transition-all"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </td>
 
-                    {/* Lock / status button */}
-                    {isFuture ? (
-                      <div className="flex items-center justify-center gap-1 py-1.5 rounded-xl bg-slate-50 text-slate-300 text-[10px] font-semibold border border-dashed border-slate-200">
-                        <Clock className="h-3 w-3" /> Upcoming
-                      </div>
-                    ) : isLocked ? (
-                      <div className="flex items-center justify-center gap-1 py-1.5 rounded-xl bg-emerald-50 text-emerald-600 text-[10px] font-bold border border-emerald-100">
-                        <Shield className="h-3 w-3" /> Saved
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => saveDay(day.dateStr)}
-                        disabled={!!isSaving}
-                        className="w-full flex items-center justify-center gap-1 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white text-[10px] font-bold transition-all border border-blue-700 shadow-sm shadow-blue-200"
-                      >
-                        {isSaving
-                          ? <Loader2 className="h-3 w-3 animate-spin" />
-                          : <Save className="h-3 w-3" />}
-                        {isSaving ? 'Saving…' : 'Lock Day'}
-                      </button>
-                    )}
+                        {/* Auto calculated total column */}
+                        <td className="px-6 py-4 text-center">
+                          <span className="text-sm font-bold text-slate-500">
+                            {totalDays} Days
+                          </span>
+                        </td>
 
-                    {/* Quick mark all */}
-                    {!isFuture && !isLocked && (
-                      <div className="flex gap-1 mt-1.5">
-                        <button
-                          onClick={() => markAllForDay(day.dateStr, 'present')}
-                          className="flex-1 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 active:scale-95 text-emerald-700 text-[9px] font-bold transition-all"
-                        >
-                          All P
-                        </button>
-                        <button
-                          onClick={() => markAllForDay(day.dateStr, 'absent')}
-                          className="flex-1 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-600 text-[9px] font-bold transition-all"
-                        >
-                          All A
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-
-              {/* Week total header */}
-              <div className="px-3 py-4 bg-slate-100/60 flex flex-col items-center justify-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5 text-slate-400" />
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Week</p>
-              </div>
-            </div>
-
-            {/* Pupil rows */}
-            <div className="divide-y divide-slate-50">
-              {pupils.map((pupil, idx) => {
-                const weekCount = getPupilWeekCount(pupil.student_id, currentWeek)
-                const weekPct   = Math.round((weekCount / 5) * 100)
-                const initials  = pupil.pupil_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
-
-                return (
-                  <div
-                    key={pupil.student_id}
-                    className="grid items-center hover:bg-slate-50/60 transition-colors group"
-                    style={{ gridTemplateColumns: `minmax(180px,1fr) repeat(5, minmax(96px,1fr)) 90px` }}
-                  >
-                    {/* Pupil info */}
-                    <div className="px-5 py-3 border-r border-slate-50 flex items-center gap-3">
-                      <Avatar className="w-9 h-9 border-2 border-white shadow-sm flex-shrink-0">
-                        {pupil.photo_url ? (
-                          <AvatarImage src={pupil.photo_url} alt={pupil.pupil_name} className="object-cover" />
-                        ) : (
-                          <AvatarFallback className="bg-gradient-to-br from-blue-400 to-indigo-500 text-white text-xs font-bold">
-                            {initials}
-                          </AvatarFallback>
-                        )}
-                      </Avatar>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-800 truncate leading-tight">
-                          {pupil.pupil_name}
-                        </p>
-                        <p className="text-[10px] text-slate-400 font-medium">#{String(idx + 1).padStart(2, '0')}</p>
-                      </div>
-                    </div>
-
-                    {/* Day cells */}
-                    {currentWeek.days.map(day => {
-                      const record   = getRecord(records, pupil.student_id, day.dateStr)
-                      const isLocked = lockedDates.has(day.dateStr) || (record?.locked ?? false)
-                      const isFuture = day.dateStr > todayStr
-
-                      return (
-                        <div
-                          key={day.dateStr}
-                          className={cn(
-                            'flex items-center justify-center py-3 border-r border-slate-50 last:border-r-0',
-                            day.isToday && 'bg-blue-50/20',
-                            isFuture  && 'bg-slate-50/10',
-                          )}
-                        >
-                          <AttendanceCell
-                            record={record}
-                            isLocked={isLocked}
-                            isFuture={isFuture}
-                            onChange={status => handleCellChange(pupil.student_id, day.dateStr, status)}
-                          />
-                        </div>
-                      )
-                    })}
-
-                    {/* Week total */}
-                    <div className="px-3 py-3 bg-slate-50/40 group-hover:bg-slate-100/40 flex flex-col items-center justify-center gap-1.5 transition-colors">
-                      <span className={cn(
-                        'text-sm font-bold leading-none tabular-nums',
-                        weekCount === 5 ? 'text-emerald-600' :
-                        weekCount >= 3 ? 'text-blue-600' :
-                        weekCount >  0 ? 'text-amber-600' : 'text-slate-300',
-                      )}>
-                        {weekCount}/5
-                      </span>
-                      <div className="w-12 h-1.5 rounded-full bg-slate-200 overflow-hidden">
-                        <div
-                          className={cn(
-                            'h-full rounded-full transition-all duration-300',
-                            weekPct === 100 ? 'bg-emerald-500' :
-                            weekPct >= 60  ? 'bg-blue-500'    :
-                            weekPct >  0   ? 'bg-amber-500'   : 'bg-transparent',
-                          )}
-                          style={{ width: `${weekPct}%` }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Footer totals row */}
-            <div
-              className="grid border-t border-slate-100 bg-slate-50/80"
-              style={{ gridTemplateColumns: `minmax(180px,1fr) repeat(5, minmax(96px,1fr)) 90px` }}
-            >
-              <div className="px-5 py-3 border-r border-slate-100">
-                <p className="text-xs font-bold text-slate-500">Daily Total</p>
-              </div>
-              {currentWeek.days.map(day => {
-                const s        = getDayStats(day.dateStr)
-                const isFuture = day.dateStr > todayStr
-                return (
-                  <div
-                    key={day.dateStr}
-                    className={cn(
-                      'px-3 py-3 border-r border-slate-100 last:border-r-0 text-center',
-                      day.isToday && 'bg-blue-50/30',
-                    )}
-                  >
-                    {isFuture ? (
-                      <span className="text-[10px] text-slate-300">—</span>
-                    ) : (
-                      <div className="space-y-0.5">
-                        <p className="text-[11px] font-bold text-emerald-600">{s.present} present</p>
-                        <p className="text-[11px] font-bold text-rose-500">{s.absent} absent</p>
-                        {s.unmarked > 0 && (
-                          <p className="text-[10px] text-amber-500">{s.unmarked} left</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-              <div className="px-3 py-3 bg-slate-100/60 text-center">
-                {weekStats && (
-                  <div className="space-y-0.5">
-                    <p className="text-[11px] font-bold text-emerald-600">{weekStats.totalPresent}</p>
-                    <p className="text-[11px] font-bold text-rose-500">{weekStats.totalAbsent}</p>
-                  </div>
-                )}
-              </div>
+                        {/* Auto calculated percentage rate */}
+                        <td className="px-6 py-4 text-right">
+                          <div className="inline-flex flex-col items-end">
+                            <span className={cn(
+                              'text-sm font-black leading-none',
+                              rate >= 90 ? 'text-emerald-600' :
+                              rate >= 75 ? 'text-blue-600' :
+                              rate >= 50 ? 'text-amber-600' : 'text-rose-500'
+                            )}>
+                              {rate}%
+                            </span>
+                            <div className="w-16 h-1 bg-slate-100 rounded-full overflow-hidden mt-1.5">
+                              <div
+                                className={cn(
+                                  'h-full rounded-full transition-all duration-300',
+                                  rate >= 90 ? 'bg-emerald-500' :
+                                  rate >= 75 ? 'bg-blue-500' :
+                                  rate >= 50 ? 'bg-amber-500' : 'bg-rose-500'
+                                )}
+                                style={{ width: `${rate}%` }}
+                              />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
 
-        {/* ── All Weeks Overview ─────────────────────────────────────────── */}
-        {termWeeks.length > 1 && pupils.length > 0 && (
-          <div>
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">
-              Term Overview — All Weeks
+        {/* ── Context Notice ─────────────────────────────────────────────── */}
+        <div className="flex items-start gap-3 bg-white p-4 rounded-2xl border border-slate-100 shadow-sm">
+          <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <div className="text-xs text-slate-500 space-y-1">
+            <p className="font-bold text-slate-700">Database & Record Aggregates</p>
+            <p>
+              Values saved here are tracked as term-wide aggregate totals for each student profile. Updates immediately overwrite previous aggregate entries for the current session/term parameters.
             </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {termWeeks.map((week, wi) => {
-                const ws          = getWeekStats(week)
-                const total       = ws.totalPresent + ws.totalAbsent
-                const pct         = total > 0 ? Math.round((ws.totalPresent / total) * 100) : 0
-                const isCurrent   = wi === currentWeekIndex
-                const isFutureWk  = week.startDate > new Date()
-                const allLocked   = week.days.every(d => lockedDates.has(d.dateStr))
-
-                return (
-                  <button
-                    key={wi}
-                    onClick={() => setCurrentWeekIndex(wi)}
-                    className={cn(
-                      'relative p-3 rounded-2xl border text-left transition-all hover:shadow-md',
-                      isCurrent
-                        ? 'bg-blue-600 border-blue-700 shadow-md shadow-blue-200'
-                        : 'bg-white border-slate-100 hover:border-slate-200 shadow-sm',
-                    )}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <p className={cn('text-xs font-bold', isCurrent ? 'text-white' : 'text-slate-700')}>
-                        {week.weekLabel}
-                      </p>
-                      {allLocked && !isFutureWk && (
-                        <Shield className={cn('h-3 w-3', isCurrent ? 'text-blue-200' : 'text-emerald-500')} />
-                      )}
-                      {isFutureWk && (
-                        <Clock className={cn('h-3 w-3', isCurrent ? 'text-blue-200' : 'text-slate-300')} />
-                      )}
-                    </div>
-                    {!isFutureWk ? (
-                      <>
-                        <p className={cn('text-lg font-bold leading-none mb-1', isCurrent ? 'text-white' : 'text-slate-800')}>
-                          {pct}%
-                        </p>
-                        <div className="w-full bg-white/20 rounded-full h-1 mb-1.5">
-                          <div
-                            className={cn('h-1 rounded-full transition-all', isCurrent ? 'bg-white' : 'bg-emerald-500')}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <p className={cn('text-[10px]', isCurrent ? 'text-blue-200' : 'text-slate-400')}>
-                          {ws.totalPresent}P · {ws.totalAbsent}A
-                        </p>
-                      </>
-                    ) : (
-                      <p className={cn('text-[10px]', isCurrent ? 'text-blue-200' : 'text-slate-300')}>
-                        {week.startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </p>
-                    )}
-                  </button>
-                )
-              })}
-            </div>
           </div>
-        )}
-
-        {/* ── Legend ────────────────────────────────────────────────────── */}
-        <div className="flex flex-wrap items-center gap-4 py-3 px-4 bg-white rounded-2xl border border-slate-100 shadow-sm text-xs text-slate-500">
-          <span className="font-bold text-slate-600">Legend</span>
-
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-2xl bg-emerald-500 border-2 border-emerald-600 flex items-center justify-center shadow-sm shadow-emerald-200">
-              <CheckCircle2 className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="font-medium text-slate-600">Present</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-2xl bg-rose-500 border-2 border-rose-600 flex items-center justify-center shadow-sm shadow-rose-200">
-              <XCircle className="h-3.5 w-3.5 text-white" />
-            </div>
-            <span className="font-medium text-slate-600">Absent</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-2xl border-2 border-slate-200 bg-white flex items-center justify-center">
-              <div className="w-2 h-2 rounded-full bg-slate-200" />
-            </div>
-            <span className="font-medium text-slate-600">Unmarked</span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <div className="w-7 h-7 rounded-2xl bg-slate-100 border border-slate-200 flex items-center justify-center">
-              <Shield className="h-3.5 w-3.5 text-slate-400" />
-            </div>
-            <span className="font-medium text-slate-600">Locked</span>
-          </div>
-
-          <span className="ml-auto text-slate-300 italic hidden md:inline">
-            Click to cycle: — → Present → Absent → —
-          </span>
         </div>
 
         {/* ── Footer ────────────────────────────────────────────────────────── */}
         <div className="text-center text-xs text-slate-400 pt-4 border-t border-slate-200/50">
-          <p>Vincollins Schools Staff • Mark Attendance</p>
+          <p>Vincollins Schools Staff Portal • Termly Marksheet Profile</p>
           <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
         </div>
       </div>
