@@ -37,7 +37,7 @@ const pupilNavigation: NavigationItem[] = [
   { name: 'Profile', href: '/pupil/profile', icon: UserCog },
 ]
 
-// ─── Teacher/Staff Navigation (Dashboard, Scores, Attendance, Analytics) ────
+// ─── Teacher/Staff Navigation (ONLY 4 ITEMS) ────────────────────────────────
 const teacherNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
   { name: 'Scores', href: '/staff/scores', icon: Calculator },
@@ -45,13 +45,9 @@ const teacherNavigation: NavigationItem[] = [
   { name: 'Analytics', href: '/staff/analytics', icon: BarChart3 },
 ]
 
-// ─── Admin Navigation (UPDATED: 4 Items Only) ──────────────────────────────
+// ─── Admin Navigation ───────────────────────────────────────────────────────
 const adminNavigation: NavigationItem[] = [
-  { 
-    name: 'Dashboard', 
-    href: '/admin', 
-    icon: LayoutDashboard 
-  },
+  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { 
     name: 'Management', 
     href: '#', 
@@ -62,16 +58,8 @@ const adminNavigation: NavigationItem[] = [
       { name: 'Staff', href: '/admin/staff', icon: Briefcase },
     ]
   },
-  { 
-    name: 'Broadsheet', 
-    href: '/admin/broadsheet', 
-    icon: FileSpreadsheet 
-  },
-  { 
-    name: 'Teacher Classes', 
-    href: '/admin/teacher-classes', 
-    icon: School 
-  },
+  { name: 'Broadsheet', href: '/admin/broadsheet', icon: FileSpreadsheet },
+  { name: 'Teacher Classes', href: '/admin/teacher-classes', icon: School },
 ]
 
 // ─── Get Navigation Based on Role ──────────────────────────────────────────

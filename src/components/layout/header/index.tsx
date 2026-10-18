@@ -1,4 +1,5 @@
 /* eslint-disable react-hooks/set-state-in-effect */
+// src/components/layout/header/Header.tsx
 'use client'
 
 import { useState, useEffect, Suspense, memo } from 'react'
@@ -27,7 +28,6 @@ interface HeaderProps {
   onLogout?: () => void
 }
 
-// ─── Loading Shell ───────────────────────────────────────────────────────────
 const HeaderShell = memo(() => (
   <header className="fixed top-0 left-0 right-0 w-full z-50 bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] py-2 sm:py-3">
     <div className="max-w-[1440px] mx-auto px-3 sm:px-4 lg:px-6">
@@ -42,7 +42,6 @@ const HeaderShell = memo(() => (
 ))
 HeaderShell.displayName = 'HeaderShell'
 
-// ─── Header Content ─────────────────────────────────────────────────────────
 function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -52,30 +51,18 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
   const [isHydrated, setIsHydrated] = useState(false)
 
   const {
-    user: fetchedUser,
-    schoolSettings,
-    notifications,
-    unreadCount,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    isLoading,
-    isAuthenticated,
+    user: fetchedUser, schoolSettings, notifications, unreadCount,
+    markAsRead, markAllAsRead, deleteNotification, isLoading, isAuthenticated,
   } = useHeaderData()
 
-  useEffect(() => {
-    setIsHydrated(true)
-  }, [])
+  useEffect(() => { setIsHydrated(true) }, [])
 
   const user = propUser || fetchedUser
 
-  // ─── Page type detection ─────────────────────────────────────────────────
   const isHomePage = pathname === '/'
   const isPortalPage = pathname === '/portal'
   const publicPages = ['/', '/admission', '/schools', '/contact']
-  const isPublicPage = publicPages.includes(pathname || '') ||
-                       pathname?.startsWith('/admission') ||
-                       pathname?.startsWith('/schools')
+  const isPublicPage = publicPages.includes(pathname || '') || pathname?.startsWith('/admission') || pathname?.startsWith('/schools')
 
   const isPupilPage = pathname?.startsWith('/pupil')
   const isStaffPage = pathname?.startsWith('/staff')
@@ -84,7 +71,6 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
 
   const effectiveIsAuthenticated = isAuthenticated || !!user
 
-  // ─── Nav visibility ──────────────────────────────────────────────────────
   let showPublicNav = false
   let showDashboardNav = false
 
@@ -101,43 +87,34 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
     showPublicNav = true
   }
 
-  // ─── Scroll effect ───────────────────────────────────────────────────────
   useEffect(() => {
     const cb = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', cb, { passive: true })
     return () => window.removeEventListener('scroll', cb)
   }, [])
 
-  // ─── Close mobile menu on route change ───────────────────────────────────
   useEffect(() => {
     setMobileMenuOpen(false)
     setSearchOpen(false)
   }, [pathname])
 
-  // ─── Loading state ───────────────────────────────────────────────────────
-  if (!isHydrated) {
-    return <HeaderShell />
-  }
+  if (!isHydrated) return <HeaderShell />
 
   return (
     <>
       <header
         className={cn(
           'fixed top-0 left-0 right-0 w-full z-50 transition-all duration-300',
-          scrolled
-            ? 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] shadow-2xl py-2'
-            : 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] py-2.5 sm:py-3 lg:py-4',
+          scrolled ? 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] shadow-2xl py-2' : 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] py-2.5 sm:py-3 lg:py-4',
         )}
       >
         <div className="max-w-[1440px] mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
           <div className="flex items-center justify-between gap-2 sm:gap-3">
-
-            {/* ─── Logo ─── */}
+            
             <div className="flex-shrink-0 min-w-0">
               <Logo schoolSettings={schoolSettings} />
             </div>
 
-            {/* ─── Desktop Navigation ─── */}
             <div className="hidden lg:flex flex-1 justify-center">
               <DesktopNav
                 userRole={showDashboardNav ? user?.role : undefined}
@@ -146,8 +123,8 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
               />
             </div>
 
-            {/* ─── Right Section ─── */}
-            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+            {/* ✅ FIX: Right section uses flex gap to perfectly align UserSection and Hamburger */}
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <UserSection
                 user={user}
                 isAuthenticated={effectiveIsAuthenticated}
@@ -164,7 +141,7 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
                 onDeleteNotification={deleteNotification}
               />
 
-              {/* ─── Mobile Hamburger (bigger tap target, stable) ─── */}
+              {/* Mobile Hamburger - perfectly aligned at the far right */}
               <button
                 onClick={() => setMobileMenuOpen(true)}
                 className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl text-white hover:bg-white/10 active:bg-white/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-white/50"
@@ -177,24 +154,15 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
           </div>
         </div>
 
-        {/* ─── Search Bar ─── */}
-        <SearchBar
-          open={searchOpen}
-          query={searchQuery}
-          onChange={setSearchQuery}
-          onClose={() => setSearchOpen(false)}
-        />
+        <SearchBar open={searchOpen} query={searchQuery} onChange={setSearchQuery} onClose={() => setSearchOpen(false)} />
       </header>
 
-      {/* ─── Mobile Menu ─── */}
       <MobileMenu
         open={mobileMenuOpen}
         onClose={() => setMobileMenuOpen(false)}
         user={user}
         schoolSettings={schoolSettings}
-        onSignOut={() => {
-          if (onLogout) onLogout()
-        }}
+        onSignOut={() => { if (onLogout) onLogout() }}
         pathname={pathname}
       />
     </>
