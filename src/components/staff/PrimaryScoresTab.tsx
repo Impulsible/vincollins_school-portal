@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/sheet";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TYPES (same as before)
+// TYPES
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface Student {
@@ -152,7 +152,7 @@ const STORAGE_KEYS = {
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// HELPERS (same as before)
+// HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const getRemark = (total: number): string => {
@@ -654,7 +654,7 @@ export default function PrimaryScoresTab({
 
   const hasConfig = selectedClass && selectedSubject && selectedTerm && selectedYear;
 
-  // ═══ DATA FETCHING ═══ (same as original)
+  // ═══ DATA FETCHING ═══
   const fetchTerms = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -1150,10 +1150,10 @@ export default function PrimaryScoresTab({
             value={selectedClass}
             onValueChange={(v) => { setSelectedClass(v); setSelectedSubject(""); resetScoreState(); }}
           >
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
               <SelectValue placeholder="Select class" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[110]">
               {CLASSES.map((cls) => (
                 <SelectItem key={cls.id} value={cls.name} className="text-sm">
                   <span className="flex items-center gap-2">
@@ -1177,7 +1177,7 @@ export default function PrimaryScoresTab({
             value={selectedSubject}
             onValueChange={(v) => { setSelectedSubject(v); resetScoreState(); }}
           >
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
               <SelectValue placeholder="Select subject">
                 {selectedSubject && (
                   <div className="flex items-center justify-between w-full gap-2">
@@ -1187,7 +1187,7 @@ export default function PrimaryScoresTab({
                 )}
               </SelectValue>
             </SelectTrigger>
-            <SelectContent className="max-h-[300px]">
+            <SelectContent className="z-[110] max-h-[300px]">
               {checkingSubjects ? (
                 <div className="flex items-center gap-2 py-6 px-3 text-sm text-slate-500 justify-center">
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1213,10 +1213,10 @@ export default function PrimaryScoresTab({
             Term
           </Label>
           <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); resetScoreState(); }}>
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
               <SelectValue placeholder="Select term" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[110]">
               {termOptions.map((o, i) => (
                 <SelectItem key={`${o.value}-${i}`} value={o.value} className="text-sm">
                   <span className={cn(o.is_current && "font-semibold text-emerald-600 dark:text-emerald-400")}>
@@ -1234,10 +1234,10 @@ export default function PrimaryScoresTab({
             Session
           </Label>
           <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); resetScoreState(); }}>
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
               <SelectValue placeholder="Select session" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="z-[110]">
               {availableSessions.map((s, i) => (
                 <SelectItem key={`${s}-${i}`} value={s} className="text-sm">{s}</SelectItem>
               ))}
@@ -1283,7 +1283,7 @@ export default function PrimaryScoresTab({
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
+    <div className="space-y-4 sm:space-y-6 relative">
       {/* ═══ Staff Warning Banner ═══ */}
       {!isValidStaff && (
         <Card className="border-2 border-amber-400 bg-amber-50/80 dark:bg-amber-950/20">
@@ -1321,33 +1321,14 @@ export default function PrimaryScoresTab({
                   <p className="text-xs text-slate-500 italic">Tap filter to configure</p>
                 )}
               </div>
-              <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
-                <Button
-                  size="sm"
-                  onClick={() => setShowConfigSheet(true)}
-                  className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm rounded-lg shrink-0"
-                >
-                  <Filter className="h-3.5 w-3.5" />
-                  Filter
-                </Button>
-                <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto">
-                  <SheetHeader className="mb-4">
-                    <SheetTitle className="flex items-center gap-2 text-base">
-                      <Settings2 className="h-4 w-4 text-emerald-600" />
-                      Configure Scores
-                    </SheetTitle>
-                  </SheetHeader>
-                  <ConfigPanel />
-                  <div className="mt-4 pt-4 border-t">
-                    <Button
-                      onClick={() => setShowConfigSheet(false)}
-                      className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium"
-                    >
-                      Apply
-                    </Button>
-                  </div>
-                </SheetContent>
-              </Sheet>
+              <Button
+                size="sm"
+                onClick={() => setShowConfigSheet(true)}
+                className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm rounded-lg shrink-0"
+              >
+                <Filter className="h-3.5 w-3.5" />
+                Filter
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -1956,9 +1937,30 @@ export default function PrimaryScoresTab({
         </TabsContent>
       </Tabs>
 
+      {/* ═══ Config Sheet (Mobile) ═══ */}
+      <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
+        <SheetContent side="bottom" className="z-[100] rounded-t-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+          <SheetHeader className="mb-4 text-left">
+            <SheetTitle className="flex items-center gap-2 text-base text-slate-800 dark:text-slate-100">
+              <Settings2 className="h-4 w-4 text-emerald-600" />
+              Configure Scores
+            </SheetTitle>
+          </SheetHeader>
+          <ConfigPanel />
+          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 pb-4">
+            <Button
+              onClick={() => setShowConfigSheet(false)}
+              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-sm"
+            >
+              Apply Filter
+            </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+
       {/* ═══ Delete All Dialog ═══ */}
       <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
-        <AlertDialogContent className="max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
+        <AlertDialogContent className="z-[100] max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/30">
@@ -2009,7 +2011,7 @@ export default function PrimaryScoresTab({
 
       {/* ═══ Delete Progress ═══ */}
       <Dialog open={isDeletingAll && deleteProgress > 0 && deleteProgress < 100} onOpenChange={() => {}}>
-        <DialogContent className="max-w-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
+        <DialogContent className="z-[100] max-w-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <Loader2 className="h-4 w-4 animate-spin text-red-500" />
@@ -2026,7 +2028,7 @@ export default function PrimaryScoresTab({
 
       {/* ═══ Edit Score Dialog ═══ */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
+        <DialogContent className="z-[100] max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">
               Edit Score
