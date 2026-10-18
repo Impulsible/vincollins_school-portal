@@ -31,20 +31,14 @@ interface StaffLayoutProps {
 }
 
 // ─── Breadcrumb Component ─────────────────────────────────────────────────────
-
 function StaffBreadcrumb({ pathname }: { pathname: string }) {
-  // Don't show breadcrumb on the main staff page
   if (pathname === '/staff' || pathname === '/staff/') return null
 
-  // Generate breadcrumb items from pathname
   const segments = pathname.split('/').filter(Boolean)
-  
-  // Remove 'staff' from the segments for display
-  const displaySegments = segments.slice(1) // Skip 'staff'
-  
+  const displaySegments = segments.slice(1)
+
   if (displaySegments.length === 0) return null
 
-  // Map segment to a readable label
   const getLabel = (segment: string): string => {
     const map: Record<string, string> = {
       'attendance': 'Attendance',
@@ -64,10 +58,10 @@ function StaffBreadcrumb({ pathname }: { pathname: string }) {
   }
 
   return (
-    <nav className="flex items-center gap-1.5 text-xs sm:text-sm mb-4 lg:mb-6 px-1 overflow-x-auto whitespace-nowrap scrollbar-none">
-      <Link 
-        href="/staff" 
-        className="flex items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors"
+    <nav className="flex items-center gap-1.5 text-xs sm:text-sm mb-3 sm:mb-4 lg:mb-6 px-1 overflow-x-auto whitespace-nowrap scrollbar-none">
+      <Link
+        href="/staff"
+        className="flex items-center gap-1 text-slate-400 hover:text-blue-600 transition-colors flex-shrink-0"
       >
         <Home className="h-3.5 w-3.5" />
         <span className="sr-only sm:not-sr-only">Dashboard</span>
@@ -79,12 +73,12 @@ function StaffBreadcrumb({ pathname }: { pathname: string }) {
         const label = getLabel(segment)
 
         return (
-          <div key={segment} className="flex items-center gap-1.5">
+          <div key={segment} className="flex items-center gap-1.5 flex-shrink-0">
             <ChevronRight className="h-3.5 w-3.5 text-slate-300 flex-shrink-0" />
             {isLast ? (
               <span className="font-medium text-slate-700">{label}</span>
             ) : (
-              <Link 
+              <Link
                 href={href}
                 className="text-slate-500 hover:text-blue-600 transition-colors"
               >
@@ -99,7 +93,6 @@ function StaffBreadcrumb({ pathname }: { pathname: string }) {
 }
 
 // ─── Main Component ────────────────────────────────────────────────────────────
-
 export default function StaffLayout({ children }: StaffLayoutProps) {
   const { user, loading: userLoading, logout } = useUser()
   const router = useRouter()
@@ -118,7 +111,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
     setMounted(true)
   }, [])
 
-  // ─── Fetch full profile ─────────────────────────────────────────────────────
+  // ─── Fetch full profile ─────────────────────────────────────────────────
   useEffect(() => {
     if (!user?.id) {
       setProfileLoading(false)
@@ -200,7 +193,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
   // ─── Sync active tab with pathname ────────────────────────────────────────
   useEffect(() => {
     if (!pathname) return
-    
+
     if (pathname === '/staff' || pathname === '/staff/') {
       setActiveTab('overview')
     } else if (pathname?.startsWith('/staff/attendance')) {
@@ -225,13 +218,15 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
       setActiveTab('settings')
     } else if (pathname?.startsWith('/staff/help')) {
       setActiveTab('help')
+    } else if (pathname?.startsWith('/staff/analytics')) {
+      setActiveTab('analytics')
     }
   }, [pathname])
 
-  // ─── Auth check ─────────────────────────────────────────────────────────────
+  // ─── Auth check ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!mounted) return
-    
+
     if (!userLoading) {
       if (!user) {
         router.replace('/portal')
@@ -241,7 +236,7 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
     }
   }, [user, userLoading, router, mounted])
 
-  // ─── Build header user ─────────────────────────────────────────────────────
+  // ─── Build header user ─────────────────────────────────────────────────
   const headerUser: HeaderUser | undefined = user ? {
     id: user.id,
     name: user.full_name || user.first_name || 'Staff',
@@ -249,16 +244,16 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
     email: user.email || '',
     role: user.role === 'admin' ? 'admin' : 'teacher',
     avatar: user.avatar_url || user.photo_url || undefined,
-    isAuthenticated: true
+    isAuthenticated: true,
   } : undefined
 
-  // ─── Handle logout ─────────────────────────────────────────────────────────
+  // ─── Handle logout ─────────────────────────────────────────────────────
   const handleLogout = async () => {
     await logout()
     router.replace('/portal')
   }
 
-  // ─── Loading state ──────────────────────────────────────────────────────────
+  // ─── Loading state ──────────────────────────────────────────────────────
   if (!mounted || userLoading || profileLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F9F7F4]">
@@ -278,29 +273,32 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-x-hidden w-full">
       {/* Header */}
       <Header user={headerUser} onLogout={handleLogout} />
-      
+
       {/* Sidebar and Main Content */}
       <div className="flex w-full overflow-x-hidden">
-        <StaffSidebar 
+        <StaffSidebar
           profile={profile}
           onLogout={handleLogout}
-          collapsed={sidebarCollapsed} 
+          collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-          activeTab={activeTab} 
+          activeTab={activeTab}
           setActiveTab={setActiveTab}
           termCode={termInfo.termCode}
           sessionYear={termInfo.sessionYear}
         />
 
-        <div className={cn(
-          "flex-1 transition-all duration-300 w-full overflow-x-hidden",
-          sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
-        )}>
-          <main className="min-h-[calc(100vh-64px)] pt-[72px] lg:pt-24 pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
+        <div
+          className={cn(
+            'flex-1 transition-all duration-300 w-full overflow-x-hidden min-w-0',
+            sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72',
+          )}
+        >
+          {/* Mobile-first padding: more space on top for header */}
+          <main className="min-h-[100dvh] pt-[80px] sm:pt-[88px] lg:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
             <div className="w-full max-w-7xl mx-auto">
-              {/* Breadcrumb Navigation */}
+              {/* Breadcrumb */}
               <StaffBreadcrumb pathname={pathname || ''} />
-              
+
               {/* Page Content */}
               {children}
             </div>

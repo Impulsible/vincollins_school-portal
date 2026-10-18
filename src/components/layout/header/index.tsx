@@ -1,10 +1,9 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-// src/components/layout/header/index.tsx
 'use client'
 
 import { useState, useEffect, Suspense, memo } from 'react'
 import { usePathname } from 'next/navigation'
-import { Menu, X } from 'lucide-react'
+import { Menu } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useHeaderData } from './useHeaderData'
 import { Logo } from './Logo'
@@ -52,42 +51,40 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
   const [scrolled, setScrolled] = useState(false)
   const [isHydrated, setIsHydrated] = useState(false)
 
-  const { 
-    user: fetchedUser, 
-    schoolSettings, 
-    notifications, 
-    unreadCount, 
-    markAsRead, 
-    markAllAsRead, 
+  const {
+    user: fetchedUser,
+    schoolSettings,
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
     deleteNotification,
     isLoading,
-    isAuthenticated 
+    isAuthenticated,
   } = useHeaderData()
 
   useEffect(() => {
     setIsHydrated(true)
   }, [])
 
-  // Use prop user if provided, otherwise use fetched user
   const user = propUser || fetchedUser
 
-  // ─── Determine page types ──────────────────────────────────────────────────
+  // ─── Page type detection ─────────────────────────────────────────────────
   const isHomePage = pathname === '/'
   const isPortalPage = pathname === '/portal'
   const publicPages = ['/', '/admission', '/schools', '/contact']
-  const isPublicPage = publicPages.includes(pathname || '') || 
-                       pathname?.startsWith('/admission') || 
+  const isPublicPage = publicPages.includes(pathname || '') ||
+                       pathname?.startsWith('/admission') ||
                        pathname?.startsWith('/schools')
-  
+
   const isPupilPage = pathname?.startsWith('/pupil')
   const isStaffPage = pathname?.startsWith('/staff')
   const isAdminPage = pathname?.startsWith('/admin')
   const isDashboardPage = isPupilPage || isStaffPage || isAdminPage
 
-  // ─── Determine if user is authenticated ───────────────────────────────────
   const effectiveIsAuthenticated = isAuthenticated || !!user
 
-  // ─── Determine navigation mode ────────────────────────────────────────────
+  // ─── Nav visibility ──────────────────────────────────────────────────────
   let showPublicNav = false
   let showDashboardNav = false
 
@@ -95,66 +92,62 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
     showPublicNav = false
     showDashboardNav = false
   } else if (isDashboardPage && effectiveIsAuthenticated) {
-    // Show dashboard nav for authenticated users on dashboard pages
     showDashboardNav = true
-    showPublicNav = false
   } else if (isPublicPage || isHomePage || isPortalPage) {
-    // Show public nav for public pages
     showPublicNav = true
-    showDashboardNav = false
   } else if (effectiveIsAuthenticated) {
-    // Show dashboard nav for authenticated users on other pages
     showDashboardNav = true
-    showPublicNav = false
   } else {
-    // Default to public nav
     showPublicNav = true
-    showDashboardNav = false
   }
 
-  // ─── Scroll effect ──────────────────────────────────────────────────────────
+  // ─── Scroll effect ───────────────────────────────────────────────────────
   useEffect(() => {
     const cb = () => setScrolled(window.scrollY > 10)
     window.addEventListener('scroll', cb, { passive: true })
     return () => window.removeEventListener('scroll', cb)
   }, [])
 
-  // ─── Mobile menu body lock ─────────────────────────────────────────────────
+  // ─── Close mobile menu on route change ───────────────────────────────────
   useEffect(() => {
-    document.body.style.overflow = mobileMenuOpen ? 'hidden' : 'unset'
-    return () => { document.body.style.overflow = 'unset' }
-  }, [mobileMenuOpen])
+    setMobileMenuOpen(false)
+    setSearchOpen(false)
+  }, [pathname])
 
-  // ─── Loading state ─────────────────────────────────────────────────────────
+  // ─── Loading state ───────────────────────────────────────────────────────
   if (!isHydrated) {
     return <HeaderShell />
   }
 
   return (
     <>
-      <header className={cn(
-        "fixed top-0 left-0 right-0 w-full z-50 transition-all duration-500",
-        scrolled 
-          ? "bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] shadow-2xl py-1.5 sm:py-2" 
-          : "bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] py-2 sm:py-3 lg:py-4"
-      )}>
+      <header
+        className={cn(
+          'fixed top-0 left-0 right-0 w-full z-50 transition-all duration-300',
+          scrolled
+            ? 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] shadow-2xl py-2'
+            : 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] py-2.5 sm:py-3 lg:py-4',
+        )}
+      >
         <div className="max-w-[1440px] mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
-          <div className="flex items-center justify-between gap-3">
-            
+          <div className="flex items-center justify-between gap-2 sm:gap-3">
+
             {/* ─── Logo ─── */}
-            <Logo schoolSettings={schoolSettings} />
+            <div className="flex-shrink-0 min-w-0">
+              <Logo schoolSettings={schoolSettings} />
+            </div>
 
             {/* ─── Desktop Navigation ─── */}
             <div className="hidden lg:flex flex-1 justify-center">
-              <DesktopNav 
+              <DesktopNav
                 userRole={showDashboardNav ? user?.role : undefined}
-                pathname={pathname} 
+                pathname={pathname}
                 isPublic={showPublicNav}
               />
             </div>
 
-            {/* ─── User Section ─── */}
-            <div className="flex items-center gap-2">
+            {/* ─── Right Section ─── */}
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               <UserSection
                 user={user}
                 isAuthenticated={effectiveIsAuthenticated}
@@ -170,29 +163,26 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
                 onMarkAllAsRead={markAllAsRead}
                 onDeleteNotification={deleteNotification}
               />
-              
-              {/* ─── Mobile Hamburger ─── */}
+
+              {/* ─── Mobile Hamburger (bigger tap target, stable) ─── */}
               <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden inline-flex items-center justify-center rounded-lg p-2 text-white hover:bg-white/10 transition-colors"
-                aria-label="Toggle menu"
+                onClick={() => setMobileMenuOpen(true)}
+                className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl text-white hover:bg-white/10 active:bg-white/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-white/50"
+                aria-label="Open menu"
+                aria-expanded={mobileMenuOpen}
               >
-                {mobileMenuOpen ? (
-                  <X className="h-6 w-6" />
-                ) : (
-                  <Menu className="h-6 w-6" />
-                )}
+                <Menu className="h-6 w-6" />
               </button>
             </div>
           </div>
         </div>
 
         {/* ─── Search Bar ─── */}
-        <SearchBar 
-          open={searchOpen} 
-          query={searchQuery} 
-          onChange={setSearchQuery} 
-          onClose={() => setSearchOpen(false)} 
+        <SearchBar
+          open={searchOpen}
+          query={searchQuery}
+          onChange={setSearchQuery}
+          onClose={() => setSearchOpen(false)}
         />
       </header>
 
