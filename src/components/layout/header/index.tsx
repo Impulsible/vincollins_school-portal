@@ -108,8 +108,9 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
           scrolled ? 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] shadow-2xl py-2' : 'bg-gradient-to-r from-[#0A2472] to-[#1e3a8a] py-2.5 sm:py-3 lg:py-4',
         )}
       >
-        <div className="max-w-[1440px] mx-auto px-3 sm:px-4 lg:px-6 xl:px-8">
-          <div className="flex items-center justify-between gap-2 sm:gap-3">
+        {/* ✅ FIXED: Added w-full and overflow-hidden to stop right-shifts */}
+        <div className="max-w-[1440px] mx-auto px-3 sm:px-4 lg:px-6 xl:px-8 w-full overflow-hidden">
+          <div className="flex items-center justify-between gap-1 sm:gap-4 w-full">
             
             <div className="flex-shrink-0 min-w-0">
               <Logo schoolSettings={schoolSettings} />
@@ -123,8 +124,8 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
               />
             </div>
 
-            {/* ✅ FIX: Right section uses flex gap to perfectly align UserSection and Hamburger */}
-            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            {/* ✅ FIXED: Right section layout with flex-shrink-0 and tight gap */}
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0 ml-auto">
               <UserSection
                 user={user}
                 isAuthenticated={effectiveIsAuthenticated}
@@ -144,11 +145,11 @@ function HeaderContent({ user: propUser, onLogout }: HeaderProps) {
               {/* Mobile Hamburger - perfectly aligned at the far right */}
               <button
                 onClick={() => setMobileMenuOpen(true)}
-                className="lg:hidden inline-flex items-center justify-center h-10 w-10 rounded-xl text-white hover:bg-white/10 active:bg-white/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-white/50"
+                className="lg:hidden inline-flex items-center justify-center h-8 w-8 sm:h-10 sm:w-10 rounded-xl text-white hover:bg-white/10 active:bg-white/20 active:scale-95 transition-all focus:outline-none focus:ring-2 focus:ring-white/50 flex-shrink-0"
                 aria-label="Open menu"
                 aria-expanded={mobileMenuOpen}
               >
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
               </button>
             </div>
           </div>

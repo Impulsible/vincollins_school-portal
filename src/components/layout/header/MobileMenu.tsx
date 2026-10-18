@@ -31,7 +31,7 @@ const socialLinks = [
 const contactInfoData = [
   { icon: MapPin, label: 'Address', text: '7/9 Lawani Street, Surulere, Lagos' },
   { icon: Phone, label: 'Phone', text: '+234 907 082 9999' },
-  { icon: Mail, label: 'Email', text: 'vincollins.schools@gmail.com' },
+  { icon: Mail, label: 'Email', text: 'vincollinsschools@gmail.com' },
   { icon: Clock, label: 'Hours', text: 'Mon–Fri · 8:00 AM – 4:00 PM' },
 ]
 

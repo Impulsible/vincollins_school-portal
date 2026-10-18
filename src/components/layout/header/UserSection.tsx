@@ -218,8 +218,8 @@ function UserSectionComponent({
 
   return (
     <>
-      {/* ✅ FIX: Used gap-2 here to control spacing instead of mx-0.5 on children */}
-      <div className="flex items-center gap-2">
+      {/* ✅ FIXED: Changed gap-2 to gap-1 sm:gap-2 and added pr-1 to keep it tight on mobile */}
+      <div className="flex items-center gap-1 sm:gap-2 pr-1 sm:pr-0">
         <Button 
           variant="ghost" 
           size="icon" 
@@ -249,9 +249,9 @@ function UserSectionComponent({
             <div>
               <button 
                 onClick={handleProfileToggle}
-                className="flex items-center gap-1.5 sm:gap-2 rounded-full text-white hover:bg-white/20 px-2 sm:px-3 py-1 transition-all" 
+                className="flex items-center gap-1 sm:gap-2 rounded-full text-white hover:bg-white/20 px-1 sm:px-3 py-1 transition-all" 
               >
-                <Avatar className="h-8 w-8 sm:h-9 sm:w-9 ring-2 ring-white/50">
+                <Avatar className="h-8 w-8 sm:h-9 sm:w-9 ring-2 ring-white/50 flex-shrink-0">
                   {avatarUrl && !avatarError ? (
                     <AvatarImage src={avatarUrl} alt={firstName || 'User'} onError={() => setAvatarError(true)} />
                   ) : null}
@@ -270,7 +270,8 @@ function UserSectionComponent({
                     {roleDisplayNames[user?.role || 'pupil']}
                   </p>
                 </div>
-                <ChevronDown className={cn("h-3 w-3 text-white transition-transform", profileOpen && "rotate-180")} />
+                {/* ✅ FIXED: Hidden on mobile to prevent pushing the hamburger right */}
+                <ChevronDown className={cn("hidden md:block h-3 w-3 text-white transition-transform", profileOpen && "rotate-180")} />
               </button>
 
               {profileOpen && (
