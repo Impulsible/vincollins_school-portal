@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable react-hooks/static-components */
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
@@ -6,7 +6,6 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -14,7 +13,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
@@ -28,17 +29,10 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import {
   Users,
   Search,
@@ -52,14 +46,13 @@ import {
   UserCheck,
   UserX,
   School,
-  Grid3x3,
-  FileText,
   BarChart3,
   ShieldAlert,
   AlertCircle,
   CheckCircle2,
-  Clock,
   User,
+  LayoutGrid,
+  List,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -103,6 +96,32 @@ interface PupilStats {
 
 // ── Shared Scrollbar Hiding Class ──────────────────────────────────────────────
 const hideScrollbar = "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+
+// ── Helper: Group Classes Dynamically from DB ──────────────────────────────────
+// Extracts the first word (e.g. "Nursery 1" -> "Nursery") to group classes dynamically
+const groupClasses = (classes: string[]) => {
+  const groups: Record<string, string[]> = {}
+
+  classes.forEach(c => {
+    if (!c) return
+    const category = c.trim().split(/\s+/)[0] || 'Unassigned'
+    
+    if (!groups[category]) {
+      groups[category] = []
+    }
+    groups[category].push(c)
+  })
+
+  // Sort categories alphabetically, and classes alphanumerically inside them
+  const sortedGroups: Record<string, string[]> = {}
+  Object.keys(groups).sort().forEach(key => {
+    sortedGroups[key] = groups[key].sort((a, b) => 
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+    )
+  })
+
+  return sortedGroups
+}
 
 // ── Loading Skeleton ──────────────────────────────────────────────────────────
 function PupilsLoadingSkeleton() {
@@ -175,7 +194,7 @@ function StatCard({
           {subtitle ? (
             <p className="text-[10px] font-medium text-slate-500 mt-0.5">{subtitle}</p>
           ) : (
-            <div className="h-[15px]" /> // Spacer to align cards
+            <div className="h-[15px]" />
           )}
         </div>
       </div>
@@ -184,9 +203,10 @@ function StatCard({
 }
 
 // ── Pupil Card ─────────────────────────────────────────────────────────────────
-function PupilCard({ pupil, onView }: {
+function PupilCard({ pupil, onView, viewMode }: {
   pupil: Pupil
   onView: (pupil: Pupil) => void
+  viewMode: 'list' | 'grid'
 }) {
   const initials = (pupil.full_name || pupil.display_name || '')
     .split(' ')
@@ -198,22 +218,107 @@ function PupilCard({ pupil, onView }: {
   const displayName = pupil.display_name || pupil.full_name || 'Unknown'
   const avatarUrl = pupil.photo_url || pupil.avatar_url || undefined
 
+  const statusColor = pupil.is_active 
+    ? 'bg-emerald-100 text-emerald-700' 
+    : 'bg-slate-100 text-slate-600'
+  const avatarGradient = pupil.is_active 
+    ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
+    : 'bg-gradient-to-br from-slate-400 to-slate-500'
+
+  // More Options Menu component to avoid duplication
+  const ActionMenu = () => (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="h-9 w-9 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+        >
+          <MoreVertical className="h-5 w-5" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-52 rounded-xl bg-white shadow-xl border border-slate-200 z-[100] p-1.5">
+        <DropdownMenuItem onClick={() => onView(pupil)} className="py-2.5 px-3 rounded-lg cursor-pointer hover:bg-slate-50 text-sm font-medium focus:bg-slate-50 focus:text-slate-900">
+          <Eye className="h-4 w-4 mr-2.5 text-slate-500" />
+          View Details
+        </DropdownMenuItem>
+        
+        {pupil.is_active ? (
+          <DropdownMenuItem className="py-2.5 px-3 rounded-lg cursor-pointer hover:bg-amber-50 focus:bg-amber-50 text-amber-600 focus:text-amber-700 text-sm font-medium">
+            <UserX className="h-4 w-4 mr-2.5" />
+            Deactivate
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem className="py-2.5 px-3 rounded-lg cursor-pointer hover:bg-emerald-50 focus:bg-emerald-50 text-emerald-600 focus:text-emerald-700 text-sm font-medium">
+            <UserCheck className="h-4 w-4 mr-2.5" />
+            Activate
+          </DropdownMenuItem>
+        )}
+        
+        <DropdownMenuSeparator className="bg-slate-100 my-1" />
+        
+        <DropdownMenuItem className="py-2.5 px-3 rounded-lg text-sm font-medium text-slate-400 focus:bg-transparent" disabled>
+          <ShieldAlert className="h-4 w-4 mr-2.5" />
+          Requires Admin
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+
+  if (viewMode === 'grid') {
+    return (
+      <div className="relative flex flex-col items-center justify-center p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/60 shadow-sm hover:shadow-md hover:border-blue-200 transition-all group">
+        
+        {/* Absolute Action Menu - stop propagation to avoid opening modal when clicking menu */}
+        <div className="absolute top-2 right-2 z-10" onClick={e => e.stopPropagation()}>
+          <ActionMenu />
+        </div>
+
+        <div onClick={() => onView(pupil)} className="flex flex-col items-center w-full cursor-pointer mt-1">
+          <Avatar className="h-16 w-16 mb-3 border border-slate-100 shadow-sm shrink-0">
+            <AvatarImage src={avatarUrl} alt={displayName} />
+            <AvatarFallback className={cn('text-white text-base font-bold', avatarGradient)}>
+              {initials || 'P'}
+            </AvatarFallback>
+          </Avatar>
+          
+          <p className="text-sm sm:text-base font-semibold text-slate-800 text-center line-clamp-1 w-full px-2">
+            {displayName}
+          </p>
+          
+          <div className="flex flex-col items-center gap-1.5 mt-2 text-xs text-slate-500">
+            <span className="flex items-center gap-1 font-medium bg-slate-50 text-slate-600 border border-slate-100 px-2 py-1 rounded-lg">
+              <GraduationCap className="h-3 w-3" />
+              <span className="truncate max-w-[120px]">{pupil.class || 'Unassigned'}</span>
+            </span>
+            {pupil.vin_id && (
+              <span className="text-[11px] font-medium text-slate-400">ID: {pupil.vin_id}</span>
+            )}
+          </div>
+
+          <Badge
+            variant={pupil.is_active ? 'default' : 'secondary'}
+            className={cn('mt-4 text-[10px] border-0 font-semibold shadow-none px-2.5 py-0.5', statusColor)}
+          >
+            {pupil.is_active ? 'Active Status' : 'Inactive Status'}
+          </Badge>
+        </div>
+      </div>
+    )
+  }
+
+  // List View (Default Horizontal Layout)
   return (
-    <div className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+    <div className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white border border-slate-200/60 shadow-sm hover:shadow-md hover:border-blue-200 transition-all group">
       
       {/* Clickable Area for Mobile-First Tapping */}
       <div 
         onClick={() => onView(pupil)} 
         className="flex-1 flex items-center gap-3 min-w-0 cursor-pointer"
       >
-        <Avatar className="h-12 w-12 shrink-0 border border-slate-100">
+        <Avatar className="h-12 w-12 shrink-0 border border-slate-100 shadow-sm">
           <AvatarImage src={avatarUrl} alt={displayName} />
-          <AvatarFallback className={cn(
-            'text-white text-sm font-bold',
-            pupil.is_active 
-              ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
-              : 'bg-gradient-to-br from-slate-400 to-slate-500'
-          )}>
+          <AvatarFallback className={cn('text-white text-sm font-bold', avatarGradient)}>
             {initials || 'P'}
           </AvatarFallback>
         </Avatar>
@@ -223,25 +328,21 @@ function PupilCard({ pupil, onView }: {
             {displayName}
           </p>
           <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-500 mt-0.5">
-            <span className="flex items-center gap-1 font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md">
-              <GraduationCap className="h-3 w-3" />
-              {pupil.class || 'Unassigned'}
-              {pupil.class_arm && ` ${pupil.class_arm}`}
+            <span className="flex items-center gap-1 font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md truncate max-w-[120px] sm:max-w-none">
+              <GraduationCap className="h-3 w-3 shrink-0" />
+              <span className="truncate">{pupil.class || 'Unassigned'}</span>
             </span>
             {pupil.vin_id && (
-              <span className="hidden sm:inline-block truncate">ID: {pupil.vin_id}</span>
+              <span className="truncate hidden sm:inline-block">ID: {pupil.vin_id}</span>
             )}
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2 ml-2 shrink-0">
+      <div className="flex items-center gap-2 ml-2 shrink-0 relative">
         <Badge
           variant={pupil.is_active ? 'default' : 'secondary'}
-          className={cn(
-            'text-[10px] hidden sm:flex',
-            pupil.is_active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600'
-          )}
+          className={cn('text-[10px] hidden sm:flex border-0 font-semibold shadow-none', statusColor)}
         >
           {pupil.is_active ? 'Active' : 'Inactive'}
         </Badge>
@@ -252,40 +353,9 @@ function PupilCard({ pupil, onView }: {
           </div>
         )}
 
-        {/* Action Dropdown */}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full"
-            >
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48 rounded-xl">
-            <DropdownMenuItem onClick={() => onView(pupil)} className="py-2">
-              <Eye className="h-4 w-4 mr-2" />
-              View Details
-            </DropdownMenuItem>
-            {pupil.is_active ? (
-              <DropdownMenuItem className="text-amber-600 py-2">
-                <UserX className="h-4 w-4 mr-2" />
-                Deactivate
-              </DropdownMenuItem>
-            ) : (
-              <DropdownMenuItem className="text-emerald-600 py-2">
-                <UserCheck className="h-4 w-4 mr-2" />
-                Activate
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-xs text-slate-400 py-2" disabled>
-              <ShieldAlert className="h-4 w-4 mr-2" />
-              Requires Admin
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div onClick={e => e.stopPropagation()}>
+          <ActionMenu />
+        </div>
       </div>
     </div>
   )
@@ -304,11 +374,11 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95vw] max-w-2xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+      <DialogContent className="w-[95vw] max-w-2xl rounded-3xl max-h-[90dvh] overflow-hidden flex flex-col p-0 gap-0 border-0 shadow-2xl">
         
-        <DialogHeader className="p-4 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50">
+        <DialogHeader className="p-5 sm:p-6 pb-5 border-b border-slate-100 bg-slate-50/80 backdrop-blur-md sticky top-0 z-10">
           <DialogTitle className="flex items-center gap-4">
-            <Avatar className="h-14 w-14 border-2 border-white shadow-sm">
+            <Avatar className="h-14 w-14 border border-slate-200 shadow-sm shrink-0">
               <AvatarImage src={avatarUrl} alt={displayName} />
               <AvatarFallback className={cn(
                 'text-white font-bold text-lg',
@@ -319,24 +389,27 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
                 {displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </AvatarFallback>
             </Avatar>
-            <div className="text-left">
-              <div className="text-lg sm:text-xl font-bold text-slate-800 leading-tight">
+            <div className="text-left min-w-0">
+              <div className="text-lg sm:text-xl font-bold text-slate-800 leading-tight truncate">
                 {displayName}
               </div>
-              <div className="text-xs sm:text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
-                {pupil.vin_id && <span className="bg-slate-200 px-1.5 py-0.5 rounded text-[10px] text-slate-700">ID: {pupil.vin_id}</span>}
-                {pupil.class || 'No Class'}
+              <div className="text-xs sm:text-sm font-medium text-slate-500 mt-1 flex items-center gap-2 flex-wrap">
+                {pupil.vin_id && (
+                  <span className="bg-white border border-slate-200 px-1.5 py-0.5 rounded text-[10px] text-slate-600 shadow-sm font-semibold">
+                    ID: {pupil.vin_id}
+                  </span>
+                )}
+                <span>{pupil.class || 'No Class'}</span>
               </div>
             </div>
           </DialogTitle>
         </DialogHeader>
 
         {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
-          {/* Status Banner */}
+        <div className={cn("flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 bg-white", hideScrollbar)}>
           <div className={cn(
-            'rounded-xl p-3 sm:p-4 flex items-start sm:items-center gap-3',
-            pupil.is_active ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'
+            'rounded-2xl p-4 flex items-start sm:items-center gap-3',
+            pupil.is_active ? 'bg-emerald-50/50 border border-emerald-100' : 'bg-amber-50/50 border border-amber-100'
           )}>
             {pupil.is_active ? (
               <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
@@ -344,11 +417,11 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
               <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
             )}
             <div>
-              <p className={cn("text-sm font-semibold", pupil.is_active ? "text-emerald-800" : "text-amber-800")}>
+              <p className={cn("text-sm font-bold", pupil.is_active ? "text-emerald-800" : "text-amber-800")}>
                 {pupil.is_active ? 'Active Student' : 'Inactive Student'}
               </p>
               <p className={cn("text-xs mt-0.5", pupil.is_active ? "text-emerald-600" : "text-amber-600")}>
-                {pupil.is_active ? 'Currently active and receiving updates.' : 'Cannot receive updates; historical view only.'}
+                {pupil.is_active ? 'Currently active and enrolled.' : 'Historical view only.'}
               </p>
             </div>
           </div>
@@ -356,20 +429,20 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {/* Personal Information */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <User className="h-4 w-4" /> Personal
+              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <User className="h-3.5 w-3.5" /> Personal
               </h4>
-              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+              <div className="space-y-3 text-sm bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Full Name</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Full Name</span>
                   <span className="font-semibold text-slate-800">{pupil.full_name || 'N/A'}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Gender</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Gender</span>
                   <span className="font-medium text-slate-700 capitalize">{pupil.gender || 'N/A'}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Date of Birth</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Date of Birth</span>
                   <span className="font-medium text-slate-700">
                     {pupil.date_of_birth ? new Date(pupil.date_of_birth).toLocaleDateString() : 'N/A'}
                   </span>
@@ -379,22 +452,22 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
 
             {/* School Information */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <School className="h-4 w-4" /> Academic
+              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <School className="h-3.5 w-3.5" /> Academic
               </h4>
-              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+              <div className="space-y-3 text-sm bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Class & Arm</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Class & Arm</span>
                   <span className="font-semibold text-slate-800">
                     {pupil.class || 'Unassigned'} {pupil.class_arm && `(${pupil.class_arm})`}
                   </span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Admission Number</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Admission Number</span>
                   <span className="font-medium text-slate-700">{pupil.admission_number || 'N/A'}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Joined Date</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Joined Date</span>
                   <span className="font-medium text-slate-700">
                     {new Date(pupil.created_at).toLocaleDateString()}
                   </span>
@@ -404,16 +477,16 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
 
             {/* Contact Information */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Phone className="h-4 w-4" /> Contact
+              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Phone className="h-3.5 w-3.5" /> Contact
               </h4>
-              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+              <div className="space-y-3 text-sm bg-slate-50/50 rounded-2xl p-4 border border-slate-100">
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Email Address</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Email Address</span>
                   <span className="font-medium text-slate-700 break-all">{pupil.email || 'N/A'}</span>
                 </div>
                 <div className="flex flex-col gap-0.5">
-                  <span className="text-[11px] text-slate-500 font-medium">Phone Number</span>
+                  <span className="text-[11px] text-slate-500 font-semibold">Phone Number</span>
                   <span className="font-medium text-slate-700">{pupil.phone || 'N/A'}</span>
                 </div>
               </div>
@@ -421,38 +494,38 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
 
             {/* Guardian Information */}
             <div className="space-y-3">
-              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
-                <Users className="h-4 w-4" /> Guardian
+              <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Users className="h-3.5 w-3.5" /> Guardian
               </h4>
-              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100 h-[calc(100%-1.75rem)]">
+              <div className="space-y-3 text-sm bg-slate-50/50 rounded-2xl p-4 border border-slate-100 h-[calc(100%-1.75rem)]">
                 {pupil.guardian_name ? (
                   <>
                     <div className="flex flex-col gap-0.5">
-                      <span className="text-[11px] text-slate-500 font-medium">Guardian Name</span>
+                      <span className="text-[11px] text-slate-500 font-semibold">Guardian Name</span>
                       <span className="font-medium text-slate-700">{pupil.guardian_name}</span>
                     </div>
                     {pupil.guardian_phone && (
                       <div className="flex flex-col gap-0.5">
-                        <span className="text-[11px] text-slate-500 font-medium">Guardian Phone</span>
+                        <span className="text-[11px] text-slate-500 font-semibold">Guardian Phone</span>
                         <span className="font-medium text-slate-700">{pupil.guardian_phone}</span>
                       </div>
                     )}
                   </>
                 ) : (
-                  <p className="text-slate-400 text-sm italic">No guardian data available</p>
+                  <p className="text-slate-400 text-sm italic py-2">No guardian data available</p>
                 )}
               </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="p-4 sm:p-6 border-t border-slate-100 bg-white">
-          <Button variant="outline" className="w-full sm:w-auto rounded-xl" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="p-4 sm:p-5 border-t border-slate-100 bg-white sm:bg-slate-50/50">
+          <Button variant="outline" className="w-full sm:w-auto h-11 sm:h-10 rounded-xl" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button className="w-full sm:w-auto rounded-xl bg-blue-600 hover:bg-blue-700 text-white" disabled>
+          <Button className="w-full sm:w-auto h-11 sm:h-10 rounded-xl bg-slate-800 hover:bg-slate-900 text-white" disabled>
             <ShieldAlert className="h-4 w-4 mr-2" />
-            Admin Edit
+            Admin Only Edit
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -469,9 +542,13 @@ export default function StaffPupilsPage() {
   const [filteredPupils, setFilteredPupils] = useState<Pupil[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  
+  // States for Filtering and Viewing
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClass, setSelectedClass] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list')
+  
   const [selectedPupil, setSelectedPupil] = useState<Pupil | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   
@@ -606,7 +683,7 @@ export default function StaffPupilsPage() {
   // ─── Render States ──────────────────────────────────────────────────────────
   if (authLoading || loading) {
     return (
-      <div className="min-h-[100dvh] bg-slate-50/50">
+      <div className="min-h-[100dvh] bg-slate-50/50 pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <PupilsLoadingSkeleton />
         </div>
@@ -619,8 +696,11 @@ export default function StaffPupilsPage() {
     return null
   }
 
+  // Dynamically group classes based on DB data
+  const groupedClasses = groupClasses(classes)
+
   return (
-    <div className="min-h-[100dvh] bg-slate-50/50 pb-20">
+    <div className="min-h-[100dvh] bg-slate-50/50 pb-24">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
         {/* ── Header ──────────────────────────────────────────────────────────── */}
@@ -636,7 +716,7 @@ export default function StaffPupilsPage() {
           </div>
           <div className="flex items-center gap-2 self-start sm:self-auto">
             {!isAdmin && (
-              <Badge className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-lg border-0 shadow-sm">
+              <Badge className="bg-amber-100 text-amber-700 text-xs px-2.5 py-1.5 rounded-lg border-0 shadow-sm font-semibold">
                 <ShieldAlert className="h-3.5 w-3.5 mr-1" />
                 Read Only
               </Badge>
@@ -646,7 +726,7 @@ export default function StaffPupilsPage() {
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="rounded-xl border-slate-200 shadow-sm"
+              className="rounded-xl border-slate-200 shadow-sm h-9"
             >
               <RefreshCw className={cn('h-4 w-4 mr-2 text-slate-500', refreshing && 'animate-spin')} />
               Refresh
@@ -663,8 +743,8 @@ export default function StaffPupilsPage() {
         </div>
 
         {/* ── Sticky Search & Filters for Mobile ───────────────────────────────── */}
-        <div className="sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:static flex flex-col gap-3">
-          <div className="flex flex-col sm:flex-row gap-3">
+        <div className="sticky top-[73px] sm:top-0 z-20 bg-slate-50/90 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:static flex flex-col gap-3">
+          <div className="flex flex-col lg:flex-row gap-3">
             <div className="flex-1 relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
@@ -672,72 +752,117 @@ export default function StaffPupilsPage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 // text-base prevents iOS zoom on focus
-                className="pl-10 h-11 text-base sm:text-sm rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-blue-500"
+                className="pl-10 h-11 sm:h-10 text-base sm:text-sm rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-blue-500 w-full"
               />
             </div>
             
-            <div className="flex gap-2 shrink-0">
+            <div className="flex flex-wrap sm:flex-nowrap gap-2 shrink-0">
               <Select value={selectedClass} onValueChange={setSelectedClass}>
-                <SelectTrigger className="w-[140px] h-11 rounded-xl bg-white border-slate-200 shadow-sm text-base sm:text-sm">
+                <SelectTrigger className="flex-1 sm:w-[160px] h-11 sm:h-10 rounded-xl bg-white border-slate-200 shadow-sm text-base sm:text-sm font-medium">
                   <SelectValue placeholder="Class" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">All Classes</SelectItem>
-                  {classes.map((cls) => (
-                    <SelectItem key={cls} value={cls}>{cls}</SelectItem>
-                  ))}
+                {/* Fixed Background & Z-Index on SelectContent */}
+                <SelectContent className="rounded-xl bg-white z-[100] border-slate-200 shadow-xl max-h-[50vh]">
+                  <SelectItem value="all" className="font-semibold text-blue-600">All Classes</SelectItem>
+                  {Object.entries(groupedClasses).map(([group, classList]) => {
+                    if (classList.length === 0) return null
+                    return (
+                      <SelectGroup key={group}>
+                        <SelectLabel className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 pt-3 pb-1">{group}</SelectLabel>
+                        {classList.map((cls) => (
+                          <SelectItem key={cls} value={cls} className="font-medium text-slate-700 pl-4">
+                            {cls}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    )
+                  })}
                 </SelectContent>
               </Select>
               
               <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-                <SelectTrigger className="w-[120px] h-11 rounded-xl bg-white border-slate-200 shadow-sm text-base sm:text-sm">
+                <SelectTrigger className="flex-1 sm:w-[130px] h-11 sm:h-10 rounded-xl bg-white border-slate-200 shadow-sm text-base sm:text-sm font-medium shrink-0">
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
-                <SelectContent className="rounded-xl">
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectContent className="rounded-xl bg-white z-[100] border-slate-200 shadow-xl">
+                  <SelectItem value="all" className="font-semibold text-slate-700">All Status</SelectItem>
+                  <SelectItem value="active" className="text-emerald-700 font-medium">Active</SelectItem>
+                  <SelectItem value="inactive" className="text-amber-700 font-medium">Inactive</SelectItem>
                 </SelectContent>
               </Select>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center gap-1 bg-slate-200/50 p-1 rounded-xl shrink-0 h-11 sm:h-10 ml-auto sm:ml-0">
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={cn(
+                    "flex items-center justify-center w-11 sm:w-9 h-full rounded-lg transition-all",
+                    viewMode === 'list' 
+                      ? "bg-white shadow-sm text-blue-600" 
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                  )}
+                  aria-label="List View"
+                >
+                  <List className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={cn(
+                    "flex items-center justify-center w-11 sm:w-9 h-full rounded-lg transition-all",
+                    viewMode === 'grid' 
+                      ? "bg-white shadow-sm text-blue-600" 
+                      : "text-slate-500 hover:text-slate-700 hover:bg-slate-200/50"
+                  )}
+                  aria-label="Grid View"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
         {/* ── Results Count ────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between text-sm text-slate-500 font-medium">
+        <div className="flex items-center justify-between text-sm text-slate-500 font-medium px-1">
           <p>
             {filteredPupils.length} {filteredPupils.length === 1 ? 'Pupil' : 'Pupils'} found
           </p>
         </div>
 
-        {/* ── Pupils List ──────────────────────────────────────────────────────── */}
+        {/* ── Pupils List / Grid ───────────────────────────────────────────────── */}
         <div className="bg-transparent border-0 shadow-none">
           {paginatedPupils.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 border-dashed">
-              <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Users className="h-8 w-8 text-slate-300" />
+            <div className="text-center py-16 bg-white rounded-3xl border border-slate-200/60 shadow-sm">
+              <div className="h-16 w-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-slate-400" />
               </div>
-              <p className="text-slate-600 font-medium">No pupils found</p>
+              <p className="text-lg font-bold text-slate-700">No pupils found</p>
               <p className="text-sm text-slate-400 mt-1 max-w-[250px] mx-auto">
                 {searchQuery ? 'Adjust your search or filters to find what you are looking for.' : 'No pupils are registered yet.'}
               </p>
               {(searchQuery || selectedClass !== 'all' || selectedStatus !== 'all') && (
                 <Button 
-                  variant="link" 
+                  variant="outline" 
                   onClick={() => { setSearchQuery(''); setSelectedClass('all'); setSelectedStatus('all'); }}
-                  className="mt-2 text-blue-600"
+                  className="mt-4 rounded-xl h-10 px-6"
                 >
                   Clear all filters
                 </Button>
               )}
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+            <div className={cn(
+              "grid gap-3 sm:gap-4",
+              viewMode === 'grid'
+                ? "grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" // Grid mode
+                : "grid-cols-1 lg:grid-cols-2" // List mode
+            )}>
               {paginatedPupils.map((pupil) => (
                 <PupilCard
                   key={pupil.id}
                   pupil={pupil}
                   onView={handleView}
+                  viewMode={viewMode}
                 />
               ))}
             </div>
@@ -746,7 +871,7 @@ export default function StaffPupilsPage() {
 
         {/* ── Pagination ───────────────────────────────────────────────────────── */}
         {totalPages > 1 && (
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-slate-200/60">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-4 border-t border-slate-200/60">
             <p className="text-sm text-slate-500 font-medium text-center sm:text-left">
               Page {currentPage} of {totalPages}
             </p>
@@ -756,7 +881,7 @@ export default function StaffPupilsPage() {
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                 disabled={currentPage === 1}
-                className="rounded-xl border-slate-200 h-10 px-4"
+                className="rounded-xl border-slate-200 h-10 px-4 shadow-sm"
               >
                 <ChevronLeft className="h-4 w-4 mr-1" />
                 Prev
@@ -766,7 +891,7 @@ export default function StaffPupilsPage() {
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="rounded-xl border-slate-200 h-10 px-4"
+                className="rounded-xl border-slate-200 h-10 px-4 shadow-sm"
               >
                 Next
                 <ChevronRight className="h-4 w-4 ml-1" />
@@ -777,21 +902,21 @@ export default function StaffPupilsPage() {
 
         {/* ── Class Breakdown (Mobile Horizontal Scroll) ──────────────────────── */}
         {Object.keys(stats.byClass).length > 0 && (
-          <div className="pt-8">
-            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4">
+          <div className="pt-6 border-t border-slate-200/60 mt-8">
+            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4 px-1">
               <BarChart3 className="h-4 w-4 text-blue-500" />
               Class Capacity Breakdown
             </h3>
-            <div className={cn("flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:pb-0", hideScrollbar)}>
+            <div className={cn("flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 lg:grid-cols-4 sm:gap-4 sm:pb-0", hideScrollbar)}>
               {Object.entries(stats.byClass)
                 .sort((a, b) => b[1] - a[1])
                 .map(([className, count]) => (
                   <div
                     key={className}
-                    className="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-100 shadow-sm shrink-0 w-[140px] sm:w-auto"
+                    className="flex items-center justify-between p-4 rounded-2xl bg-white border border-slate-200/60 shadow-sm shrink-0 w-[160px] sm:w-auto"
                   >
-                    <span className="text-sm font-semibold text-slate-700">{className}</span>
-                    <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200">{count}</Badge>
+                    <span className="text-sm font-semibold text-slate-700 truncate mr-2">{className}</span>
+                    <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-0 shrink-0 font-bold">{count}</Badge>
                   </div>
                 ))}
             </div>
