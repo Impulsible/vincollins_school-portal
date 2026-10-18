@@ -326,10 +326,13 @@ export default function AdminHelpGettingStartedPage() {
                 description={step.description}
                 icon={step.icon}
               >
-                <Button variant="outline" size="sm" asChild className="h-7 text-xs">
-                  <Link href={step.action.href}>
-                    {step.action.label} <ArrowRight className="h-3 w-3 ml-1" />
-                  </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => router.push(step.action.href)}
+                >
+                  {step.action.label} <ArrowRight className="h-3 w-3 ml-1" />
                 </Button>
               </StepCard>
             ))}
