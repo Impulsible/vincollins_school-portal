@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { NavigationItem, UserRole } from './types'
 
-// ─── Public Navigation (Unauthenticated Users) ──────────────────────────────
+// ─── Public Navigation ──────────────────────────────────────────────────────
 const publicNavigation: NavigationItem[] = [
   { name: 'Home', href: '/', icon: Home },
   { name: 'Admission', href: '/admission', icon: FileText },
@@ -29,7 +29,7 @@ const publicNavigation: NavigationItem[] = [
   { name: 'Contact', href: '/contact', icon: Phone },
 ]
 
-// ─── Pupil Navigation (Dashboard, Results, Report Cards, Profile) ──────────
+// ─── Pupil Navigation ───────────────────────────────────────────────────────
 const pupilNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/pupil', icon: LayoutDashboard },
   { name: 'Results', href: '/pupil/results', icon: Award },
@@ -37,7 +37,7 @@ const pupilNavigation: NavigationItem[] = [
   { name: 'Profile', href: '/pupil/profile', icon: UserCog },
 ]
 
-// ─── Teacher/Staff Navigation (Dashboard, Scores, Attendance, Analytics) ────
+// ─── Teacher/Staff Navigation (4 ITEMS ONLY) ────────────────────────────────
 const teacherNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
   { name: 'Scores', href: '/staff/scores', icon: Calculator },
@@ -45,7 +45,7 @@ const teacherNavigation: NavigationItem[] = [
   { name: 'Analytics', href: '/staff/analytics', icon: BarChart3 },
 ]
 
-// ─── Admin Navigation (UPDATED: 4 Items Only) ──────────────────────────────
+// ─── Admin Navigation ───────────────────────────────────────────────────────
 const adminNavigation: NavigationItem[] = [
   { 
     name: 'Dashboard', 

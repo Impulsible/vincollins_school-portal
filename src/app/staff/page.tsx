@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
@@ -14,13 +15,16 @@ import { cn } from '@/lib/utils'
 import {
   FileText, BookOpen, Users, ArrowRight,
   Calculator, Briefcase, ChevronRight, RefreshCw,
-  BarChart3, TrendingUp, Award,
-  CalendarCheck,
+  BarChart3, TrendingUp, Award, CalendarCheck,
+  Bell, Search, GraduationCap, ClipboardList,
+  Sparkles, Clock, Target, Zap, ChevronDown,
+  Loader2, AlertCircle, BookMarked, UserCheck,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+
 interface StaffStatsData {
   totalPupils: number
   activePupils: number
@@ -74,64 +78,44 @@ function calculateWeekInfo(
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // If no dates provided, return a default "not started" state
   if (!startDate || !endDate) {
     return {
-      termName,
-      sessionYear,
-      currentWeek: 0,
-      totalWeeks: 0,
-      weekProgress: 0,
-      displayWeek: 'Term dates not set',
+      termName, sessionYear, currentWeek: 0, totalWeeks: 0,
+      weekProgress: 0, displayWeek: 'Term dates not set',
     }
   }
 
   const start = new Date(startDate)
   start.setHours(0, 0, 0, 0)
-  
   const end = new Date(endDate)
   end.setHours(0, 0, 0, 0)
 
-  // If today is before the start date, term hasn't started
   if (today < start) {
     return {
-      termName,
-      sessionYear,
-      currentWeek: 0,
-      totalWeeks: 0,
-      weekProgress: 0,
-      displayWeek: 'Term starts soon',
+      termName, sessionYear, currentWeek: 0, totalWeeks: 0,
+      weekProgress: 0, displayWeek: 'Term starts soon',
     }
   }
 
-  // If today is after the end date, term has ended
   if (today > end) {
     return {
-      termName,
-      sessionYear,
-      currentWeek: 0,
-      totalWeeks: 0,
-      weekProgress: 100,
-      displayWeek: 'Term ended',
+      termName, sessionYear, currentWeek: 0, totalWeeks: 0,
+      weekProgress: 100, displayWeek: 'Term ended',
     }
   }
 
-  // Calculate weeks between start and today
   const diffMs = today.getTime() - start.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
   const currentWeek = Math.floor(diffDays / 7) + 1
 
-  // Calculate total weeks in the term
   const diffTotalMs = end.getTime() - start.getTime()
   const diffTotalDays = Math.floor(diffTotalMs / (1000 * 60 * 60 * 24))
   const totalWeeks = Math.ceil(diffTotalDays / 7)
 
-  // Week progress
   const weekProgress = Math.round((currentWeek / totalWeeks) * 100)
 
   return {
-    termName,
-    sessionYear,
+    termName, sessionYear,
     currentWeek: Math.min(currentWeek, totalWeeks),
     totalWeeks: Math.max(totalWeeks, 1),
     weekProgress: Math.min(weekProgress, 100),
@@ -139,68 +123,287 @@ function calculateWeekInfo(
   }
 }
 
-// ── Helper Components ─────────────────────────────────────────────────────────
+// ── Helper: Time-based greeting ──────────────────────────────────────────────
 
-function LoadingScreen() {
+function getGreeting(): { text: string; emoji: string } {
+  const hour = new Date().getHours()
+  if (hour < 12) return { text: 'Good morning', emoji: '☀️' }
+  if (hour < 17) return { text: 'Good afternoon', emoji: '🌤️' }
+  return { text: 'Good evening', emoji: '🌙' }
+}
+
+// ── Skeleton Components ──────────────────────────────────────────────────────
+
+function SkeletonPulse({ className }: { className?: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center">
-        <div className="relative w-20 h-20 mx-auto mb-4">
-          <div className="absolute inset-0 rounded-full border-4 border-emerald-200 animate-ping" />
-          <div className="absolute inset-0 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin" />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <Briefcase className="h-8 w-8 text-emerald-600" />
+    <div className={cn(
+      'animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800',
+      className
+    )} />
+  )
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
+      {/* Header skeleton */}
+      <div className="sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <SkeletonPulse className="h-9 w-9 rounded-full" />
+            <div className="space-y-1.5">
+              <SkeletonPulse className="h-4 w-28" />
+              <SkeletonPulse className="h-3 w-20" />
+            </div>
           </div>
+          <SkeletonPulse className="h-9 w-9 rounded-xl" />
         </div>
-        <p className="text-slate-600 font-medium">Loading Staff Dashboard...</p>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6">
+        {/* Welcome skeleton */}
+        <SkeletonPulse className="h-32 sm:h-40 w-full rounded-2xl" />
+
+        {/* Stats skeleton */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <SkeletonPulse key={i} className="h-24 sm:h-28 rounded-xl" />
+          ))}
+        </div>
+
+        {/* Quick actions skeleton */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
+          {[1, 2, 3, 4].map(i => (
+            <SkeletonPulse key={i} className="h-20 sm:h-24 rounded-xl" />
+          ))}
+        </div>
+
+        {/* Cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SkeletonPulse className="h-32 rounded-xl" />
+          <SkeletonPulse className="h-32 rounded-xl" />
+        </div>
       </div>
     </div>
   )
 }
 
-function QuickActionButton({
+// ── Stat Pill (mobile-optimized compact stat) ────────────────────────────────
+
+function StatPill({
+  label,
+  value,
+  icon: Icon,
+  color,
+  trend,
+}: {
+  label: string
+  value: string | number
+  icon: React.ElementType
+  color: 'emerald' | 'blue' | 'violet' | 'amber' | 'rose' | 'teal'
+  trend?: string
+}) {
+  const colorMap = {
+    emerald: {
+      bg: 'bg-emerald-50 dark:bg-emerald-950/30',
+      icon: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400',
+      text: 'text-emerald-700 dark:text-emerald-300',
+    },
+    blue: {
+      bg: 'bg-blue-50 dark:bg-blue-950/30',
+      icon: 'bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400',
+      text: 'text-blue-700 dark:text-blue-300',
+    },
+    violet: {
+      bg: 'bg-violet-50 dark:bg-violet-950/30',
+      icon: 'bg-violet-100 dark:bg-violet-900/50 text-violet-600 dark:text-violet-400',
+      text: 'text-violet-700 dark:text-violet-300',
+    },
+    amber: {
+      bg: 'bg-amber-50 dark:bg-amber-950/30',
+      icon: 'bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400',
+      text: 'text-amber-700 dark:text-amber-300',
+    },
+    rose: {
+      bg: 'bg-rose-50 dark:bg-rose-950/30',
+      icon: 'bg-rose-100 dark:bg-rose-900/50 text-rose-600 dark:text-rose-400',
+      text: 'text-rose-700 dark:text-rose-300',
+    },
+    teal: {
+      bg: 'bg-teal-50 dark:bg-teal-950/30',
+      icon: 'bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-400',
+      text: 'text-teal-700 dark:text-teal-300',
+    },
+  }
+
+  const c = colorMap[color]
+
+  return (
+    <Card className={cn(
+      'border-0 shadow-sm overflow-hidden transition-all duration-200 hover:shadow-md active:scale-[0.98]',
+      c.bg
+    )}>
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 min-w-0 flex-1">
+            <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
+              {label}
+            </p>
+            <p className={cn('text-xl sm:text-2xl font-bold tracking-tight tabular-nums', c.text)}>
+              {value}
+            </p>
+            {trend && (
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
+                {trend}
+              </p>
+            )}
+          </div>
+          <div className={cn('p-2 sm:p-2.5 rounded-xl shrink-0', c.icon)}>
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ── Quick Action Tile ────────────────────────────────────────────────────────
+
+function QuickActionTile({
   icon: Icon,
   label,
   description,
   onClick,
-  color
+  color,
+  badge,
 }: {
   icon: React.ElementType
   label: string
   description: string
   onClick: () => void
   color: 'blue' | 'violet' | 'emerald' | 'amber' | 'rose' | 'teal'
+  badge?: string | number
 }) {
-  const colors = {
-    blue: 'bg-blue-50 text-blue-600 border-blue-200 hover:border-blue-300',
-    violet: 'bg-violet-50 text-violet-600 border-violet-200 hover:border-violet-300',
-    emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:border-emerald-300',
-    amber: 'bg-amber-50 text-amber-600 border-amber-200 hover:border-amber-300',
-    rose: 'bg-rose-50 text-rose-600 border-rose-200 hover:border-rose-300',
-    teal: 'bg-teal-50 text-teal-600 border-teal-200 hover:border-teal-300',
+  const colorMap = {
+    blue: 'from-blue-500 to-blue-600 shadow-blue-500/20',
+    violet: 'from-violet-500 to-violet-600 shadow-violet-500/20',
+    emerald: 'from-emerald-500 to-emerald-600 shadow-emerald-500/20',
+    amber: 'from-amber-500 to-amber-600 shadow-amber-500/20',
+    rose: 'from-rose-500 to-rose-600 shadow-rose-500/20',
+    teal: 'from-teal-500 to-teal-600 shadow-teal-500/20',
+  }
+
+  const bgMap = {
+    blue: 'hover:bg-blue-50/80 dark:hover:bg-blue-950/30 active:bg-blue-100/80',
+    violet: 'hover:bg-violet-50/80 dark:hover:bg-violet-950/30 active:bg-violet-100/80',
+    emerald: 'hover:bg-emerald-50/80 dark:hover:bg-emerald-950/30 active:bg-emerald-100/80',
+    amber: 'hover:bg-amber-50/80 dark:hover:bg-amber-950/30 active:bg-amber-100/80',
+    rose: 'hover:bg-rose-50/80 dark:hover:bg-rose-950/30 active:bg-rose-100/80',
+    teal: 'hover:bg-teal-50/80 dark:hover:bg-teal-950/30 active:bg-teal-100/80',
   }
 
   return (
     <button
       onClick={onClick}
       className={cn(
-        'group flex items-start gap-3 p-4 rounded-2xl border transition-all text-left w-full',
-        colors[color],
-        'hover:shadow-md hover:scale-[1.02] active:scale-[0.98]'
+        'group relative flex flex-col sm:flex-row items-center sm:items-start gap-2.5 sm:gap-3',
+        'p-3 sm:p-4 rounded-2xl border border-slate-200/60 dark:border-slate-800/60',
+        'bg-white dark:bg-slate-900 text-left w-full',
+        'transition-all duration-200 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700',
+        'active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2',
+        bgMap[color]
       )}
     >
+      {badge !== undefined && badge !== 0 && (
+        <span className="absolute -top-1.5 -right-1.5 sm:top-1 sm:right-1 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold shadow-sm z-10">
+          {badge}
+        </span>
+      )}
       <div className={cn(
-        'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-110',
-        colors[color].replace('border-', 'bg-')
+        'w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0',
+        'bg-gradient-to-br shadow-md transition-transform duration-200 group-hover:scale-110 group-active:scale-95',
+        colorMap[color]
       )}>
-        <Icon className="h-5 w-5" />
+        <Icon className="h-5 w-5 text-white" />
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold">{label}</p>
-        <p className="text-xs text-slate-500">{description}</p>
+      <div className="flex-1 min-w-0 text-center sm:text-left">
+        <p className="text-sm font-semibold text-slate-800 dark:text-slate-100 leading-tight">
+          {label}
+        </p>
+        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 hidden sm:block truncate">
+          {description}
+        </p>
       </div>
-      <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-slate-600 group-hover:translate-x-0.5 transition-all" />
+      <ChevronRight className="h-4 w-4 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 group-hover:translate-x-0.5 transition-all hidden sm:block shrink-0 mt-1" />
     </button>
+  )
+}
+
+// ── Animated Progress Bar ────────────────────────────────────────────────────
+
+function AnimatedProgress({
+  value,
+  className,
+  color = 'emerald',
+}: {
+  value: number
+  className?: string
+  color?: 'emerald' | 'blue' | 'violet' | 'amber' | 'rose'
+}) {
+  const [width, setWidth] = useState(0)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setWidth(Math.min(100, Math.max(0, value))), 100)
+    return () => clearTimeout(timer)
+  }, [value])
+
+  const colorMap = {
+    emerald: 'from-emerald-500 to-emerald-400',
+    blue: 'from-blue-500 to-blue-400',
+    violet: 'from-violet-500 to-violet-400',
+    amber: 'from-amber-500 to-amber-400',
+    rose: 'from-rose-500 to-rose-400',
+  }
+
+  return (
+    <div
+      ref={ref}
+      className={cn('w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden', className)}
+    >
+      <div
+        className={cn('h-full bg-gradient-to-r rounded-full transition-all duration-1000 ease-out', colorMap[color])}
+        style={{ width: `${width}%` }}
+      />
+    </div>
+  )
+}
+
+// ── Section Header ───────────────────────────────────────────────────────────
+
+function SectionHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string
+  subtitle?: string
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex items-end justify-between gap-3 mb-3 sm:mb-4">
+      <div>
+        <h2 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white tracking-tight">
+          {title}
+        </h2>
+        {subtitle && (
+          <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            {subtitle}
+          </p>
+        )}
+      </div>
+      {action}
+    </div>
   )
 }
 
@@ -220,22 +423,20 @@ export default function StaffDashboardPage() {
     weekProgress: 0,
     displayWeek: 'Loading...',
   })
+  const [showAllClasses, setShowAllClasses] = useState(false)
 
-  // ─── Fetch Term Info from Database ─────────────────────────────────────────
+  const greeting = getGreeting()
+
+  // ─── Fetch Term Info ──────────────────────────────────────────────────────
   const fetchTermInfo = useCallback(async () => {
     try {
-      // 1. Fetch current term and session from school_settings
       const { data: settings, error: settingsError } = await supabase
         .from('school_settings')
         .select('current_term, current_session')
         .maybeSingle()
 
-      if (settingsError || !settings) {
-        console.warn('No school settings found, using defaults')
-        return
-      }
+      if (settingsError || !settings) return
 
-      // 2. Fetch term details from terms table
       const { data: termData, error: termError } = await supabase
         .from('terms')
         .select('*')
@@ -243,12 +444,8 @@ export default function StaffDashboardPage() {
         .eq('session_year', settings.current_session)
         .maybeSingle()
 
-      if (termError || !termData) {
-        console.warn('Term details not found, using defaults')
-        return
-      }
+      if (termError || !termData) return
 
-      // 3. Calculate week info based on term dates
       const weekInfo = calculateWeekInfo(
         termData.term_name || termData.term_code || 'First',
         termData.session_year || '2025/2026',
@@ -262,7 +459,7 @@ export default function StaffDashboardPage() {
     }
   }, [])
 
-  // ─── Fetch Data ──────────────────────────────────────────────────────────────
+  // ─── Fetch Data ───────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
     if (!user?.id) return
 
@@ -270,37 +467,40 @@ export default function StaffDashboardPage() {
       setRefreshing(true)
       const userId = user.id
 
-      const { data: pupils } = await supabase
-        .from('profiles')
-        .select('id, full_name, class, is_active')
-        .in('role', ['pupil', 'student'])
-
-      const { data: assignments } = await supabase
-        .from('assignments')
-        .select('id, title, subject, status, created_at')
-        .eq('teacher_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      const { data: notes } = await supabase
-        .from('notes')
-        .select('id, title, subject, created_at')
-        .eq('teacher_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(5)
-
-      const { data: primaryScores } = await supabase
-        .from('primary_scores')
-        .select('id, student_id, subject, class, term, academic_year, ca_score, exam_score, total_score, remark')
-        .eq('teacher_id', userId)
-        .eq('term', termInfo.termName)
-        .eq('academic_year', termInfo.sessionYear)
-
-      const today = new Date().toISOString().split('T')[0]
-      const { data: attendanceTodayData } = await supabase
-        .from('attendance')
-        .select('id, status')
-        .eq('date', today)
+      const [
+        { data: pupils },
+        { data: assignments },
+        { data: notes },
+        { data: primaryScores },
+        { data: attendanceTodayData },
+      ] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, full_name, class, is_active')
+          .in('role', ['pupil', 'student']),
+        supabase
+          .from('assignments')
+          .select('id, title, subject, status, created_at')
+          .eq('teacher_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('notes')
+          .select('id, title, subject, created_at')
+          .eq('teacher_id', userId)
+          .order('created_at', { ascending: false })
+          .limit(5),
+        supabase
+          .from('primary_scores')
+          .select('id, student_id, subject, class, term, academic_year, ca_score, exam_score, total_score, remark')
+          .eq('teacher_id', userId)
+          .eq('term', termInfo.termName)
+          .eq('academic_year', termInfo.sessionYear),
+        supabase
+          .from('attendance')
+          .select('id, status')
+          .eq('date', new Date().toISOString().split('T')[0]),
+      ])
 
       const totalScores = primaryScores?.length || 0
       const scoresSubmitted = primaryScores?.filter(s => s.total_score !== null && s.total_score > 0).length || 0
@@ -308,8 +508,8 @@ export default function StaffDashboardPage() {
       const allScores = primaryScores
         ?.map(s => s.total_score)
         .filter(score => score !== null && score > 0) || []
-      
-      const avgPerformance = allScores.length > 0 
+
+      const avgPerformance = allScores.length > 0
         ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length)
         : 0
 
@@ -326,7 +526,9 @@ export default function StaffDashboardPage() {
       pupils?.forEach(p => {
         if (p.class) classMap.set(p.class, (classMap.get(p.class) || 0) + 1)
       })
-      const classBreakdown = Array.from(classMap.entries()).map(([name, count]) => ({ name, count }))
+      const classBreakdown = Array.from(classMap.entries())
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
 
       const presentToday = attendanceTodayData?.filter(a => a.status === 'present').length || 0
       const totalToday = attendanceTodayData?.length || 0
@@ -340,12 +542,12 @@ export default function StaffDashboardPage() {
           totalAssignments: assignments?.length || 0,
           totalNotes: notes?.length || 0,
           totalReportCards: 0,
-          pendingGrading: pendingGrading,
+          pendingGrading,
           averagePerformance: avgPerformance,
           attendanceToday: totalToday > 0 ? Math.round((presentToday / totalToday) * 100) : 0,
           attendanceWeek: 0,
-          scoresSubmitted: scoresSubmitted,
-          totalScores: totalScores,
+          scoresSubmitted,
+          totalScores,
           classBreakdown,
         },
         recentAssignments: assignments || [],
@@ -353,7 +555,6 @@ export default function StaffDashboardPage() {
         recentPupils: pupils?.slice(0, 5) || [],
         recentReportCards: [],
       })
-
     } catch (error) {
       console.error('Error fetching staff data:', error)
       toast.error('Failed to load dashboard')
@@ -363,10 +564,9 @@ export default function StaffDashboardPage() {
     }
   }, [user, termInfo.termName, termInfo.sessionYear])
 
-  // ─── Initial Load ────────────────────────────────────────────────────────────
+  // ─── Initial Load ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!authLoading && user?.id && user?.role !== 'student') {
-      // Fetch term info first, then data
       const loadAll = async () => {
         await fetchTermInfo()
         await fetchData()
@@ -376,17 +576,31 @@ export default function StaffDashboardPage() {
   }, [authLoading, user, fetchTermInfo, fetchData])
 
   const stats = data?.stats || DEFAULT_STATS
+  const staffName = user?.full_name || user?.first_name || 'Teacher'
+  const staffInitial = staffName.charAt(0).toUpperCase()
 
-  if (authLoading || loading) {
-    return <LoadingScreen />
+  const submissionPercentage = stats.totalScores > 0
+    ? Math.round((stats.scoresSubmitted / stats.totalScores) * 100)
+    : 0
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await Promise.all([fetchTermInfo(), fetchData()])
+    toast.success('Dashboard refreshed')
   }
 
+  // ─── Loading ──────────────────────────────────────────────────────────────
+  if (authLoading || loading) {
+    return <DashboardSkeleton />
+  }
+
+  // ─── Auth Guard ───────────────────────────────────────────────────────────
   if (!user || user.role === 'student') {
     router.replace('/portal')
     return null
   }
 
-  // ─── Map user to StaffProfile ──────────────────────────────────────────────
+  // ─── Profile & Stats Mapping ──────────────────────────────────────────────
   const staffProfile: StaffProfile = {
     id: user.id,
     full_name: user.full_name || user.first_name || '',
@@ -399,13 +613,6 @@ export default function StaffDashboardPage() {
     title: (user as any).title || '',
   }
 
-  console.log('🔍 Staff Profile:', {
-    id: staffProfile.id,
-    full_name: staffProfile.full_name,
-    hasId: !!staffProfile.id
-  })
-
-  // ─── Map stats to StaffStats ──────────────────────────────────────────────
   const staffStats: StaffStats = {
     totalPupils: stats.totalPupils,
     totalAssignments: stats.totalAssignments,
@@ -417,302 +624,430 @@ export default function StaffDashboardPage() {
     attendanceToday: stats.attendanceToday,
   }
 
-  const submissionPercentage = stats.totalScores > 0 
-    ? Math.round((stats.scoresSubmitted / stats.totalScores) * 100) 
-    : 0
+  const visibleClasses = showAllClasses
+    ? stats.classBreakdown
+    : stats.classBreakdown.slice(0, 4)
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-slate-50 via-white to-slate-50/50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950">
 
-      <StaffWelcomeBanner
-        profile={staffProfile}
-        stats={staffStats}
-        termInfo={termInfo}
-      />
+      {/* ═══ Sticky Header ═══ */}
+      <header className="sticky top-0 z-40 bg-white/85 dark:bg-slate-900/85 backdrop-blur-xl border-b border-slate-200/60 dark:border-slate-800/60 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-3">
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-        {/* ── Primary Scores Summary ──────────────────────────────────────── */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="border-0 shadow-soft bg-gradient-to-r from-blue-50 to-blue-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Calculator className="h-4 w-4 text-blue-600" />
-                Primary Scores
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-slate-600">{stats.scoresSubmitted} submitted</span>
-                <span className="font-medium text-blue-600">
-                  {submissionPercentage}%
-                </span>
+            {/* Left: Avatar + Greeting */}
+            <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
+              <div className="relative shrink-0">
+                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white text-sm font-bold shadow-md shadow-emerald-500/20">
+                  {staffInitial}
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 border-2 border-white dark:border-slate-900" />
               </div>
-              <div className="h-2 bg-blue-200 rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-blue-500 rounded-full transition-all"
-                  style={{ width: `${submissionPercentage}%` }}
-                />
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white truncate leading-tight">
+                  {greeting.emoji} {greeting.text}
+                </p>
+                <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+                  {staffName} · {termInfo.displayWeek}
+                </p>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
-                {stats.totalScores - stats.scoresSubmitted} pending grading
-              </p>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card className="border-0 shadow-soft bg-gradient-to-r from-emerald-50 to-emerald-100">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <Award className="h-4 w-4 text-emerald-600" />
-                Overall Performance
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold text-emerald-700">
-                  {stats.averagePerformance}%
-                </span>
-                <Badge className={cn(
-                  'text-xs',
-                  stats.averagePerformance >= 70 ? 'bg-emerald-600 text-white' :
-                  stats.averagePerformance >= 50 ? 'bg-amber-500 text-white' :
-                  'bg-rose-500 text-white'
-                )}>
-                  {stats.averagePerformance >= 70 ? '🌟 Excellent' :
-                   stats.averagePerformance >= 50 ? '📈 Good' :
-                   '⚠️ Needs Improvement'}
-                </Badge>
-              </div>
-              <div className="h-2 bg-emerald-200 rounded-full mt-2 overflow-hidden">
-                <div 
-                  className="h-full bg-emerald-500 rounded-full transition-all"
-                  style={{ width: `${Math.min(stats.averagePerformance, 100)}%` }}
-                />
-              </div>
-              <p className="text-xs text-slate-500 mt-2">
-                Based on {stats.scoresSubmitted} submitted scores
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ── Quick Actions ────────────────────────────────────────────────── */}
-        <div>
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Quick Actions</p>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setRefreshing(true)
-                fetchData().then(() => {
-                  toast.success('Dashboard refreshed')
-                })
-              }}
-              disabled={refreshing}
-              className="h-7 text-xs"
-            >
-              <RefreshCw className={cn('h-3 w-3 mr-1.5', refreshing && 'animate-spin')} />
-              Refresh
-            </Button>
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="h-9 w-9 sm:h-9 sm:w-auto sm:px-3 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+                aria-label="Refresh dashboard"
+              >
+                <RefreshCw className={cn('h-4 w-4', refreshing && 'animate-spin')} />
+                <span className="hidden sm:inline text-xs font-medium ml-1.5">Refresh</span>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 w-9 p-0 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 relative"
+                aria-label="Notifications"
+              >
+                <Bell className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+                {stats.pendingGrading > 0 && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                )}
+              </Button>
+            </div>
           </div>
+        </div>
+      </header>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-            <QuickActionButton
+      {/* ═══ Main Content ═══ */}
+      <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 space-y-5 sm:space-y-7">
+
+        {/* ── Welcome Banner ── */}
+        <section>
+          <StaffWelcomeBanner
+            profile={staffProfile}
+            stats={staffStats}
+            termInfo={termInfo}
+          />
+        </section>
+
+        {/* ── Key Stats Grid ── */}
+        <section>
+          <SectionHeader
+            title="Overview"
+            subtitle={`${termInfo.termName} Term · ${termInfo.sessionYear}`}
+          />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <StatPill
+              label="Pupils"
+              value={stats.activePupils}
+              icon={Users}
+              color="blue"
+              trend={`${stats.totalClasses} classes`}
+            />
+            <StatPill
+              label="Attendance"
+              value={`${stats.attendanceToday}%`}
+              icon={UserCheck}
+              color="teal"
+              trend="Today"
+            />
+            <StatPill
+              label="Graded"
+              value={stats.scoresSubmitted}
+              icon={ClipboardList}
+              color="emerald"
+              trend={`of ${stats.totalScores} total`}
+            />
+            <StatPill
+              label="Pending"
+              value={stats.pendingGrading}
+              icon={Clock}
+              color={stats.pendingGrading > 10 ? 'rose' : 'amber'}
+              trend="Need grading"
+            />
+          </div>
+        </section>
+
+        {/* ── Quick Actions ── */}
+        <section>
+          <SectionHeader title="Quick Actions" subtitle="Jump to common tasks" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            <QuickActionTile
+              icon={Calculator}
+              label="Scores"
+              description="Enter & manage pupil scores"
+              onClick={() => router.push('/staff/scores')}
+              color="amber"
+              badge={stats.pendingGrading > 0 ? stats.pendingGrading : undefined}
+            />
+            <QuickActionTile
               icon={Users}
               label="Pupils"
-              description="View all pupils"
+              description="View all enrolled pupils"
               onClick={() => router.push('/staff/pupils')}
               color="blue"
             />
-            <QuickActionButton
+            <QuickActionTile
               icon={FileText}
               label="Assignments"
-              description="Create & manage"
+              description="Create & manage tasks"
               onClick={() => router.push('/staff/assignments')}
               color="violet"
+              badge={stats.totalAssignments > 0 ? stats.totalAssignments : undefined}
             />
-            <QuickActionButton
-              icon={Calculator}
-              label="Scores"
-              description="Manage pupil scores"
-              onClick={() => router.push('/staff/scores')}
-              color="amber"
-            />
-            <QuickActionButton
+            <QuickActionTile
               icon={CalendarCheck}
               label="Attendance"
-              description="Mark & view attendance"
+              description="Mark daily attendance"
               onClick={() => router.push('/staff/attendance')}
               color="teal"
             />
           </div>
-        </div>
+        </section>
 
-        {/* ── Performance Summary ──────────────────────────────────────────── */}
-        {stats.averagePerformance > 0 && (
-          <Card className="border-0 shadow-soft bg-gradient-to-r from-violet-50 to-indigo-50">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-violet-100">
-                  <TrendingUp className="h-6 w-6 text-violet-600" />
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-semibold text-slate-700">Average Performance</p>
-                    <span className={cn(
-                      'text-lg font-bold',
-                      stats.averagePerformance >= 70 ? 'text-emerald-600' :
-                      stats.averagePerformance >= 50 ? 'text-amber-600' :
-                      'text-rose-600'
-                    )}>
-                      {stats.averagePerformance}%
-                    </span>
+        {/* ── Performance & Submission Cards ── */}
+        <section>
+          <SectionHeader title="Performance" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+
+            {/* Score Submission */}
+            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
+              <CardContent className="p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-blue-100 dark:bg-blue-900/40">
+                      <Target className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                        Score Submission
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        {stats.scoresSubmitted} of {stats.totalScores} graded
+                      </p>
+                    </div>
                   </div>
-                  <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
-                    <div 
-                      className={cn(
-                        'h-full rounded-full transition-all',
-                        stats.averagePerformance >= 70 ? 'bg-emerald-500' :
-                        stats.averagePerformance >= 50 ? 'bg-amber-500' :
-                        'bg-rose-500'
-                      )}
-                      style={{ width: `${Math.min(stats.averagePerformance, 100)}%` }}
-                    />
-                  </div>
+                  <span className={cn(
+                    'text-2xl font-bold tabular-nums',
+                    submissionPercentage >= 80 ? 'text-emerald-600 dark:text-emerald-400' :
+                    submissionPercentage >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                    'text-rose-600 dark:text-rose-400'
+                  )}>
+                    {submissionPercentage}%
+                  </span>
                 </div>
+                <AnimatedProgress
+                  value={submissionPercentage}
+                  color={submissionPercentage >= 80 ? 'emerald' : submissionPercentage >= 50 ? 'amber' : 'rose'}
+                />
+                {stats.totalScores - stats.scoresSubmitted > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-medium">
+                    <AlertCircle className="h-3 w-3" />
+                    {stats.totalScores - stats.scoresSubmitted} scores pending
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Average Performance */}
+            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
+              <CardContent className="p-4 sm:p-5 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-900/40">
+                      <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">
+                        Avg. Performance
+                      </p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Based on {stats.scoresSubmitted} scores
+                      </p>
+                    </div>
+                  </div>
+                  <span className={cn(
+                    'text-2xl font-bold tabular-nums',
+                    stats.averagePerformance >= 70 ? 'text-emerald-600 dark:text-emerald-400' :
+                    stats.averagePerformance >= 50 ? 'text-amber-600 dark:text-amber-400' :
+                    'text-rose-600 dark:text-rose-400'
+                  )}>
+                    {stats.averagePerformance}%
+                  </span>
+                </div>
+                <AnimatedProgress
+                  value={stats.averagePerformance}
+                  color={stats.averagePerformance >= 70 ? 'emerald' : stats.averagePerformance >= 50 ? 'amber' : 'rose'}
+                />
                 <Badge className={cn(
-                  'text-xs',
-                  stats.averagePerformance >= 70 ? 'bg-emerald-100 text-emerald-700' :
-                  stats.averagePerformance >= 50 ? 'bg-amber-100 text-amber-700' :
-                  'bg-rose-100 text-rose-700'
+                  'text-[10px] font-semibold border-0 w-fit',
+                  stats.averagePerformance >= 70
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+                    : stats.averagePerformance >= 50
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                    : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-400'
                 )}>
                   {stats.averagePerformance >= 70 ? '🌟 Excellent' :
                    stats.averagePerformance >= 50 ? '📈 Good' :
-                   '⚠️ Needs Improvement'}
+                   stats.averagePerformance > 0 ? '⚠️ Needs Attention' : '— No data'}
                 </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
 
-        {/* ── Class Breakdown ─────────────────────────────────────────────── */}
+        {/* ── Class Breakdown ── */}
         {stats.classBreakdown.length > 0 && (
-          <Card className="border-0 shadow-soft">
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-slate-600" />
-                Class Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {stats.classBreakdown.map((cls) => (
-                  <div key={cls.name}>
-                    <div className="flex justify-between text-sm">
-                      <span className="font-medium text-slate-700">{cls.name}</span>
-                      <span className="text-slate-500">{cls.count} pupils</span>
-                    </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-violet-500 rounded-full transition-all"
-                        style={{ width: `${stats.totalPupils > 0 ? (cls.count / stats.totalPupils) * 100 : 0}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <section>
+            <SectionHeader
+              title="Class Breakdown"
+              subtitle={`${stats.totalClasses} classes · ${stats.totalPupils} total pupils`}
+              action={
+                stats.classBreakdown.length > 4 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowAllClasses(!showAllClasses)}
+                    className="h-7 text-xs text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 gap-1"
+                  >
+                    {showAllClasses ? 'Show less' : `Show all (${stats.classBreakdown.length})`}
+                    <ChevronDown className={cn('h-3 w-3 transition-transform', showAllClasses && 'rotate-180')} />
+                  </Button>
+                )
+              }
+            />
+            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+              <CardContent className="p-4 sm:p-5">
+                <div className="space-y-3">
+                  {visibleClasses.map((cls) => {
+                    const pct = stats.totalPupils > 0
+                      ? Math.round((cls.count / stats.totalPupils) * 100)
+                      : 0
+                    return (
+                      <div key={cls.name} className="space-y-1.5">
+                        <div className="flex items-center justify-between text-sm">
+                          <div className="flex items-center gap-2">
+                            <div className="h-6 w-6 rounded-md bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                              <GraduationCap className="h-3 w-3 text-violet-600 dark:text-violet-400" />
+                            </div>
+                            <span className="font-medium text-slate-700 dark:text-slate-200">
+                              {cls.name}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-slate-500 dark:text-slate-400 font-medium tabular-nums">
+                              {cls.count} pupils
+                            </span>
+                            <span className="text-[10px] font-bold text-violet-600 dark:text-violet-400 tabular-nums w-8 text-right">
+                              {pct}%
+                            </span>
+                          </div>
+                        </div>
+                        <AnimatedProgress value={pct} color="violet" className="h-1.5" />
+                      </div>
+                    )
+                  })}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
         )}
 
-        {/* ── Recent Activity ──────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border-0 shadow-soft">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <FileText className="h-4 w-4 text-violet-600" />
-                Recent Assignments
-              </CardTitle>
-              <Button variant="ghost" size="sm" asChild className="h-7 text-xs">
-                <Link href="/staff/assignments">
-                  View All <ArrowRight className="h-3 w-3 ml-1" />
-                </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {data?.recentAssignments.length === 0 ? (
-                <div className="text-center py-8">
-                  <FileText className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">No assignments yet</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {data?.recentAssignments.map((assignment) => (
-                    <div
-                      key={assignment.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{assignment.title}</p>
-                        <p className="text-xs text-slate-500">{assignment.subject}</p>
-                      </div>
-                      <Badge variant="outline" className="text-xs">
-                        {assignment.status || 'Draft'}
-                      </Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+        {/* ── Recent Activity ── */}
+        <section>
+          <SectionHeader title="Recent Activity" />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
 
-          <Card className="border-0 shadow-soft">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-sm flex items-center gap-2">
-                <BookOpen className="h-4 w-4 text-emerald-600" />
-                Recent Notes
-              </CardTitle>
-              <Button variant="ghost" size="sm" asChild className="h-7 text-xs">
-                <Link href="/staff/notes">
-                  View All <ArrowRight className="h-3 w-3 ml-1" />
+            {/* Assignments */}
+            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-100">
+                  <div className="p-1.5 rounded-lg bg-violet-100 dark:bg-violet-900/40">
+                    <FileText className="h-3.5 w-3.5 text-violet-600 dark:text-violet-400" />
+                  </div>
+                  Assignments
+                </CardTitle>
+                <Link
+                  href="/staff/assignments"
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1 rounded-[min(var(--radius-md),12px)] px-2.5 text-[0.8rem] text-slate-600 transition-colors hover:bg-muted hover:text-foreground dark:text-slate-300 dark:hover:bg-muted/50"
+                  )}
+                >
+                  All <ArrowRight className="h-3 w-3" />
                 </Link>
-              </Button>
-            </CardHeader>
-            <CardContent>
-              {data?.recentNotes.length === 0 ? (
-                <div className="text-center py-8">
-                  <BookOpen className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                  <p className="text-sm text-slate-500">No notes yet</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {data?.recentNotes.map((note) => (
-                    <div
-                      key={note.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors"
-                    >
-                      <div>
-                        <p className="text-sm font-medium text-slate-800">{note.title}</p>
-                        <p className="text-xs text-slate-500">{note.subject || 'General'}</p>
-                      </div>
-                      <span className="text-xs text-slate-400">
-                        {new Date(note.created_at).toLocaleDateString()}
-                      </span>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {data?.recentAssignments.length === 0 ? (
+                  <div className="text-center py-8 sm:py-10">
+                    <div className="inline-flex p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-3">
+                      <FileText className="h-6 w-6 text-slate-300 dark:text-slate-600" />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">No assignments yet</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Create your first assignment</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {data?.recentAssignments.map((assignment) => (
+                      <button
+                        key={assignment.id}
+                        onClick={() => router.push('/staff/assignments')}
+                        className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left group"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate group-hover:text-violet-600 dark:group-hover:text-violet-400 transition-colors">
+                            {assignment.title}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            {assignment.subject}
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] font-medium shrink-0 ml-2"
+                        >
+                          {assignment.status || 'Draft'}
+                        </Badge>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
 
-        {/* ── Footer ────────────────────────────────────────────────────────── */}
-        <div className="text-center text-xs text-slate-400 pt-4 border-t border-slate-200/50">
-          <p>Vincollins Schools Staff Dashboard • Geared Towards Excellence</p>
-          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
-        </div>
-      </div>
+            {/* Notes */}
+            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+              <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 text-slate-800 dark:text-slate-100">
+                  <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                    <BookOpen className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  Notes
+                </CardTitle>
+                <Link
+                  href="/staff/notes"
+                  className="inline-flex h-7 items-center justify-center gap-1 rounded-md px-2 text-xs font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
+                >
+                  All <ArrowRight className="h-3 w-3" />
+                </Link>
+              </CardHeader>
+              <CardContent className="pt-0">
+                {data?.recentNotes.length === 0 ? (
+                  <div className="text-center py-8 sm:py-10">
+                    <div className="inline-flex p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 mb-3">
+                      <BookMarked className="h-6 w-6 text-slate-300 dark:text-slate-600" />
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">No notes yet</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Start creating lesson notes</p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {data?.recentNotes.map((note) => (
+                      <button
+                        key={note.id}
+                        onClick={() => router.push('/staff/notes')}
+                        className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-slate-50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors w-full text-left group"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                            {note.title}
+                          </p>
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                            {note.subject || 'General'}
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0 ml-2 tabular-nums">
+                          {new Date(note.created_at).toLocaleDateString('en-GB', {
+                            day: 'numeric',
+                            month: 'short',
+                          })}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+
+        {/* ── Footer ── */}
+        <footer className="text-center pt-4 sm:pt-6 pb-6 sm:pb-8 border-t border-slate-200/60 dark:border-slate-800/60">
+          <div className="flex flex-col items-center gap-1.5">
+            <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
+              <Sparkles className="h-3 w-3" />
+              <p className="text-[11px] font-semibold">Vincollins Schools</p>
+            </div>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+              Geared Towards Excellence · &copy; {new Date().getFullYear()}
+            </p>
+          </div>
+        </footer>
+      </main>
     </div>
   )
 }

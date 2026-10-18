@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useUser } from '@/contexts/UserContext'
 import { StaffSidebar } from '@/components/staff/StaffSidebar'
+import { StaffMobileBottomNav } from '@/components/staff/StaffMobileBottomNav' // ✅ Imported Bottom Nav
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { Loader2, ChevronRight, Home } from 'lucide-react'
@@ -293,8 +294,8 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
             sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72',
           )}
         >
-          {/* ✅ FIXED: Adjusted top padding to pt-16 sm:pt-20 to match the header height perfectly */}
-          <main className="min-h-[100dvh] pt-16 sm:pt-20 lg:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
+          {/* ✅ Added pb-20 on mobile to prevent the bottom nav from covering content */}
+          <main className="min-h-[100dvh] pt-16 sm:pt-20 lg:pt-24 pb-20 lg:pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
             <div className="w-full max-w-7xl mx-auto">
               {/* Breadcrumb */}
               <StaffBreadcrumb pathname={pathname || ''} />
@@ -305,6 +306,12 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
           </main>
         </div>
       </div>
+
+      {/* ✅ Staff Mobile Bottom Navigation */}
+      <StaffMobileBottomNav 
+        activeTab={activeTab} 
+        onLogout={handleLogout} 
+      />
     </div>
   )
 }

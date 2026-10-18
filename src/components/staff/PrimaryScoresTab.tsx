@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/static-components */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/set-state-in-render */
 /* eslint-disable react-hooks/preserve-manual-memoization */
@@ -12,71 +13,34 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase/client";
 import {
-  Save,
-  Search,
-  Edit,
-  Trash2,
-  Users,
-  Loader2,
-  RefreshCw,
-  CheckCircle2,
-  FileText,
-  TrendingUp,
-  Award,
-  GraduationCap,
-  SaveAll,
-  Trash,
-  AlertTriangle,
-  Database,
-  Lock,
-  Circle,
-  ChevronRight,
-  BookOpen,
-  Settings2,
-  Eye,
-  Sparkles,
-  BarChart3,
+  Save, Search, Edit, Trash2, Users, Loader2, RefreshCw, CheckCircle2,
+  FileText, TrendingUp, Award, GraduationCap, SaveAll, Trash, AlertTriangle,
+  Database, Lock, Circle, ChevronRight, BookOpen, Settings2, Eye, Sparkles,
+  BarChart3, Filter, X, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
+} from "@/components/ui/sheet";
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// TYPES
+// TYPES (same as before)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 interface Student {
@@ -111,10 +75,7 @@ interface ScoreRecord {
   updated_at?: string;
 }
 
-type ScoreInsert = Omit<
-  ScoreRecord,
-  "id" | "created_at" | "updated_at" | "student_admission"
->;
+type ScoreInsert = Omit<ScoreRecord, "id" | "created_at" | "updated_at" | "student_admission">;
 
 interface ScoreUpdate {
   ca_score: number;
@@ -175,28 +136,11 @@ const CLASSES = [
 ] as const;
 
 const PRIMARY_SUBJECTS: string[] = [
-  "English",
-  "Mathematics",
-  "Basic Science",
-  "Social Studies",
-  "Phonics",
-  "Yoruba",
-  "Civic Education",
-  "Creative Arts",
-  "Agriculture",
-  "Computer Education",
-  "Christian Religious Studies",
-  "French",
-  "Quantitative Reasoning",
-  "Verbal Reasoning",
-  "Music",
-  "Handwriting",
-  "Literature",
-  "Vocational Aptitude",
-  "History",
-  "Security Education",
-  "Home Economics",
-  "Physical and Health Education",
+  "English", "Mathematics", "Basic Science", "Social Studies", "Phonics",
+  "Yoruba", "Civic Education", "Creative Arts", "Agriculture", "Computer Education",
+  "Christian Religious Studies", "French", "Quantitative Reasoning", "Verbal Reasoning",
+  "Music", "Handwriting", "Literature", "Vocational Aptitude", "History",
+  "Security Education", "Home Economics", "Physical and Health Education",
 ];
 
 const STORAGE_KEYS = {
@@ -208,7 +152,7 @@ const STORAGE_KEYS = {
 } as const;
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// HELPERS
+// HELPERS (same as before)
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const getRemark = (total: number): string => {
@@ -249,15 +193,8 @@ const getScoreBarColor = (total: number): string => {
   return "bg-slate-200";
 };
 
-function calcStats(
-  entries: Record<string, ScoreEntry>,
-  studentCount: number,
-): Stats {
-  let totalSum = 0,
-    gradedCount = 0,
-    highest = 0,
-    passCount = 0,
-    failCount = 0;
+function calcStats(entries: Record<string, ScoreEntry>, studentCount: number): Stats {
+  let totalSum = 0, gradedCount = 0, highest = 0, passCount = 0, failCount = 0;
   Object.values(entries).forEach((e) => {
     const total = (parseInt(e.ca) || 0) + (parseInt(e.exam) || 0);
     if (total > 0) {
@@ -274,8 +211,7 @@ function calcStats(
     gradedStudents: gradedCount,
     classAverage: gradedCount > 0 ? Math.round(totalSum / gradedCount) : 0,
     highestScore: highest,
-    passCount,
-    failCount,
+    passCount, failCount,
     passRate: gradedCount > 0 ? Math.round((passCount / gradedCount) * 100) : 0,
   };
 }
@@ -288,42 +224,25 @@ function SubjectStatusIcon({ status }: { status?: SubjectStatus }) {
   if (!status) return null;
   if (status.enteredByOther) {
     return (
-      <span
-        className="inline-flex items-center gap-1 text-red-500 dark:text-red-400"
-        title={`Locked — ${status.otherTeacherName || "Another teacher"} entered scores`}
-      >
+      <span className="inline-flex items-center gap-1 text-red-500 dark:text-red-400">
         <Lock className="h-3 w-3" />
-        <span className="text-[11px] font-semibold">Locked</span>
+        <span className="text-[10px] font-semibold">Locked</span>
       </span>
     );
   }
   if (status.enteredByMe) {
     return (
-      <span
-        className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400"
-        title={`You entered scores for ${status.studentCount} student(s)`}
-      >
+      <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
         <CheckCircle2 className="h-3 w-3" />
-        <span className="text-[11px] font-semibold">{status.studentCount}</span>
+        <span className="text-[10px] font-semibold">{status.studentCount}</span>
       </span>
     );
   }
-  return (
-    <span
-      className="inline-flex items-center gap-1 text-slate-400 dark:text-slate-500"
-      title="Available"
-    >
-      <Circle className="h-3 w-3" />
-    </span>
-  );
+  return <Circle className="h-3 w-3 text-slate-300 dark:text-slate-600" />;
 }
 
 function StatCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  gradient,
+  label, value, sub, icon: Icon, gradient,
 }: {
   label: string;
   value: string | number;
@@ -332,30 +251,25 @@ function StatCard({
   gradient: string;
 }) {
   return (
-    <Card className="group relative overflow-hidden border border-slate-200/60 dark:border-slate-800 shadow-sm hover:shadow-md transition-all duration-300 bg-white dark:bg-slate-900">
-      <div
-        className={cn(
-          "absolute inset-0 opacity-[0.03] dark:opacity-[0.06]",
-          gradient,
-        )}
-      />
-      <CardContent className="relative p-4">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+    <Card className="relative overflow-hidden border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+      <div className={cn("absolute inset-0 opacity-[0.03] dark:opacity-[0.06]", gradient)} />
+      <CardContent className="relative p-3 sm:p-4">
+        <div className="flex items-center justify-between gap-2">
+          <div className="space-y-0.5 min-w-0 flex-1">
+            <p className="text-[10px] sm:text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate">
               {label}
             </p>
-            <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            <p className="text-lg sm:text-2xl font-bold text-slate-900 dark:text-white tracking-tight tabular-nums">
               {value}
             </p>
             {sub && (
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 font-medium">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
                 {sub}
               </p>
             )}
           </div>
-          <div className={cn("p-2.5 rounded-xl", gradient, "shadow-sm")}>
-            <Icon className="h-4 w-4 text-white" />
+          <div className={cn("p-2 sm:p-2.5 rounded-xl shrink-0", gradient, "shadow-sm")}>
+            <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
           </div>
         </div>
       </CardContent>
@@ -363,20 +277,9 @@ function StatCard({
   );
 }
 
-function ProgressBar({
-  value,
-  className,
-}: {
-  value: number;
-  className?: string;
-}) {
+function ProgressBar({ value, className }: { value: number; className?: string }) {
   return (
-    <div
-      className={cn(
-        "w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden",
-        className,
-      )}
-    >
+    <div className={cn("w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden", className)}>
       <div
         className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 transition-all duration-500 ease-out rounded-full"
         style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
@@ -388,22 +291,17 @@ function ProgressBar({
 function ScoreBar({ total, max = 100 }: { total: number; max?: number }) {
   const pct = max > 0 ? Math.round((total / max) * 100) : 0;
   return (
-    <div className="flex items-center gap-2 min-w-[80px]">
+    <div className="flex items-center gap-2 min-w-[70px]">
       <div className="flex-1 h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
         <div
-          className={cn(
-            "h-full rounded-full transition-all duration-500",
-            getScoreBarColor(total),
-          )}
+          className={cn("h-full rounded-full transition-all duration-500", getScoreBarColor(total))}
           style={{ width: `${pct}%` }}
         />
       </div>
       <span
         className={cn(
-          "text-sm font-bold tabular-nums min-w-[28px] text-right",
-          total > 0
-            ? "text-slate-800 dark:text-slate-100"
-            : "text-slate-300 dark:text-slate-600",
+          "text-xs sm:text-sm font-bold tabular-nums min-w-[24px] text-right",
+          total > 0 ? "text-slate-800 dark:text-slate-100" : "text-slate-300 dark:text-slate-600"
         )}
       >
         {total > 0 ? total : "—"}
@@ -413,10 +311,7 @@ function ScoreBar({ total, max = 100 }: { total: number; max?: number }) {
 }
 
 function EmptyState({
-  icon: Icon,
-  title,
-  description,
-  action,
+  icon: Icon, title, description, action,
 }: {
   icon: React.ElementType;
   title: string;
@@ -424,21 +319,244 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-6">
-      <div className="relative mb-6">
+    <div className="flex flex-col items-center justify-center py-12 sm:py-20 px-6 text-center">
+      <div className="relative mb-5">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-3xl blur-xl" />
-        <div className="relative p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
-          <Icon className="h-10 w-10 text-slate-400 dark:text-slate-500" />
+        <div className="relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+          <Icon className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400 dark:text-slate-500" />
         </div>
       </div>
-      <h3 className="text-base font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+      <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
         {title}
       </h3>
-      <p className="text-sm text-slate-500 dark:text-slate-400 text-center max-w-xs leading-relaxed">
+      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
         {description}
       </p>
       {action && <div className="mt-5">{action}</div>}
     </div>
+  );
+}
+
+// Mobile score card for score entry
+function MobileScoreCard({
+  student, entry, isSaved, isLocked, saving, isValidStaff, onCAChange, onExamChange, onSave,
+}: {
+  student: Student;
+  entry: ScoreEntry;
+  isSaved: boolean;
+  isLocked: boolean;
+  saving: boolean;
+  isValidStaff: boolean;
+  onCAChange: (value: string) => void;
+  onExamChange: (value: string) => void;
+  onSave: () => void;
+}) {
+  const ca = parseInt(entry.ca) || 0;
+  const exam = parseInt(entry.exam) || 0;
+  const total = ca + exam;
+  const remark = total > 0 ? getRemark(total) : "";
+
+  return (
+    <Card
+      className={cn(
+        "border transition-all duration-200",
+        isSaved
+          ? "border-emerald-200/60 bg-emerald-50/30 dark:border-emerald-900/40 dark:bg-emerald-950/10"
+          : total > 0
+          ? "border-amber-200/60 bg-amber-50/30 dark:border-amber-900/40 dark:bg-amber-950/10"
+          : "border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-900"
+      )}
+    >
+      <CardContent className="p-3 space-y-3">
+        {/* Student header */}
+        <div className="flex items-center gap-2.5">
+          <div
+            className={cn(
+              "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0",
+              isSaved
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+            )}
+          >
+            {student.full_name.charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate leading-tight">
+              {student.full_name}
+            </p>
+            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+              {student.admission_number} · {student.class_arm || student.class}
+            </p>
+          </div>
+          {isSaved && (
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+          )}
+        </div>
+
+        {/* Score inputs */}
+        <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>CA</span>
+              <span className="text-slate-400">/40</span>
+            </Label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max="40"
+              value={entry.ca}
+              onChange={(e) => onCAChange(e.target.value)}
+              className="h-10 text-center text-base font-semibold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 focus-visible:border-emerald-400 rounded-lg"
+              placeholder="0"
+              disabled={isLocked}
+            />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Exam</span>
+              <span className="text-slate-400">/60</span>
+            </Label>
+            <Input
+              type="number"
+              inputMode="numeric"
+              min="0"
+              max="60"
+              value={entry.exam}
+              onChange={(e) => onExamChange(e.target.value)}
+              className="h-10 text-center text-base font-semibold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 focus-visible:border-blue-400 rounded-lg"
+              placeholder="0"
+              disabled={isLocked}
+            />
+          </div>
+        </div>
+
+        {/* Total + Remark + Save */}
+        <div className="flex items-center gap-2 pt-1">
+          <div className="flex-1 flex items-center gap-2">
+            <ScoreBar total={total} />
+            {remark && (
+              <Badge className={cn(getRemarkColor(remark), "font-semibold text-[10px] border px-1.5 py-0.5 shrink-0")}>
+                {remark}
+              </Badge>
+            )}
+          </div>
+          <Button
+            size="sm"
+            onClick={onSave}
+            disabled={saving || isLocked || total === 0 || !isValidStaff}
+            className={cn(
+              "h-9 w-9 p-0 rounded-lg shrink-0",
+              isSaved
+                ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                : total > 0
+                ? "bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                : "bg-slate-100 text-slate-400 dark:bg-slate-800"
+            )}
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isSaved ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// Mobile view card for published scores
+function MobileViewCard({
+  score, studentName, isOwn, onEdit, onDelete,
+}: {
+  score: ScoreRecord;
+  studentName: string;
+  isOwn: boolean;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const total = (score.ca_score || 0) + (score.exam_score || 0);
+  const remark = getRemark(total);
+
+  return (
+    <Card className="border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900">
+      <CardContent className="p-3 space-y-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate">
+              {studentName}
+            </p>
+            <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+              {score.student_admission || "No admission number"}
+            </p>
+          </div>
+          {!isOwn && <Lock className="h-3.5 w-3.5 text-red-400 shrink-0" />}
+        </div>
+
+        <div className="flex items-center gap-2 py-2 border-y border-slate-100 dark:border-slate-800">
+          <div className="flex-1 text-center">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase">CA</p>
+            <p className="text-base font-bold text-slate-800 dark:text-slate-200 tabular-nums">
+              {score.ca_score || "—"}
+            </p>
+          </div>
+          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
+          <div className="flex-1 text-center">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase">Exam</p>
+            <p className="text-base font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+              {score.exam_score || "—"}
+            </p>
+          </div>
+          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
+          <div className="flex-1 text-center">
+            <p className="text-[10px] font-semibold text-slate-500 uppercase">Total</p>
+            <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+              {total}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <Badge className={cn(getRemarkColor(remark), "font-semibold text-[10px] border px-2 py-0.5")}>
+            {remark}
+          </Badge>
+          <div className="flex items-center gap-1">
+            {isOwn ? (
+              <Badge variant="secondary" className="text-[10px] gap-1 font-medium">
+                <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
+                You
+              </Badge>
+            ) : (
+              <Badge className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] gap-1 font-medium border-amber-200 dark:border-amber-800">
+                <AlertTriangle className="h-2.5 w-2.5" />
+                {score.teacher_name?.split(" ")[0] || "Other"}
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!isOwn}
+              onClick={onEdit}
+              className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-20"
+            >
+              <Edit className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={!isOwn}
+              onClick={onDelete}
+              className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -450,7 +568,7 @@ export default function PrimaryScoresTab({
   staffProfile,
   onScoresSaved,
 }: PrimaryScoresTabProps) {
-  // ── State ──────────────────────────────────────────────────────────────────
+  // ── State ──
   const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState("entry");
   const [isRestoring, setIsRestoring] = useState(true);
@@ -463,13 +581,9 @@ export default function PrimaryScoresTab({
 
   const [students, setStudents] = useState<Student[]>([]);
   const [scores, setScores] = useState<ScoreRecord[]>([]);
-  const [scoreEntries, setScoreEntries] = useState<Record<string, ScoreEntry>>(
-    {},
-  );
+  const [scoreEntries, setScoreEntries] = useState<Record<string, ScoreEntry>>({});
   const [savedStatus, setSavedStatus] = useState<Record<string, boolean>>({});
-  const [subjectsStatus, setSubjectsStatus] = useState<
-    Record<string, SubjectStatus>
-  >({});
+  const [subjectsStatus, setSubjectsStatus] = useState<Record<string, SubjectStatus>>({});
   const [termOptions, setTermOptions] = useState<TermOption[]>([]);
   const [availableSessions, setAvailableSessions] = useState<string[]>([]);
 
@@ -483,12 +597,12 @@ export default function PrimaryScoresTab({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRecord | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
+  const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const isInitialMount = useRef(true);
 
-  // ── Derived ────────────────────────────────────────────────────────────────
-  // ✅ Check if staff profile is valid
+  // ── Derived ──
   const isValidStaff = useMemo(() => {
     if (!staffProfile) {
       setStaffError("Staff profile is missing");
@@ -503,31 +617,27 @@ export default function PrimaryScoresTab({
   }, [staffProfile]);
 
   const isLocked = useMemo(
-    () =>
-      selectedSubject
-        ? !!subjectsStatus[selectedSubject]?.enteredByOther
-        : false,
-    [selectedSubject, subjectsStatus],
+    () => (selectedSubject ? !!subjectsStatus[selectedSubject]?.enteredByOther : false),
+    [selectedSubject, subjectsStatus]
   );
 
   const stats = useMemo(
     () => calcStats(scoreEntries, students.length),
-    [scoreEntries, students.length],
+    [scoreEntries, students.length]
   );
 
   const filteredScores = useMemo(
     () =>
       scores.filter((s) => {
-        const name =
-          students.find((st) => st.id === s.student_id)?.full_name ?? "";
+        const name = students.find((st) => st.id === s.student_id)?.full_name ?? "";
         return name.toLowerCase().includes(searchQuery.toLowerCase());
       }),
-    [scores, students, searchQuery],
+    [scores, students, searchQuery]
   );
 
   const getStudentName = useCallback(
     (id: string) => students.find((s) => s.id === id)?.full_name ?? "Unknown",
-    [students],
+    [students]
   );
 
   const unsavedCount = useMemo(() => {
@@ -537,16 +647,14 @@ export default function PrimaryScoresTab({
     }).length;
   }, [scoreEntries, savedStatus]);
 
-  // ── Staff Info Display ──
   const staffDisplayName = useMemo(() => {
     if (!staffProfile) return "Not logged in";
     return staffProfile.full_name || staffProfile.display_name || staffProfile.firstName || "Teacher";
   }, [staffProfile]);
 
-  // ═════════════════════════════════════════════════════════════════════════════
-  // DATA FETCHING
-  // ═════════════════════════════════════════════════════════════════════════════
+  const hasConfig = selectedClass && selectedSubject && selectedTerm && selectedYear;
 
+  // ═══ DATA FETCHING ═══ (same as original)
   const fetchTerms = useCallback(async () => {
     try {
       const { data, error } = await supabase
@@ -574,11 +682,7 @@ export default function PrimaryScoresTab({
         .order("session_year", { ascending: false });
       if (error || !data) return;
       const sessions = [
-        ...new Set(
-          (data as { session_year: string }[])
-            .map((t) => t.session_year)
-            .filter(Boolean),
-        ),
+        ...new Set((data as { session_year: string }[]).map((t) => t.session_year).filter(Boolean)),
       ];
       setAvailableSessions(sessions);
     } catch (e) {
@@ -602,10 +706,7 @@ export default function PrimaryScoresTab({
       setSelectedTerm(settings.current_term ?? "");
       setSelectedYear(settings.current_session ?? "");
       setTermOptions((prev) =>
-        prev.map((t) => ({
-          ...t,
-          is_current: t.value === settings.current_term,
-        })),
+        prev.map((t) => ({ ...t, is_current: t.value === settings.current_term }))
       );
     } catch (e) {
       console.error("fetchCurrentTerm:", e);
@@ -630,10 +731,7 @@ export default function PrimaryScoresTab({
           const statusMap: Record<string, SubjectStatus> = {};
           for (const subject of PRIMARY_SUBJECTS) {
             statusMap[subject] = {
-              hasScores: false,
-              enteredByMe: false,
-              enteredByOther: false,
-              studentCount: 0,
+              hasScores: false, enteredByMe: false, enteredByOther: false, studentCount: 0,
             };
           }
           setSubjectsStatus(statusMap);
@@ -652,10 +750,7 @@ export default function PrimaryScoresTab({
           const subjectRows = rows.filter((r) => r.subject === subject);
           if (subjectRows.length === 0) {
             statusMap[subject] = {
-              hasScores: false,
-              enteredByMe: false,
-              enteredByOther: false,
-              studentCount: 0,
+              hasScores: false, enteredByMe: false, enteredByOther: false, studentCount: 0,
             };
             continue;
           }
@@ -678,7 +773,7 @@ export default function PrimaryScoresTab({
         setCheckingSubjects(false);
       }
     },
-    [],
+    []
   );
 
   const loadStudents = useCallback(async (cls: string) => {
@@ -716,15 +811,8 @@ export default function PrimaryScoresTab({
   }, []);
 
   const loadScores = useCallback(
-    async (
-      cls: string,
-      subject: string,
-      term: string,
-      year: string,
-      currentStudents: Student[],
-    ) => {
-      if (!cls || !subject || !term || !year || currentStudents.length === 0)
-        return;
+    async (cls: string, subject: string, term: string, year: string, currentStudents: Student[]) => {
+      if (!cls || !subject || !term || !year || currentStudents.length === 0) return;
       setLoading(true);
       try {
         const { data: scoresData, error } = await supabase
@@ -772,13 +860,10 @@ export default function PrimaryScoresTab({
         setLoading(false);
       }
     },
-    [],
+    []
   );
 
-  // ═════════════════════════════════════════════════════════════════════════════
-  // EFFECTS
-  // ═════════════════════════════════════════════════════════════════════════════
-
+  // ═══ EFFECTS ═══
   useEffect(() => {
     Promise.all([fetchTerms(), fetchSessions(), fetchCurrentTerm()]);
   }, [fetchTerms, fetchSessions, fetchCurrentTerm]);
@@ -837,81 +922,27 @@ export default function PrimaryScoresTab({
   }, [mounted, isRestoring, isLoadingTerm, selectedClass, loadStudents]);
 
   useEffect(() => {
-    if (
-      !mounted ||
-      isRestoring ||
-      !selectedClass ||
-      !selectedTerm ||
-      !selectedYear ||
-      !isValidStaff
-    )
-      return;
-    checkSubjectsStatus(
-      selectedClass,
-      selectedTerm,
-      selectedYear,
-      staffProfile.id,
-    );
-  }, [
-    mounted,
-    isRestoring,
-    selectedClass,
-    selectedTerm,
-    selectedYear,
-    isValidStaff,
-    staffProfile?.id,
-    checkSubjectsStatus,
-  ]);
+    if (!mounted || isRestoring || !selectedClass || !selectedTerm || !selectedYear || !isValidStaff) return;
+    checkSubjectsStatus(selectedClass, selectedTerm, selectedYear, staffProfile.id);
+  }, [mounted, isRestoring, selectedClass, selectedTerm, selectedYear, isValidStaff, staffProfile?.id, checkSubjectsStatus]);
 
   useEffect(() => {
     if (
-      !mounted ||
-      isRestoring ||
-      isLoadingTerm ||
-      !selectedClass ||
-      !selectedSubject ||
-      !selectedTerm ||
-      !selectedYear ||
-      students.length === 0
-    )
-      return;
-    loadScores(
-      selectedClass,
-      selectedSubject,
-      selectedTerm,
-      selectedYear,
-      students,
-    );
-  }, [
-    mounted,
-    isRestoring,
-    isLoadingTerm,
-    selectedClass,
-    selectedSubject,
-    selectedTerm,
-    selectedYear,
-    students,
-    loadScores,
-  ]);
+      !mounted || isRestoring || isLoadingTerm || !selectedClass || !selectedSubject ||
+      !selectedTerm || !selectedYear || students.length === 0
+    ) return;
+    loadScores(selectedClass, selectedSubject, selectedTerm, selectedYear, students);
+  }, [mounted, isRestoring, isLoadingTerm, selectedClass, selectedSubject, selectedTerm, selectedYear, students, loadScores]);
 
-  // ═════════════════════════════════════════════════════════════════════════════
-  // HANDLERS
-  // ═════════════════════════════════════════════════════════════════════════════
-
+  // ═══ HANDLERS ═══
   const resetScoreState = () => {
     setScoreEntries({});
     setSavedStatus({});
     setScores([]);
   };
 
-  const buildPayload = (
-    studentId: string,
-    ca: number,
-    exam: number,
-  ): ScoreInsert | null => {
-    if (!isValidStaff || !staffProfile?.id) {
-      return null;
-    }
+  const buildPayload = (studentId: string, ca: number, exam: number): ScoreInsert | null => {
+    if (!isValidStaff || !staffProfile?.id) return null;
     const total = ca + exam;
     return {
       student_id: studentId,
@@ -924,15 +955,10 @@ export default function PrimaryScoresTab({
       total_score: total,
       remark: getRemark(total),
       teacher_id: staffProfile.id,
-      teacher_name:
-        staffProfile.full_name ?? 
-        staffProfile.display_name ?? 
-        staffProfile.firstName ?? 
-        "Teacher",
+      teacher_name: staffProfile.full_name ?? staffProfile.display_name ?? staffProfile.firstName ?? "Teacher",
     };
   };
 
-  // ✅ Refresh all data after saving
   const refreshAllData = useCallback(async () => {
     if (selectedClass && selectedSubject && selectedTerm && selectedYear && students.length > 0) {
       await loadScores(selectedClass, selectedSubject, selectedTerm, selectedYear, students);
@@ -940,26 +966,18 @@ export default function PrimaryScoresTab({
     if (selectedClass && selectedTerm && selectedYear && isValidStaff && staffProfile?.id) {
       await checkSubjectsStatus(selectedClass, selectedTerm, selectedYear, staffProfile.id);
     }
-    // ✅ Notify parent that scores were saved
     if (onScoresSaved) {
-      try {
-        await onScoresSaved();
-      } catch (e) {
-        console.error("Error in parent callback:", e);
-      }
+      try { await onScoresSaved(); } catch (e) { console.error(e); }
     }
   }, [selectedClass, selectedSubject, selectedTerm, selectedYear, students, isValidStaff, staffProfile?.id, onScoresSaved, loadScores, checkSubjectsStatus]);
 
   const handleSaveSingle = async (studentId: string) => {
     if (!isValidStaff || !staffProfile?.id) {
-      const msg = "Missing teacher information. Please log in again.";
-      toast.error(msg);
+      toast.error("Missing teacher information");
       return;
     }
     if (isLocked) {
-      toast.error(
-        `Locked by ${subjectsStatus[selectedSubject]?.otherTeacherName || "another teacher"}`,
-      );
+      toast.error(`Locked by ${subjectsStatus[selectedSubject]?.otherTeacherName || "another teacher"}`);
       return;
     }
     const entry = scoreEntries[studentId];
@@ -967,7 +985,6 @@ export default function PrimaryScoresTab({
     const ca = parseInt(entry.ca) || 0;
     const exam = parseInt(entry.exam) || 0;
     const total = ca + exam;
-    
     if (total === 0) {
       toast.info("No scores to save");
       return;
@@ -976,30 +993,19 @@ export default function PrimaryScoresTab({
     setSaving(true);
     try {
       const payload = buildPayload(studentId, ca, exam);
-      if (!payload) {
-        throw new Error("Failed to build payload - invalid staff");
-      }
-      
-      const { data, error } = await supabase
+      if (!payload) throw new Error("Invalid payload");
+
+      const { error } = await supabase
         .from("primary_scores")
-        .upsert(payload as any, {
-          onConflict: "student_id,subject,term,academic_year",
-        });
-      
+        .upsert(payload as any, { onConflict: "student_id,subject,term,academic_year" });
+
       if (error) throw error;
 
       setSavedStatus((prev) => ({ ...prev, [studentId]: true }));
-      setScoreEntries((prev) => ({
-        ...prev,
-        [studentId]: { ...prev[studentId], is_saved: true },
-      }));
-      
-      const remark = getRemark(total);
-      toast.success(`✅ Saved: ${total}/100 (${remark})`);
-      
-      // ✅ Refresh all data after saving
+      setScoreEntries((prev) => ({ ...prev, [studentId]: { ...prev[studentId], is_saved: true } }));
+
+      toast.success(`✅ Saved: ${total}/100 (${getRemark(total)})`);
       await refreshAllData();
-      
     } catch (e: any) {
       toast.error(`Failed: ${e.message}`);
     } finally {
@@ -1009,28 +1015,22 @@ export default function PrimaryScoresTab({
 
   const handleSaveAll = async () => {
     if (!isValidStaff || !staffProfile?.id) {
-      const msg = "Missing teacher information. Please log in again.";
-      toast.error(msg);
+      toast.error("Missing teacher information");
       return;
     }
     if (isLocked) {
-      toast.error(
-        `Locked by ${subjectsStatus[selectedSubject]?.otherTeacherName || "another teacher"}`,
-      );
+      toast.error(`Locked by ${subjectsStatus[selectedSubject]?.otherTeacherName || "another teacher"}`);
       return;
     }
-    
     if (unsavedCount === 0) {
       toast.info("No new scores to save");
       return;
     }
-    
+
     setSaving(true);
-    let saved = 0,
-      errors = 0;
-    let totalSum = 0;
+    let saved = 0, errors = 0, totalSum = 0;
     const failedStudents: string[] = [];
-    
+
     try {
       for (const student of students) {
         const entry = scoreEntries[student.id];
@@ -1039,52 +1039,35 @@ export default function PrimaryScoresTab({
         const exam = parseInt(entry.exam) || 0;
         const total = ca + exam;
         if (total === 0) continue;
-        
+
         const payload = buildPayload(student.id, ca, exam);
-        if (!payload) {
-          errors++;
-          failedStudents.push(student.full_name);
-          continue;
-        }
-        
+        if (!payload) { errors++; failedStudents.push(student.full_name); continue; }
+
         const { error } = await supabase
           .from("primary_scores")
-          .upsert(payload as any, {
-            onConflict: "student_id,subject,term,academic_year",
-          });
-        if (error) {
-          errors++;
-          failedStudents.push(student.full_name);
-          continue;
-        }
+          .upsert(payload as any, { onConflict: "student_id,subject,term,academic_year" });
+        if (error) { errors++; failedStudents.push(student.full_name); continue; }
         saved++;
         totalSum += total;
       }
-      
+
       if (saved > 0) {
         const avgScore = Math.round(totalSum / saved);
-        const message = `✅ Saved ${saved} score(s) (Avg: ${avgScore}/100)${errors > 0 ? `, ${errors} failed` : ""}`;
-        toast.success(message);
-        
-        if (failedStudents.length > 0) {
-          toast.error(`Failed for: ${failedStudents.join(", ")}`);
-        }
-        
+        toast.success(`✅ Saved ${saved} (Avg: ${avgScore}/100)${errors > 0 ? `, ${errors} failed` : ""}`);
+        if (failedStudents.length > 0) toast.error(`Failed: ${failedStudents.join(", ")}`);
+
         setSavedStatus((prev) => {
           const next = { ...prev };
           students.forEach((s) => {
             const e = scoreEntries[s.id];
-            if (e && (parseInt(e.ca) || 0) + (parseInt(e.exam) || 0) > 0)
-              next[s.id] = true;
+            if (e && (parseInt(e.ca) || 0) + (parseInt(e.exam) || 0) > 0) next[s.id] = true;
           });
           return next;
         });
-        
-        // ✅ Refresh all data after saving
+
         await refreshAllData();
-        
       } else if (errors > 0) {
-        toast.error(`❌ Failed to save ${errors} student(s)`);
+        toast.error(`❌ Failed ${errors}`);
       } else {
         toast.info("No new scores to save");
       }
@@ -1120,18 +1103,12 @@ export default function PrimaryScoresTab({
       const total = rows.length;
       let deleted = 0;
       for (const row of rows) {
-        const { error } = await supabase
-          .from("primary_scores")
-          .delete()
-          .eq("id", row.id);
+        const { error } = await supabase.from("primary_scores").delete().eq("id", row.id);
         if (!error) deleted++;
         setDeleteProgress(Math.round((deleted / total) * 100));
       }
       toast.success(`Deleted ${deleted} score(s)`);
-      
-      // ✅ Refresh all data after deleting
       await refreshAllData();
-      
       resetScoreState();
     } catch (e: any) {
       toast.error(`Failed: ${e.message}`);
@@ -1148,25 +1125,10 @@ export default function PrimaryScoresTab({
         fetchCurrentTerm(),
         selectedClass ? loadStudents(selectedClass) : Promise.resolve(),
         selectedClass && selectedTerm && selectedYear && isValidStaff && staffProfile?.id
-          ? checkSubjectsStatus(
-              selectedClass,
-              selectedTerm,
-              selectedYear,
-              staffProfile.id,
-            )
+          ? checkSubjectsStatus(selectedClass, selectedTerm, selectedYear, staffProfile.id)
           : Promise.resolve(),
-        selectedClass &&
-        selectedSubject &&
-        selectedTerm &&
-        selectedYear &&
-        students.length > 0
-          ? loadScores(
-              selectedClass,
-              selectedSubject,
-              selectedTerm,
-              selectedYear,
-              students,
-            )
+        selectedClass && selectedSubject && selectedTerm && selectedYear && students.length > 0
+          ? loadScores(selectedClass, selectedSubject, selectedTerm, selectedYear, students)
           : Promise.resolve(),
       ]);
       toast.success("Refreshed", { id: tid });
@@ -1175,25 +1137,145 @@ export default function PrimaryScoresTab({
     }
   };
 
+  // ═══ CONFIG PANEL (used in sheet on mobile, inline on desktop) ═══
+  const ConfigPanel = () => (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {/* Class */}
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Class
+          </Label>
+          <Select
+            value={selectedClass}
+            onValueChange={(v) => { setSelectedClass(v); setSelectedSubject(""); resetScoreState(); }}
+          >
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+              <SelectValue placeholder="Select class" />
+            </SelectTrigger>
+            <SelectContent>
+              {CLASSES.map((cls) => (
+                <SelectItem key={cls.id} value={cls.name} className="text-sm">
+                  <span className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
+                      {cls.code}
+                    </span>
+                    {cls.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Subject */}
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Subject
+          </Label>
+          <Select
+            value={selectedSubject}
+            onValueChange={(v) => { setSelectedSubject(v); resetScoreState(); }}
+          >
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+              <SelectValue placeholder="Select subject">
+                {selectedSubject && (
+                  <div className="flex items-center justify-between w-full gap-2">
+                    <span className="truncate">{selectedSubject}</span>
+                    <SubjectStatusIcon status={subjectsStatus[selectedSubject]} />
+                  </div>
+                )}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className="max-h-[300px]">
+              {checkingSubjects ? (
+                <div className="flex items-center gap-2 py-6 px-3 text-sm text-slate-500 justify-center">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking…
+                </div>
+              ) : (
+                PRIMARY_SUBJECTS.map((sub) => (
+                  <SelectItem key={sub} value={sub} className="text-sm">
+                    <div className="flex items-center justify-between w-full gap-3">
+                      <span>{sub}</span>
+                      <SubjectStatusIcon status={subjectsStatus[sub]} />
+                    </div>
+                  </SelectItem>
+                ))
+              )}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Term */}
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Term
+          </Label>
+          <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); resetScoreState(); }}>
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+              <SelectValue placeholder="Select term" />
+            </SelectTrigger>
+            <SelectContent>
+              {termOptions.map((o, i) => (
+                <SelectItem key={`${o.value}-${i}`} value={o.value} className="text-sm">
+                  <span className={cn(o.is_current && "font-semibold text-emerald-600 dark:text-emerald-400")}>
+                    {o.label}{o.is_current && " ✦"}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Session */}
+        <div className="space-y-1.5">
+          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Session
+          </Label>
+          <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); resetScoreState(); }}>
+            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg">
+              <SelectValue placeholder="Select session" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableSessions.map((s, i) => (
+                <SelectItem key={`${s}-${i}`} value={s} className="text-sm">{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {isLocked && selectedSubject && (
+        <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800/50 text-xs">
+          <Lock className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-red-700 dark:text-red-400">Score entry locked</p>
+            <p className="text-red-600 dark:text-red-500 mt-0.5">
+              {subjectsStatus[selectedSubject]?.otherTeacherName || "Another teacher"} has entered scores.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   // ═════════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═════════════════════════════════════════════════════════════════════════════
 
   if (!mounted || isRestoring || isLoadingTerm) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center space-y-4">
           <div className="relative">
             <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse" />
-            <Loader2 className="relative h-10 w-10 animate-spin text-emerald-600 mx-auto" />
+            <Loader2 className="relative h-8 w-8 sm:h-10 sm:w-10 animate-spin text-emerald-600 mx-auto" />
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {isLoadingTerm
-                ? "Loading term settings…"
-                : "Preparing assessment module…"}
+              {isLoadingTerm ? "Loading term settings…" : "Preparing assessment module…"}
             </p>
-            <p className="text-xs text-slate-400">This won&apos;t take long</p>
           </div>
         </div>
       </div>
@@ -1201,127 +1283,86 @@ export default function PrimaryScoresTab({
   }
 
   return (
-    <div className="space-y-6 max-w-[1400px] mx-auto">
-      {/* ═══ Staff Status Banner ═══ */}
+    <div className="space-y-4 sm:space-y-6">
+      {/* ═══ Staff Warning Banner ═══ */}
       {!isValidStaff && (
         <Card className="border-2 border-amber-400 bg-amber-50/80 dark:bg-amber-950/20">
-          <CardContent className="p-4 flex items-start gap-3">
+          <CardContent className="p-3 sm:p-4 flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-semibold text-amber-800 dark:text-amber-300">
+              <p className="font-semibold text-sm text-amber-800 dark:text-amber-300">
                 Staff Profile Issue
               </p>
-              <p className="text-sm text-amber-700 dark:text-amber-400">
-                {staffError || "Staff profile is not loaded properly. Save functionality is disabled."}
+              <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
+                {staffError || "Save functionality is disabled."}
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* ═══ Header ═══ */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 shadow-lg shadow-emerald-500/20">
-            <Sparkles className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">
-              Score Management
-            </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 flex items-center gap-2">
-              {selectedClass && selectedSubject
-                ? `${selectedClass} · ${selectedSubject} · ${selectedTerm} · ${selectedYear}`
-                : "Configure class and subject to begin"}
-              {isValidStaff && (
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                  <CheckCircle2 className="h-3 w-3" />
-                  {staffDisplayName}
-                </span>
-              )}
-              {!isValidStaff && (
-                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
-                  <AlertTriangle className="h-3 w-3" />
-                  No staff profile
-                </span>
-              )}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleRefresh}
-            disabled={loading || checkingSubjects}
-            className="h-9 gap-2 text-xs font-medium border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
-          >
-            <RefreshCw
-              className={cn(
-                "h-3.5 w-3.5",
-                (loading || checkingSubjects) && "animate-spin",
-              )}
-            />
-            Refresh
-          </Button>
-        </div>
+      {/* ═══ Context Bar (mobile) ═══ */}
+      <div className="sm:hidden">
+        <Card className="border border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-emerald-50/60 to-blue-50/60 dark:from-emerald-950/20 dark:to-blue-950/20">
+          <CardContent className="p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                  Current Context
+                </p>
+                {hasConfig ? (
+                  <div className="flex items-center flex-wrap gap-1">
+                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedClass}</Badge>
+                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedSubject}</Badge>
+                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedTerm}</Badge>
+                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedYear}</Badge>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 italic">Tap filter to configure</p>
+                )}
+              </div>
+              <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
+                <Button
+                  size="sm"
+                  onClick={() => setShowConfigSheet(true)}
+                  className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm rounded-lg shrink-0"
+                >
+                  <Filter className="h-3.5 w-3.5" />
+                  Filter
+                </Button>
+                <SheetContent side="bottom" className="rounded-t-3xl max-h-[85vh] overflow-y-auto">
+                  <SheetHeader className="mb-4">
+                    <SheetTitle className="flex items-center gap-2 text-base">
+                      <Settings2 className="h-4 w-4 text-emerald-600" />
+                      Configure Scores
+                    </SheetTitle>
+                  </SheetHeader>
+                  <ConfigPanel />
+                  <div className="mt-4 pt-4 border-t">
+                    <Button
+                      onClick={() => setShowConfigSheet(false)}
+                      className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium"
+                    >
+                      Apply
+                    </Button>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* ═══ Stats Cards ═══ */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard
-          label="Total Pupils"
-          value={stats.totalStudents}
-          icon={Users}
-          gradient="bg-gradient-to-br from-emerald-500 to-emerald-600"
-        />
-        <StatCard
-          label="Graded"
-          value={stats.gradedStudents}
-          sub={`of ${stats.totalStudents} pupils`}
-          icon={GraduationCap}
-          gradient="bg-gradient-to-br from-blue-500 to-blue-600"
-        />
-        <StatCard
-          label="Class Average"
-          value={stats.classAverage > 0 ? `${stats.classAverage}%` : "—"}
-          icon={BarChart3}
-          gradient="bg-gradient-to-br from-violet-500 to-violet-600"
-        />
-        <StatCard
-          label="Pass Rate"
-          value={stats.passRate > 0 ? `${stats.passRate}%` : "—"}
-          sub={
-            stats.gradedStudents > 0
-              ? `${stats.passCount} pass · ${stats.failCount} fail`
-              : undefined
-          }
-          icon={Award}
-          gradient="bg-gradient-to-br from-amber-500 to-amber-600"
-        />
+      {/* ═══ Stats ═══ */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+        <StatCard label="Pupils" value={stats.totalStudents} icon={Users} gradient="bg-gradient-to-br from-emerald-500 to-emerald-600" />
+        <StatCard label="Graded" value={stats.gradedStudents} sub={`of ${stats.totalStudents}`} icon={GraduationCap} gradient="bg-gradient-to-br from-blue-500 to-blue-600" />
+        <StatCard label="Average" value={stats.classAverage > 0 ? `${stats.classAverage}%` : "—"} icon={BarChart3} gradient="bg-gradient-to-br from-violet-500 to-violet-600" />
+        <StatCard label="Pass Rate" value={stats.passRate > 0 ? `${stats.passRate}%` : "—"} sub={stats.gradedStudents > 0 ? `${stats.passCount}P · ${stats.failCount}F` : undefined} icon={Award} gradient="bg-gradient-to-br from-amber-500 to-amber-600" />
       </div>
 
-      {/* ═══ Legend ═══ */}
-      <div className="flex flex-wrap items-center gap-4 px-1 text-[11px] text-slate-500 dark:text-slate-400">
-        <span className="font-semibold text-slate-600 dark:text-slate-300 uppercase tracking-wider text-[10px]">
-          Status
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Circle className="h-3 w-3 text-slate-400" />
-          Open
-        </span>
-        <span className="flex items-center gap-1.5">
-          <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-          Your scores
-        </span>
-        <span className="flex items-center gap-1.5">
-          <Lock className="h-3 w-3 text-red-500" />
-          Locked
-        </span>
-      </div>
-
-      {/* ═══ Configuration ═══ */}
-      <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
+      {/* ═══ Config (desktop inline) ═══ */}
+      <Card className="hidden sm:block border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
         <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50/80 to-white dark:from-slate-900 dark:to-slate-900">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
@@ -1333,9 +1374,7 @@ export default function PrimaryScoresTab({
                   Configuration
                 </CardTitle>
                 <p className="text-[11px] text-slate-400 mt-0.5">
-                  {students.length > 0
-                    ? `${students.length} pupils loaded`
-                    : "Select class to load pupils"}
+                  {students.length > 0 ? `${students.length} pupils loaded` : "Select class to load pupils"}
                 </p>
               </div>
             </div>
@@ -1346,285 +1385,111 @@ export default function PrimaryScoresTab({
             )}
           </div>
         </CardHeader>
-
-        <CardContent className="pt-5 space-y-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-            {/* Class */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Class
-              </Label>
-              <Select
-                value={selectedClass}
-                onValueChange={(v) => {
-                  setSelectedClass(v);
-                  setSelectedSubject("");
-                  resetScoreState();
-                }}
-              >
-                <SelectTrigger className="h-10 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CLASSES.map((cls) => (
-                    <SelectItem
-                      key={cls.id}
-                      value={cls.name}
-                      className="text-sm"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
-                          {cls.code}
-                        </span>
-                        {cls.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Subject */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Subject
-              </Label>
-              <Select
-                value={selectedSubject}
-                onValueChange={(v) => {
-                  setSelectedSubject(v);
-                  resetScoreState();
-                }}
-              >
-                <SelectTrigger className="h-10 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <SelectValue placeholder="Select subject">
-                    {selectedSubject && (
-                      <div className="flex items-center justify-between w-full gap-2">
-                        <span className="truncate">{selectedSubject}</span>
-                        <SubjectStatusIcon
-                          status={subjectsStatus[selectedSubject]}
-                        />
-                      </div>
-                    )}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px]">
-                  {checkingSubjects ? (
-                    <div className="flex items-center gap-2 py-6 px-3 text-sm text-slate-500 justify-center">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Checking availability…
-                    </div>
-                  ) : (
-                    PRIMARY_SUBJECTS.map((sub) => (
-                      <SelectItem key={sub} value={sub} className="text-sm">
-                        <div className="flex items-center justify-between w-full gap-3">
-                          <span>{sub}</span>
-                          <SubjectStatusIcon status={subjectsStatus[sub]} />
-                        </div>
-                      </SelectItem>
-                    ))
-                  )}
-                </SelectContent>
-              </Select>
-              {isLocked && selectedSubject && (
-                <div className="flex items-start gap-2 p-2.5 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800/50 text-xs animate-in fade-in slide-in-from-top-1">
-                  <Lock className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-semibold text-red-700 dark:text-red-400">
-                      Score entry locked
-                    </p>
-                    <p className="text-red-600 dark:text-red-500 mt-0.5">
-                      {subjectsStatus[selectedSubject]?.otherTeacherName ||
-                        "Another teacher"}{" "}
-                      has entered scores for this subject.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Term */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Term
-              </Label>
-              <Select
-                value={selectedTerm}
-                onValueChange={(v) => {
-                  setSelectedTerm(v);
-                  resetScoreState();
-                }}
-              >
-                <SelectTrigger className="h-10 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <SelectValue placeholder="Select term" />
-                </SelectTrigger>
-                <SelectContent>
-                  {termOptions.map((o, i) => (
-                    <SelectItem
-                      key={`${o.value}-${i}`}
-                      value={o.value}
-                      className="text-sm"
-                    >
-                      <span
-                        className={cn(
-                          o.is_current &&
-                            "font-semibold text-emerald-600 dark:text-emerald-400",
-                        )}
-                      >
-                        {o.label}
-                        {o.is_current && " ✦"}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Session */}
-            <div className="space-y-1.5">
-              <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Session
-              </Label>
-              <Select
-                value={selectedYear}
-                onValueChange={(v) => {
-                  setSelectedYear(v);
-                  resetScoreState();
-                }}
-              >
-                <SelectTrigger className="h-10 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium hover:border-emerald-300 dark:hover:border-emerald-700 transition-colors">
-                  <SelectValue placeholder="Select session" />
-                </SelectTrigger>
-                <SelectContent>
-                  {availableSessions.map((s, i) => (
-                    <SelectItem key={`${s}-${i}`} value={s} className="text-sm">
-                      {s}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Score info */}
-            <div className="flex items-end pb-1">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-8 rounded-full bg-emerald-500" />
-                  <span className="text-[11px] text-slate-500">
-                    CA: 40 marks
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="h-2 w-12 rounded-full bg-blue-500" />
-                  <span className="text-[11px] text-slate-500">
-                    Exam: 60 marks
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Bar */}
-          <div className="flex flex-wrap items-center gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
-            <Button
-              onClick={handleSaveAll}
-              disabled={
-                saving || students.length === 0 || isLocked || !selectedSubject || unsavedCount === 0 || !isValidStaff
-              }
-              size="sm"
-              className="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-md shadow-emerald-500/20 h-9 gap-2 font-medium"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <SaveAll className="h-4 w-4" />
-              )}
-              {!isValidStaff ? "No Staff" : isLocked ? "Locked" : saving ? "Saving…" : "Save All"}
-            </Button>
-
-            {unsavedCount > 0 && !saving && (
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">
-                {unsavedCount} unsaved change{unsavedCount !== 1 && "s"}
-              </span>
-            )}
-
-            {!isValidStaff && (
-              <span className="text-xs text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                Staff profile missing
-              </span>
-            )}
-
-            <Button
-              onClick={() => setShowDeleteAllDialog(true)}
-              disabled={scores.length === 0 || loading || isLocked}
-              variant="ghost"
-              size="sm"
-              className="h-9 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 ml-auto gap-2"
-            >
-              <Trash className="h-3.5 w-3.5" />
-              Delete All
-            </Button>
-          </div>
+        <CardContent className="pt-5">
+          <ConfigPanel />
         </CardContent>
       </Card>
 
+      {/* ═══ Action Bar ═══ */}
+      <div className="sticky top-14 sm:top-16 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl -mx-3 sm:mx-0 px-3 sm:px-0 py-2 sm:py-0 border-y sm:border-0 border-slate-200/60 dark:border-slate-800/60">
+        <div className="flex items-center gap-2 sm:bg-white sm:dark:bg-slate-900 sm:border sm:border-slate-200/60 sm:dark:border-slate-800 sm:rounded-xl sm:p-2.5 sm:shadow-sm">
+          <Button
+            onClick={handleSaveAll}
+            disabled={saving || students.length === 0 || isLocked || !selectedSubject || unsavedCount === 0 || !isValidStaff}
+            size="sm"
+            className="flex-1 sm:flex-initial h-10 sm:h-9 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-md shadow-emerald-500/20 gap-2 font-medium rounded-lg"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <SaveAll className="h-4 w-4" />}
+            <span className="hidden sm:inline">{!isValidStaff ? "No Staff" : isLocked ? "Locked" : saving ? "Saving…" : "Save All"}</span>
+            <span className="sm:hidden">{saving ? "Saving" : "Save All"}</span>
+            {unsavedCount > 0 && !saving && (
+              <Badge className="bg-white/20 text-white text-[10px] border-0 px-1.5">
+                {unsavedCount}
+              </Badge>
+            )}
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={loading || checkingSubjects}
+            className="h-10 sm:h-9 w-10 sm:w-auto p-0 sm:px-3 rounded-lg border-slate-200 dark:border-slate-700"
+          >
+            <RefreshCw className={cn("h-4 w-4", (loading || checkingSubjects) && "animate-spin")} />
+            <span className="hidden sm:inline sm:ml-1.5 text-xs">Refresh</span>
+          </Button>
+
+          <Button
+            onClick={() => setShowDeleteAllDialog(true)}
+            disabled={scores.length === 0 || loading || isLocked}
+            variant="ghost"
+            size="sm"
+            className="h-10 sm:h-9 w-10 sm:w-auto p-0 sm:px-3 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 rounded-lg ml-auto"
+          >
+            <Trash className="h-4 w-4" />
+            <span className="hidden sm:inline sm:ml-1.5 text-xs">Delete</span>
+          </Button>
+        </div>
+      </div>
+
       {/* ═══ Tabs ═══ */}
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-4"
-      >
-        <TabsList className="h-11 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl w-auto inline-flex gap-1 border border-slate-200/60 dark:border-slate-700/60">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+        <TabsList className="h-11 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl w-full sm:w-auto grid grid-cols-2 sm:inline-flex gap-1 border border-slate-200/60 dark:border-slate-700/60">
           <TabsTrigger
             value="entry"
-            className="flex items-center gap-2 text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900 px-4 h-9 font-medium transition-all"
+            className="flex items-center gap-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900 px-3 sm:px-4 h-9 font-medium"
           >
-            <FileText className="h-4 w-4" />
-            Score Entry
+            <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Score Entry</span>
+            <span className="sm:hidden">Entry</span>
             {students.length > 0 && (
-              <Badge
-                variant="secondary"
-                className="ml-1 h-5 px-1.5 text-[10px] font-bold"
-              >
+              <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-bold">
                 {students.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="view"
-            className="flex items-center gap-2 text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900 px-4 h-9 font-medium transition-all"
+            className="flex items-center gap-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900 px-3 sm:px-4 h-9 font-medium"
           >
-            <Eye className="h-4 w-4" />
-            View Scores
+            <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">View Scores</span>
+            <span className="sm:hidden">View</span>
             {scores.length > 0 && (
-              <Badge className="ml-1 h-5 px-1.5 text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0">
+              <Badge className="ml-0.5 h-4 px-1 text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0">
                 {scores.length}
               </Badge>
             )}
           </TabsTrigger>
         </TabsList>
 
-        {/* ─── Entry Tab ────────────────────────────────────────────────── */}
-        <TabsContent value="entry" className="mt-0 space-y-4">
+        {/* ─── Entry Tab ─── */}
+        <TabsContent value="entry" className="mt-0 space-y-3">
           {!selectedClass ? (
             <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
               <CardContent className="p-0">
                 <EmptyState
                   icon={BookOpen}
                   title="Select a Class"
-                  description="Choose a class from the configuration panel above to load pupils and start entering scores."
+                  description="Choose a class to load pupils and start entering scores."
+                  action={
+                    <Button
+                      size="sm"
+                      onClick={() => setShowConfigSheet(true)}
+                      className="sm:hidden bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg"
+                    >
+                      <Filter className="h-3.5 w-3.5" />
+                      Open Filters
+                    </Button>
+                  }
                 />
               </CardContent>
             </Card>
           ) : !selectedSubject ? (
             <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
               <CardContent className="p-0">
-                <EmptyState
-                  icon={FileText}
-                  title="Select a Subject"
-                  description={`Class "${selectedClass}" is selected. Now choose a subject to enter scores for.`}
-                />
+                <EmptyState icon={FileText} title="Select a Subject" description={`Class "${selectedClass}" selected. Choose a subject now.`} />
               </CardContent>
             </Card>
           ) : isLocked ? (
@@ -1633,16 +1498,14 @@ export default function PrimaryScoresTab({
                 <EmptyState
                   icon={Lock}
                   title="Score Entry Locked"
-                  description={`${selectedSubject} scores for ${selectedClass} were entered by ${subjectsStatus[selectedSubject]?.otherTeacherName || "another teacher"}. You cannot modify them.`}
+                  description={`${subjectsStatus[selectedSubject]?.otherTeacherName || "Another teacher"} entered scores for this subject.`}
                   action={
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         const avail = PRIMARY_SUBJECTS.find(
-                          (s) =>
-                            !subjectsStatus[s]?.enteredByOther &&
-                            s !== selectedSubject,
+                          (s) => !subjectsStatus[s]?.enteredByOther && s !== selectedSubject
                         );
                         if (avail) setSelectedSubject(avail);
                         else toast.info("All subjects have scores entered.");
@@ -1657,11 +1520,9 @@ export default function PrimaryScoresTab({
             </Card>
           ) : loading ? (
             <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
-              <CardContent className="text-center py-20">
+              <CardContent className="text-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />
-                <p className="text-sm text-slate-500 font-medium">
-                  Loading pupils…
-                </p>
+                <p className="text-sm text-slate-500 font-medium">Loading pupils…</p>
               </CardContent>
             </Card>
           ) : students.length === 0 ? (
@@ -1670,14 +1531,9 @@ export default function PrimaryScoresTab({
                 <EmptyState
                   icon={Users}
                   title="No Pupils Found"
-                  description={`No active pupils found in ${selectedClass}. Ensure pupils are enrolled and active.`}
+                  description={`No active pupils in ${selectedClass}.`}
                   action={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => loadStudents(selectedClass)}
-                      className="gap-1.5"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => loadStudents(selectedClass)} className="gap-1.5">
                       <RefreshCw className="h-3.5 w-3.5" />
                       Retry
                     </Button>
@@ -1686,280 +1542,225 @@ export default function PrimaryScoresTab({
               </CardContent>
             </Card>
           ) : (
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
-              {/* Table header */}
-              <div className="flex items-center justify-between px-5 py-3.5 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/60 dark:to-slate-900 border-b border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                  <span className="font-semibold text-sm text-slate-800 dark:text-slate-100">
-                    {selectedSubject}
-                  </span>
-                  <span className="text-slate-300 dark:text-slate-600">·</span>
-                  <span className="text-sm text-slate-500">
-                    {selectedClass}
-                  </span>
-                  <Badge
-                    variant="secondary"
-                    className="text-[10px] font-bold ml-1 h-5"
-                  >
-                    {students.length}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-3 text-[11px] text-slate-400 dark:text-slate-500">
-                  <span className="flex items-center gap-1.5">
-                    <div className="h-1.5 w-6 rounded-full bg-emerald-400" />
-                    CA /40
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <div className="h-1.5 w-9 rounded-full bg-blue-400" />
-                    Exam /60
-                  </span>
-                </div>
+            <>
+              {/* Context Header */}
+              <Card className="border border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/60 dark:to-slate-900">
+                <CardContent className="p-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">
+                      {selectedSubject}
+                    </span>
+                    <Badge variant="secondary" className="text-[10px] font-bold shrink-0">
+                      {students.length}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-[10px] text-slate-400 shrink-0">
+                    <span className="flex items-center gap-1">
+                      <div className="h-1.5 w-5 rounded-full bg-emerald-400" />
+                      40
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <div className="h-1.5 w-8 rounded-full bg-blue-400" />
+                      60
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Mobile Cards */}
+              <div className="sm:hidden space-y-2.5">
+                {students.map((student) => {
+                  const entry = scoreEntries[student.id] ?? { ca: "", exam: "" };
+                  const isSaved = !!savedStatus[student.id];
+                  return (
+                    <MobileScoreCard
+                      key={student.id}
+                      student={student}
+                      entry={entry}
+                      isSaved={isSaved}
+                      isLocked={isLocked}
+                      saving={saving}
+                      isValidStaff={isValidStaff}
+                      onCAChange={(value) => {
+                        if (isLocked) return;
+                        const num = Math.min(40, Math.max(0, parseFloat(value) || 0));
+                        setScoreEntries((prev) => ({
+                          ...prev,
+                          [student.id]: { ...prev[student.id], ca: String(num), is_saved: false },
+                        }));
+                        setSavedStatus((prev) => ({ ...prev, [student.id]: false }));
+                      }}
+                      onExamChange={(value) => {
+                        if (isLocked) return;
+                        const num = Math.min(60, Math.max(0, parseFloat(value) || 0));
+                        setScoreEntries((prev) => ({
+                          ...prev,
+                          [student.id]: { ...prev[student.id], exam: String(num), is_saved: false },
+                        }));
+                        setSavedStatus((prev) => ({ ...prev, [student.id]: false }));
+                      }}
+                      onSave={() => handleSaveSingle(student.id)}
+                    />
+                  );
+                })}
               </div>
 
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="border-slate-100 dark:border-slate-800 hover:bg-transparent bg-slate-50/50 dark:bg-slate-800/30">
-                      <TableHead className="pl-5 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[200px]">
-                        Pupil
-                      </TableHead>
-                      <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">
-                        Adm No
-                      </TableHead>
-                      <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">
-                        CA /40
-                      </TableHead>
-                      <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">
-                        Exam /60
-                      </TableHead>
-                      <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">
-                        Total
-                      </TableHead>
-                      <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">
-                        Remark
-                      </TableHead>
-                      <TableHead className="text-center pr-5 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">
-                        Action
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {students.map((student, idx) => {
-                      const entry = scoreEntries[student.id] ?? {
-                        ca: "",
-                        exam: "",
-                      };
-                      const ca = parseInt(entry.ca) || 0;
-                      const exam = parseInt(entry.exam) || 0;
-                      const total = ca + exam;
-                      const remark = total > 0 ? getRemark(total) : "";
-                      const isSaved = savedStatus[student.id];
+              {/* Desktop Table */}
+              <Card className="hidden sm:block border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="border-slate-100 dark:border-slate-800 hover:bg-transparent bg-slate-50/50 dark:bg-slate-800/30">
+                        <TableHead className="pl-5 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[200px]">Pupil</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">Adm No</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">CA /40</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">Exam /60</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">Total</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">Remark</TableHead>
+                        <TableHead className="text-center pr-5 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">Action</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {students.map((student, idx) => {
+                        const entry = scoreEntries[student.id] ?? { ca: "", exam: "" };
+                        const ca = parseInt(entry.ca) || 0;
+                        const exam = parseInt(entry.exam) || 0;
+                        const total = ca + exam;
+                        const remark = total > 0 ? getRemark(total) : "";
+                        const isSaved = savedStatus[student.id];
 
-                      return (
-                        <TableRow
-                          key={student.id}
-                          className={cn(
-                            "border-slate-100/80 dark:border-slate-800/80 transition-all duration-200",
-                            idx % 2 === 0
-                              ? "bg-white dark:bg-slate-900"
-                              : "bg-slate-50/30 dark:bg-slate-800/10",
-                            isSaved &&
-                              "bg-emerald-50/40 dark:bg-emerald-950/10",
-                            !isSaved &&
-                              total > 0 &&
-                              "bg-amber-50/20 dark:bg-amber-950/5",
-                          )}
-                        >
-                          <TableCell className="pl-5 py-3">
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={cn(
+                        return (
+                          <TableRow
+                            key={student.id}
+                            className={cn(
+                              "border-slate-100/80 dark:border-slate-800/80 transition-all duration-200",
+                              idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/10",
+                              isSaved && "bg-emerald-50/40 dark:bg-emerald-950/10",
+                              !isSaved && total > 0 && "bg-amber-50/20 dark:bg-amber-950/5"
+                            )}
+                          >
+                            <TableCell className="pl-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
                                   "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0",
                                   isSaved
                                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400",
-                                )}
-                              >
-                                {student.full_name.charAt(0).toUpperCase()}
+                                    : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                                )}>
+                                  {student.full_name.charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <p className="font-medium text-sm text-slate-800 dark:text-slate-200 leading-tight">
+                                    {student.full_name}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                    {student.class_arm || student.class}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-medium text-sm text-slate-800 dark:text-slate-200 leading-tight">
-                                  {student.full_name}
-                                </p>
-                                <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                  {student.class_arm || student.class}
-                                </p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-center py-3 text-xs font-mono text-slate-500 dark:text-slate-400">
-                            {student.admission_number}
-                          </TableCell>
-                          <TableCell className="text-center py-3">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="40"
-                              value={entry.ca}
-                              onChange={(e) => {
-                                if (isLocked) return;
-                                const num = Math.min(
-                                  40,
-                                  Math.max(0, parseFloat(e.target.value) || 0),
-                                );
-                                setScoreEntries((prev) => ({
-                                  ...prev,
-                                  [student.id]: {
-                                    ...prev[student.id],
-                                    ca: String(num),
-                                    is_saved: false,
-                                  },
-                                }));
-                                setSavedStatus((prev) => ({
-                                  ...prev,
-                                  [student.id]: false,
-                                }));
-                              }}
-                              className="w-[72px] h-9 text-center mx-auto text-sm font-medium bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 focus-visible:ring-offset-0 focus-visible:border-emerald-400 rounded-lg"
-                              placeholder="0"
-                              disabled={isLocked}
-                            />
-                          </TableCell>
-                          <TableCell className="text-center py-3">
-                            <Input
-                              type="number"
-                              min="0"
-                              max="60"
-                              value={entry.exam}
-                              onChange={(e) => {
-                                if (isLocked) return;
-                                const num = Math.min(
-                                  60,
-                                  Math.max(0, parseFloat(e.target.value) || 0),
-                                );
-                                setScoreEntries((prev) => ({
-                                  ...prev,
-                                  [student.id]: {
-                                    ...prev[student.id],
-                                    exam: String(num),
-                                    is_saved: false,
-                                  },
-                                }));
-                                setSavedStatus((prev) => ({
-                                  ...prev,
-                                  [student.id]: false,
-                                }));
-                              }}
-                              className="w-[72px] h-9 text-center mx-auto text-sm font-medium bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 focus-visible:ring-offset-0 focus-visible:border-blue-400 rounded-lg"
-                              placeholder="0"
-                              disabled={isLocked}
-                            />
-                          </TableCell>
-                          <TableCell className="text-center py-3">
-                            <ScoreBar total={total} />
-                          </TableCell>
-                          <TableCell className="text-center py-3">
-                            {remark ? (
-                              <Badge
-                                className={cn(
-                                  getRemarkColor(remark),
-                                  "font-semibold text-[11px] border px-2 py-0.5",
-                                )}
-                              >
-                                {remark}
-                              </Badge>
-                            ) : (
-                              <span className="text-slate-300 dark:text-slate-600 text-sm">
-                                —
-                              </span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-center pr-5 py-3">
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleSaveSingle(student.id)}
-                              disabled={saving || isLocked || total === 0 || !isValidStaff}
-                              className={cn(
-                                "h-8 w-8 p-0 rounded-lg transition-all",
-                                isSaved
-                                  ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
-                                  : total > 0
-                                    ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
-                                    : "text-slate-300 dark:text-slate-600 cursor-not-allowed",
-                              )}
-                              title={!isValidStaff ? "Staff profile missing" : total === 0 ? "No scores to save" : isSaved ? "Already saved" : "Save score"}
-                            >
-                              {saving ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : isSaved ? (
-                                <CheckCircle2 className="h-4 w-4" />
+                            </TableCell>
+                            <TableCell className="text-center py-3 text-xs font-mono text-slate-500 dark:text-slate-400">
+                              {student.admission_number}
+                            </TableCell>
+                            <TableCell className="text-center py-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="40"
+                                value={entry.ca}
+                                onChange={(e) => {
+                                  if (isLocked) return;
+                                  const num = Math.min(40, Math.max(0, parseFloat(e.target.value) || 0));
+                                  setScoreEntries((prev) => ({
+                                    ...prev,
+                                    [student.id]: { ...prev[student.id], ca: String(num), is_saved: false },
+                                  }));
+                                  setSavedStatus((prev) => ({ ...prev, [student.id]: false }));
+                                }}
+                                className="w-[72px] h-9 text-center mx-auto text-sm font-medium bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 focus-visible:border-emerald-400 rounded-lg"
+                                placeholder="0"
+                                disabled={isLocked}
+                              />
+                            </TableCell>
+                            <TableCell className="text-center py-3">
+                              <Input
+                                type="number"
+                                min="0"
+                                max="60"
+                                value={entry.exam}
+                                onChange={(e) => {
+                                  if (isLocked) return;
+                                  const num = Math.min(60, Math.max(0, parseFloat(e.target.value) || 0));
+                                  setScoreEntries((prev) => ({
+                                    ...prev,
+                                    [student.id]: { ...prev[student.id], exam: String(num), is_saved: false },
+                                  }));
+                                  setSavedStatus((prev) => ({ ...prev, [student.id]: false }));
+                                }}
+                                className="w-[72px] h-9 text-center mx-auto text-sm font-medium bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 focus-visible:border-blue-400 rounded-lg"
+                                placeholder="0"
+                                disabled={isLocked}
+                              />
+                            </TableCell>
+                            <TableCell className="text-center py-3">
+                              <ScoreBar total={total} />
+                            </TableCell>
+                            <TableCell className="text-center py-3">
+                              {remark ? (
+                                <Badge className={cn(getRemarkColor(remark), "font-semibold text-[11px] border px-2 py-0.5")}>
+                                  {remark}
+                                </Badge>
                               ) : (
-                                <Save className="h-4 w-4" />
+                                <span className="text-slate-300 dark:text-slate-600 text-sm">—</span>
                               )}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Table footer */}
-              <div className="flex items-center justify-between px-5 py-3 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/60 dark:to-slate-900 border-t border-slate-100 dark:border-slate-800">
-                <div className="flex items-center gap-4 text-[11px] text-slate-500">
-                  <span className="flex items-center gap-1.5">
-                    <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                    {Object.values(savedStatus).filter(Boolean).length} saved
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <TrendingUp className="h-3 w-3 text-blue-500" />
-                    Avg: {stats.classAverage}%
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <Award className="h-3 w-3 text-amber-500" />
-                    High: {stats.highestScore}
-                  </span>
-                  {unsavedCount > 0 && (
-                    <span className="text-amber-600 dark:text-amber-400 font-semibold">
-                      {unsavedCount} unsaved
-                    </span>
-                  )}
+                            </TableCell>
+                            <TableCell className="text-center pr-5 py-3">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleSaveSingle(student.id)}
+                                disabled={saving || isLocked || total === 0 || !isValidStaff}
+                                className={cn(
+                                  "h-8 w-8 p-0 rounded-lg",
+                                  isSaved
+                                    ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
+                                    : total > 0
+                                    ? "text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                                    : "text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                                )}
+                              >
+                                {saving ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : isSaved ? (
+                                  <CheckCircle2 className="h-4 w-4" />
+                                ) : (
+                                  <Save className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
-                <Button
-                  onClick={handleSaveAll}
-                  disabled={saving || isLocked || unsavedCount === 0 || !isValidStaff}
-                  size="sm"
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white h-8 text-xs gap-1.5 shadow-sm"
-                >
-                  {saving ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <SaveAll className="h-3.5 w-3.5" />
-                  )}
-                  Save All ({unsavedCount})
-                </Button>
-              </div>
-            </Card>
+              </Card>
+            </>
           )}
         </TabsContent>
 
-        {/* ─── View Tab ─────────────────────────────────────────────────── */}
+        {/* ─── View Tab ─── */}
         <TabsContent value="view" className="mt-0">
           <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
-            <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex flex-col gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">
                     Published Scores
                   </CardTitle>
                   <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 flex items-center flex-wrap gap-1.5">
-                    <span>
-                      {selectedClass || "No class"} ·{" "}
-                      {selectedSubject || "No subject"}
-                    </span>
+                    <span className="truncate">{selectedClass || "No class"} · {selectedSubject || "No subject"}</span>
                     {isLocked && (
                       <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] border-red-200 dark:border-red-800">
                         <Lock className="h-2.5 w-2.5 mr-1" />
@@ -1968,208 +1769,187 @@ export default function PrimaryScoresTab({
                     )}
                   </div>
                 </div>
-                <div className="flex gap-2 w-full sm:w-auto">
-                  <div className="relative flex-1 sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                    <Input
-                      placeholder="Search pupils…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-9 h-9 text-sm bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 rounded-lg"
-                    />
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      loadScores(
-                        selectedClass,
-                        selectedSubject,
-                        selectedTerm,
-                        selectedYear,
-                        students,
-                      )
-                    }
-                    disabled={loading || !selectedClass}
-                    className="h-9 w-9 p-0 rounded-lg"
-                  >
-                    <RefreshCw
-                      className={cn("h-3.5 w-3.5", loading && "animate-spin")}
-                    />
-                  </Button>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <Input
+                    placeholder="Search pupils…"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-9 pr-9 h-10 text-sm bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 rounded-lg"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="p-3 sm:p-0">
               {!selectedClass || !selectedSubject ? (
-                <EmptyState
-                  icon={FileText}
-                  title="Configure Selection"
-                  description="Select a class and subject above to view published scores."
-                />
+                <EmptyState icon={FileText} title="Configure Selection" description="Select a class and subject to view published scores." />
               ) : loading ? (
-                <div className="text-center py-20">
+                <div className="text-center py-16">
                   <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />
-                  <p className="text-sm text-slate-500 font-medium">
-                    Loading scores…
-                  </p>
+                  <p className="text-sm text-slate-500 font-medium">Loading scores…</p>
                 </div>
               ) : scores.length === 0 ? (
                 <EmptyState
                   icon={FileText}
                   title="No Scores Published"
-                  description="Enter and save scores in the Score Entry tab to see them here."
+                  description="Enter and save scores to see them here."
                   action={
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setActiveTab("entry")}
-                      disabled={isLocked}
-                      className="gap-1.5"
-                    >
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab("entry")} disabled={isLocked} className="gap-1.5">
                       Go to Score Entry <ChevronRight className="h-4 w-4" />
                     </Button>
                   }
                 />
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-transparent">
-                        {[
-                          "Pupil",
-                          "Adm. No",
-                          "CA",
-                          "Exam",
-                          "Total",
-                          "Remark",
-                          "Teacher",
-                          "Actions",
-                        ].map((h) => (
-                          <TableHead
-                            key={h}
-                            className={cn(
-                              "font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3",
-                              h === "Pupil"
-                                ? "pl-5 min-w-[180px]"
-                                : "text-center",
-                              h === "Actions" ? "pr-5" : "",
-                            )}
-                          >
-                            {h}
-                          </TableHead>
-                        ))}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredScores.map((score, idx) => {
-                        const total =
-                          (score.ca_score || 0) + (score.exam_score || 0);
-                        const remark = getRemark(total);
-                        const name = getStudentName(score.student_id);
-                        const isOwn = score.teacher_id === staffProfile?.id;
+                <>
+                  {/* Mobile Cards */}
+                  <div className="sm:hidden space-y-2.5">
+                    {filteredScores.map((score) => {
+                      const name = getStudentName(score.student_id);
+                      const isOwn = score.teacher_id === staffProfile?.id;
+                      return (
+                        <MobileViewCard
+                          key={score.id}
+                          score={score}
+                          studentName={name}
+                          isOwn={isOwn}
+                          onEdit={() => {
+                            setEditingScore(score);
+                            setShowEditDialog(true);
+                          }}
+                          onDelete={async () => {
+                            if (!confirm("Delete this score?")) return;
+                            const { error } = await supabase.from("primary_scores").delete().eq("id", score.id);
+                            if (error) {
+                              toast.error("Failed to delete");
+                              return;
+                            }
+                            toast.success("Deleted");
+                            await refreshAllData();
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
 
-                        return (
-                          <TableRow
-                            key={score.id}
-                            className={cn(
-                              "border-slate-100/80 dark:border-slate-800/80 transition-colors",
-                              idx % 2 === 0
-                                ? "bg-white dark:bg-slate-900"
-                                : "bg-slate-50/30 dark:bg-slate-800/10",
-                            )}
-                          >
-                            <TableCell className="pl-5 py-3">
-                              <div className="flex items-center gap-2.5">
-                                <span className="font-medium text-sm text-slate-800 dark:text-slate-200">
-                                  {name}
-                                </span>
-                                {!isOwn && (
-                                  <Lock className="h-3 w-3 text-red-400 flex-shrink-0" />
-                                )}
-                              </div>
-                            </TableCell>
-                            <TableCell className="text-center text-xs font-mono text-slate-500 dark:text-slate-400">
-                              {score.student_admission || "—"}
-                            </TableCell>
-                            <TableCell className="text-center text-sm text-slate-700 dark:text-slate-300 font-medium">
-                              {score.ca_score || "—"}
-                            </TableCell>
-                            <TableCell className="text-center text-sm font-medium text-blue-600 dark:text-blue-400">
-                              {score.exam_score || "—"}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <ScoreBar total={total} />
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Badge
-                                className={cn(
-                                  getRemarkColor(remark),
-                                  "font-semibold text-[11px] border px-2 py-0.5",
-                                )}
-                              >
-                                {remark}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-center">
-                              {isOwn ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="text-[10px] gap-1 font-medium"
-                                >
-                                  <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
-                                  You
-                                </Badge>
-                              ) : (
-                                <Badge className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] gap-1 font-medium border-amber-200 dark:border-amber-800">
-                                  <AlertTriangle className="h-2.5 w-2.5" />
-                                  {score.teacher_name || "Other"}
-                                </Badge>
+                  {/* Desktop Table */}
+                  <div className="hidden sm:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 hover:bg-transparent">
+                          {["Pupil", "Adm. No", "CA", "Exam", "Total", "Remark", "Teacher", "Actions"].map((h) => (
+                            <TableHead
+                              key={h}
+                              className={cn(
+                                "font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3",
+                                h === "Pupil" ? "pl-5 min-w-[180px]" : "text-center",
+                                h === "Actions" ? "pr-5" : ""
                               )}
-                            </TableCell>
-                            <TableCell className="text-center pr-5">
-                              <div className="flex items-center justify-center gap-0.5">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!isOwn}
-                                  onClick={() => {
-                                    setEditingScore(score);
-                                    setShowEditDialog(true);
-                                  }}
-                                  className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-20"
-                                >
-                                  <Edit className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  disabled={!isOwn}
-                                  onClick={async () => {
-                                    if (!confirm("Delete this score?")) return;
-                                    const { error } = await supabase
-                                      .from("primary_scores")
-                                      .delete()
-                                      .eq("id", score.id);
-                                    if (error) {
-                                      toast.error("Failed to delete");
-                                      return;
-                                    }
-                                    toast.success("Deleted");
-                                    await refreshAllData();
-                                  }}
-                                  className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                            >
+                              {h}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredScores.map((score, idx) => {
+                          const total = (score.ca_score || 0) + (score.exam_score || 0);
+                          const remark = getRemark(total);
+                          const name = getStudentName(score.student_id);
+                          const isOwn = score.teacher_id === staffProfile?.id;
+
+                          return (
+                            <TableRow
+                              key={score.id}
+                              className={cn(
+                                "border-slate-100/80 dark:border-slate-800/80",
+                                idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/10"
+                              )}
+                            >
+                              <TableCell className="pl-5 py-3">
+                                <div className="flex items-center gap-2.5">
+                                  <span className="font-medium text-sm text-slate-800 dark:text-slate-200">{name}</span>
+                                  {!isOwn && <Lock className="h-3 w-3 text-red-400 flex-shrink-0" />}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-xs font-mono text-slate-500 dark:text-slate-400">
+                                {score.student_admission || "—"}
+                              </TableCell>
+                              <TableCell className="text-center text-sm text-slate-700 dark:text-slate-300 font-medium">
+                                {score.ca_score || "—"}
+                              </TableCell>
+                              <TableCell className="text-center text-sm font-medium text-blue-600 dark:text-blue-400">
+                                {score.exam_score || "—"}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <ScoreBar total={total} />
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge className={cn(getRemarkColor(remark), "font-semibold text-[11px] border px-2 py-0.5")}>
+                                  {remark}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                {isOwn ? (
+                                  <Badge variant="secondary" className="text-[10px] gap-1 font-medium">
+                                    <CheckCircle2 className="h-2.5 w-2.5 text-emerald-500" />
+                                    You
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-[10px] gap-1 font-medium border-amber-200 dark:border-amber-800">
+                                    <AlertTriangle className="h-2.5 w-2.5" />
+                                    {score.teacher_name || "Other"}
+                                  </Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center pr-5">
+                                <div className="flex items-center justify-center gap-0.5">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={!isOwn}
+                                    onClick={() => {
+                                      setEditingScore(score);
+                                      setShowEditDialog(true);
+                                    }}
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-20"
+                                  >
+                                    <Edit className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    disabled={!isOwn}
+                                    onClick={async () => {
+                                      if (!confirm("Delete this score?")) return;
+                                      const { error } = await supabase.from("primary_scores").delete().eq("id", score.id);
+                                      if (error) {
+                                        toast.error("Failed to delete");
+                                        return;
+                                      }
+                                      toast.success("Deleted");
+                                      await refreshAllData();
+                                    }}
+                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>
@@ -2177,11 +1957,8 @@ export default function PrimaryScoresTab({
       </Tabs>
 
       {/* ═══ Delete All Dialog ═══ */}
-      <AlertDialog
-        open={showDeleteAllDialog}
-        onOpenChange={setShowDeleteAllDialog}
-      >
-        <AlertDialogContent className="max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl">
+      <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
+        <AlertDialogContent className="max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/30">
@@ -2192,31 +1969,20 @@ export default function PrimaryScoresTab({
               </AlertDialogTitle>
             </div>
             <AlertDialogDescription asChild>
-              <div className="space-y-3 pl-[52px]">
+              <div className="space-y-3">
                 <div className="flex flex-wrap gap-1.5">
-                  {[
-                    selectedClass,
-                    selectedSubject,
-                    selectedTerm,
-                    selectedYear,
-                  ].map(
-                    (v, i) =>
-                      v && (
-                        <Badge
-                          key={i}
-                          variant="secondary"
-                          className="text-[11px] font-medium"
-                        >
-                          {v}
-                        </Badge>
-                      ),
+                  {[selectedClass, selectedSubject, selectedTerm, selectedYear].map(
+                    (v, i) => v && (
+                      <Badge key={i} variant="secondary" className="text-[11px] font-medium">
+                        {v}
+                      </Badge>
+                    )
                   )}
                 </div>
                 <div className="flex items-center gap-2.5 p-3 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800/50">
                   <Database className="h-4 w-4 text-red-500 flex-shrink-0" />
                   <span className="text-sm font-semibold text-red-700 dark:text-red-400">
-                    {scores.length} record{scores.length !== 1 ? "s" : ""} will
-                    be permanently deleted
+                    {scores.length} record{scores.length !== 1 ? "s" : ""} will be deleted
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -2225,56 +1991,42 @@ export default function PrimaryScoresTab({
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 mt-3">
-            <AlertDialogCancel
-              disabled={isDeletingAll}
-              className="h-9 rounded-lg"
-            >
+          <AlertDialogFooter className="gap-2 mt-3 flex-col sm:flex-row">
+            <AlertDialogCancel disabled={isDeletingAll} className="h-10 rounded-lg w-full sm:w-auto mt-0">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAll}
               disabled={isDeletingAll}
-              className="bg-red-600 hover:bg-red-700 text-white h-9 gap-1.5 rounded-lg shadow-sm"
+              className="bg-red-600 hover:bg-red-700 text-white h-10 gap-1.5 rounded-lg w-full sm:w-auto"
             >
-              {isDeletingAll ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Trash className="h-4 w-4" />
-              )}
-              Delete Permanently
+              {isDeletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
+              Delete
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
       {/* ═══ Delete Progress ═══ */}
-      <Dialog
-        open={isDeletingAll && deleteProgress > 0 && deleteProgress < 100}
-        onOpenChange={() => {}}
-      >
-        <DialogContent className="max-w-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl">
+      <Dialog open={isDeletingAll && deleteProgress > 0 && deleteProgress < 100} onOpenChange={() => {}}>
+        <DialogContent className="max-w-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <Loader2 className="h-4 w-4 animate-spin text-red-500" />
               Deleting scores…
             </DialogTitle>
-            <DialogDescription className="sr-only">
-              Deletion in progress
-            </DialogDescription>
+            <DialogDescription className="sr-only">Deletion in progress</DialogDescription>
           </DialogHeader>
           <div className="space-y-2 pt-2">
             <ProgressBar value={deleteProgress} />
-            <p className="text-right text-xs text-slate-500 font-medium tabular-nums">
-              {deleteProgress}%
-            </p>
+            <p className="text-right text-xs text-slate-500 font-medium tabular-nums">{deleteProgress}%</p>
           </div>
         </DialogContent>
       </Dialog>
 
       {/* ═══ Edit Score Dialog ═══ */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl">
+        <DialogContent className="max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">
               Edit Score
@@ -2284,96 +2036,81 @@ export default function PrimaryScoresTab({
             </DialogDescription>
           </DialogHeader>
 
-          {editingScore &&
-            (() => {
-              const editTotal =
-                (editingScore.ca_score || 0) + (editingScore.exam_score || 0);
-              const editRemark = getRemark(editTotal);
-              return (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                        CA /40
-                      </Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="40"
-                        value={editingScore.ca_score ?? 0}
-                        onChange={(e) =>
-                          setEditingScore({
-                            ...editingScore,
-                            ca_score: Math.min(
-                              40,
-                              parseInt(e.target.value) || 0,
-                            ),
-                          })
-                        }
-                        className="h-10 text-center text-sm font-medium rounded-lg"
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                        Exam /60
-                      </Label>
-                      <Input
-                        type="number"
-                        min="0"
-                        max="60"
-                        value={editingScore.exam_score ?? 0}
-                        onChange={(e) =>
-                          setEditingScore({
-                            ...editingScore,
-                            exam_score: Math.min(
-                              60,
-                              parseInt(e.target.value) || 0,
-                            ),
-                          })
-                        }
-                        className="h-10 text-center text-sm font-medium rounded-lg"
-                      />
-                    </div>
+          {editingScore && (() => {
+            const editTotal = (editingScore.ca_score || 0) + (editingScore.exam_score || 0);
+            const editRemark = getRemark(editTotal);
+            return (
+              <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">CA /40</Label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      max="40"
+                      value={editingScore.ca_score ?? 0}
+                      onChange={(e) =>
+                        setEditingScore({
+                          ...editingScore,
+                          ca_score: Math.min(40, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="h-11 text-center text-base font-medium rounded-lg"
+                    />
                   </div>
-                  <div className="flex items-center justify-between p-3.5 bg-gradient-to-r from-emerald-50 to-emerald-50/50 dark:from-emerald-950/30 dark:to-emerald-950/10 rounded-xl border border-emerald-200 dark:border-emerald-800">
-                    <div>
-                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">
-                        Total
-                      </span>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">
-                          {editTotal}
-                        </span>
-                        <Badge
-                          className={cn(
-                            getRemarkColor(editRemark),
-                            "text-[10px] font-bold border",
-                          )}
-                        >
-                          {editRemark}
-                        </Badge>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <ScoreBar total={editTotal} />
-                    </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Exam /60</Label>
+                    <Input
+                      type="number"
+                      inputMode="numeric"
+                      min="0"
+                      max="60"
+                      value={editingScore.exam_score ?? 0}
+                      onChange={(e) =>
+                        setEditingScore({
+                          ...editingScore,
+                          exam_score: Math.min(60, parseInt(e.target.value) || 0),
+                        })
+                      }
+                      className="h-11 text-center text-base font-medium rounded-lg"
+                    />
                   </div>
                 </div>
-              );
-            })()}
+                <div className="flex items-center justify-between p-3.5 bg-gradient-to-r from-emerald-50 to-emerald-50/50 dark:from-emerald-950/30 dark:to-emerald-950/10 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                  <div>
+                    <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">
+                      Total
+                    </span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">
+                        {editTotal}
+                      </span>
+                      <Badge className={cn(getRemarkColor(editRemark), "text-[10px] font-bold border")}>
+                        {editRemark}
+                      </Badge>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <ScoreBar total={editTotal} />
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="gap-2 flex-col sm:flex-row">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowEditDialog(false)}
-              className="rounded-lg"
+              className="rounded-lg h-10 w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm gap-1.5"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg gap-1.5 h-10 w-full sm:w-auto"
               onClick={async () => {
                 if (!editingScore) return;
                 const ca = editingScore.ca_score || 0;

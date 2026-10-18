@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/layout/header/MobileMenu.tsx
 'use client'
@@ -9,7 +10,8 @@ import {
   X, LayoutDashboard, Users, FileCheck, GraduationCap, Briefcase, BarChart3,
   LogOut, ArrowRight, Home, KeyRound, BookOpen,
   Mail, MapPin, Phone, Clock, Sparkles,
-  FileText, Activity, ChevronRight, Award, UserCog
+  FileText, Activity, ChevronRight, Award, UserCog,
+  Calculator, CalendarCheck, School, FileSpreadsheet
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -40,20 +42,21 @@ const publicNavItems = [
   { name: 'Contact', href: '/contact', icon: Activity, description: 'Get in touch' },
 ]
 
-// ✅ 3 Roles: Admin, Teacher/Staff, Pupil
-// ✅ Pupil: Dashboard, Results, Report Cards, Profile
+// ✅ PERFECTLY SYNCED WITH DesktopNav.tsx
 const dashboardNavMap: Record<string, { name: string; href: string; icon: any; description: string }[]> = {
   admin: [
-    { name: 'Overview', href: '/admin', icon: LayoutDashboard, description: 'Dashboard summary' },
+    { name: 'Dashboard', href: '/admin', icon: LayoutDashboard, description: 'Dashboard summary' },
     { name: 'Students', href: '/admin/students', icon: GraduationCap, description: 'Manage pupils' },
     { name: 'Staff', href: '/admin/staff', icon: Briefcase, description: 'Teachers & admins' },
-    { name: 'Reports', href: '/admin/report-cards', icon: FileCheck, description: 'Report cards' },
+    { name: 'Broadsheet', href: '/admin/broadsheet', icon: FileSpreadsheet, description: 'Exam broadsheet' },
+    { name: 'Teacher Classes', href: '/admin/teacher-classes', icon: School, description: 'Class assignments' },
   ],
   teacher: [
-    { name: 'Overview', href: '/staff', icon: LayoutDashboard, description: 'My classes' },
-    { name: 'Assignments', href: '/staff/assignments', icon: FileText, description: 'Homework & tasks' },
-    { name: 'Students', href: '/staff/students', icon: Users, description: 'My pupils' },
-    { name: 'Analytics', href: '/staff/analytics', icon: BarChart3, description: 'Performance insights' },
+    // ✅ EXACT MATCH FOR DESKTOP TEACHER NAV
+    { name: 'Dashboard', href: '/staff', icon: LayoutDashboard, description: 'Dashboard & Overview' },
+    { name: 'Scores', href: '/staff/scores', icon: Calculator, description: 'CA & Exam Scores' },
+    { name: 'Attendance', href: '/staff/attendance', icon: CalendarCheck, description: 'Mark Daily Attendance' },
+    { name: 'Analytics', href: '/staff/analytics', icon: BarChart3, description: 'Performance Insights' },
   ],
   pupil: [
     { name: 'Dashboard', href: '/pupil', icon: LayoutDashboard, description: 'Your dashboard' },
@@ -85,7 +88,6 @@ const getInitials = (user?: HeaderUser | null): string => {
   return parts[0]?.[0]?.toUpperCase() || 'U'
 }
 
-// ✅ 3 Roles: Admin, Teacher/Staff, Pupil
 const roleConfig: Record<string, { label: string; color: string; gradient: string; bg: string; emoji: string }> = {
   admin: {
     label: 'Administrator',
@@ -138,11 +140,9 @@ export const MobileMenu = memo(function MobileMenu({
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const isAuthenticated = user?.isAuthenticated ?? false
 
-  // ─── Get full name and initials ──────────────────────────────────────────
   const fullName = getFullName(user)
   const userInitials = getInitials(user)
 
-  // ✅ Get avatar URL from either avatar or photo_url
   const getAvatarUrl = () => {
     if (avatarError) return undefined
     if (user?.avatar) return user.avatar
@@ -152,10 +152,6 @@ export const MobileMenu = memo(function MobileMenu({
 
   const avatarUrl = getAvatarUrl()
   const currentRole = getRoleConfig(user?.role)
-
-  // Log for debugging
-  console.log('🔍 [MobileMenu] user:', user)
-  console.log('🔍 [MobileMenu] avatarUrl:', avatarUrl)
 
   const isDashboardPage =
     pathname?.startsWith('/admin') ||
@@ -191,7 +187,6 @@ export const MobileMenu = memo(function MobileMenu({
     router.push(urls[user?.role || 'pupil'] || '/pupil')
   }
 
-  // ─── Sign Out Handlers ────────────────────────────────────────────────────
   const handleSignOutClick = () => {
     onClose()
     setTimeout(() => {
@@ -205,7 +200,6 @@ export const MobileMenu = memo(function MobileMenu({
 
   const handleSignOutConfirm = async () => {
     if (isLoggingOut) return
-    
     setIsLoggingOut(true)
     try {
       setSignOutDialogOpen(false)
@@ -222,7 +216,6 @@ export const MobileMenu = memo(function MobileMenu({
       <AnimatePresence>
         {open && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -232,7 +225,6 @@ export const MobileMenu = memo(function MobileMenu({
               onClick={onClose}
             />
 
-            {/* Drawer */}
             <motion.div
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
@@ -240,10 +232,6 @@ export const MobileMenu = memo(function MobileMenu({
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
               className="fixed top-0 right-0 h-full w-full xs:w-[340px] sm:w-[400px] bg-white z-50 shadow-2xl lg:hidden flex flex-col overflow-hidden"
             >
-
-              {/* ══════════════════════════════════════════════════════
-                  HEADER — School identity with gradient
-              ══════════════════════════════════════════════════════ */}
               <div className="relative flex-shrink-0 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-[#0A2472] via-[#1e3a8a] to-[#312e81]" />
                 <div className="absolute -top-16 -right-16 w-40 h-40 rounded-full border-[3px] border-white/10" />
@@ -304,9 +292,6 @@ export const MobileMenu = memo(function MobileMenu({
                 </div>
               </div>
 
-              {/* ══════════════════════════════════════════════════════
-                  USER PROFILE CARD (authenticated)
-              ══════════════════════════════════════════════════════ */}
               {isAuthenticated && (
                 <div className="flex-shrink-0 px-4 pt-4">
                   <motion.div
@@ -380,13 +365,9 @@ export const MobileMenu = memo(function MobileMenu({
                 </div>
               )}
 
-              {/* ══════════════════════════════════════════════════════
-                  SCROLLABLE CONTENT
-              ══════════════════════════════════════════════════════ */}
               <ScrollArea className="flex-1 mt-2">
                 <div className="p-4 space-y-6">
 
-                  {/* ── Primary Navigation ── */}
                   <div>
                     <div className="flex items-center gap-2 mb-3 px-1">
                       <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
@@ -468,7 +449,6 @@ export const MobileMenu = memo(function MobileMenu({
                     </div>
                   </div>
 
-                  {/* ── Quick Links (dashboard only) ── */}
                   {isDashboardPage && (
                     <div>
                       <div className="flex items-center gap-2 mb-3 px-1">
@@ -505,7 +485,6 @@ export const MobileMenu = memo(function MobileMenu({
                     </div>
                   )}
 
-                  {/* ── Contact info ── */}
                   <div>
                     <div className="flex items-center gap-2 mb-3 px-1">
                       <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
@@ -541,7 +520,6 @@ export const MobileMenu = memo(function MobileMenu({
                     </div>
                   </div>
 
-                  {/* ── Social links ── */}
                   <div>
                     <div className="flex items-center gap-2 mb-3 px-1">
                       <div className="h-px flex-1 bg-gradient-to-r from-gray-200 to-transparent" />
@@ -589,9 +567,6 @@ export const MobileMenu = memo(function MobileMenu({
                 </div>
               </ScrollArea>
 
-              {/* ══════════════════════════════════════════════════════
-                  FIXED FOOTER
-              ══════════════════════════════════════════════════════ */}
               <div className="flex-shrink-0 border-t border-gray-100 bg-gradient-to-b from-white to-gray-50/60 p-4 space-y-3">
                 {!isAuthenticated && !isPortalPage && (
                   <button
@@ -638,7 +613,6 @@ export const MobileMenu = memo(function MobileMenu({
         )}
       </AnimatePresence>
 
-      {/* Sign Out Dialog */}
       <SignOutDialog
         open={signOutDialogOpen}
         onClose={handleSignOutCancel}
