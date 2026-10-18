@@ -1,6 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/preserve-manual-memoization */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
@@ -18,25 +16,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  Plus, FileText, Users, Calendar, Clock,
+  Plus, Users, Calendar, Clock,
   Loader2, CheckCircle2, Trash2,
   Eye, Send, BookOpen,
   Pencil, Paperclip, FileIcon,
-  X, Upload, Save, RefreshCw, Search,
-  NotebookPen, GraduationCap, EyeIcon,
-  FileOutput
+  X, Upload, Save, Search,
+  NotebookPen, MoreVertical, FileText,
 } from 'lucide-react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -73,7 +69,8 @@ interface SubjectOption {
   name: string
 }
 
-// ── Primary Subjects (from your existing constant) ──────────────────────────
+const hideScrollbar =
+  '[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]'
 
 const PRIMARY_SUBJECTS = [
   { id: 'english', name: 'English', category: 'Core' },
@@ -104,17 +101,62 @@ const PRIMARY_SUBJECTS = [
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="text-center">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50/50">
+      <div className="text-center px-4">
         <div className="relative w-16 h-16 mx-auto mb-4">
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse" />
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse" />
           <div className="absolute inset-0 flex items-center justify-center">
             <NotebookPen className="h-8 w-8 text-white" />
           </div>
         </div>
         <p className="font-semibold text-slate-700">Loading notes...</p>
-        <p className="text-sm text-slate-400 mt-1">Fetching your notes</p>
+        <p className="text-sm text-slate-400 mt-1">Fetching your study notes</p>
       </div>
+    </div>
+  )
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string
+  value: number | string
+  icon: React.ElementType
+  color: 'blue' | 'emerald' | 'amber' | 'violet'
+}) {
+  const map = {
+    blue: { bg: 'bg-blue-50', border: 'border-blue-100', icon: 'bg-blue-500' },
+    emerald: { bg: 'bg-emerald-50', border: 'border-emerald-100', icon: 'bg-emerald-500' },
+    amber: { bg: 'bg-amber-50', border: 'border-amber-100', icon: 'bg-amber-500' },
+    violet: { bg: 'bg-violet-50', border: 'border-violet-100', icon: 'bg-violet-500' },
+  }
+  const c = map[color]
+
+  return (
+    <div
+      className={cn(
+        'rounded-2xl p-4 border shrink-0 w-[150px] sm:w-auto snap-start shadow-sm',
+        c.bg,
+        c.border
+      )}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div
+          className={cn(
+            'w-10 h-10 rounded-xl flex items-center justify-center shadow-sm',
+            c.icon
+          )}
+        >
+          <Icon className="h-5 w-5 text-white" />
+        </div>
+      </div>
+      <p className="text-2xl font-bold text-slate-800 leading-none">{value}</p>
+      <p className="text-xs text-slate-500 font-semibold mt-1.5">{label}</p>
     </div>
   )
 }
@@ -135,32 +177,36 @@ function NoteCard({
   onPublish: (id: string) => void
 }) {
   const isPublished = note.status === 'published'
-  
+
   return (
-    <Card className={cn(
-      "border-0 shadow-sm hover:shadow-md transition-all overflow-hidden",
-      isPublished ? "border-l-4 border-emerald-500" : "border-l-4 border-amber-400"
-    )}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              {note.title}
-              {isPublished && (
-                <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+    <div
+      className={cn(
+        'bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden transition-all hover:shadow-md',
+        isPublished ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-amber-400'
+      )}
+    >
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <h3 className="text-base font-bold text-slate-800 leading-snug truncate">
+                {note.title}
+              </h3>
+              {isPublished ? (
+                <Badge className="bg-emerald-100 text-emerald-700 border-0 text-[10px] font-semibold shrink-0">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Published
                 </Badge>
-              )}
-              {!isPublished && (
-                <Badge variant="outline" className="text-amber-600 border-amber-200 text-[10px]">
+              ) : (
+                <Badge className="bg-amber-100 text-amber-700 border-0 text-[10px] font-semibold shrink-0">
                   <Clock className="h-3 w-3 mr-1" />
                   Draft
                 </Badge>
               )}
-            </CardTitle>
-            <CardDescription className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-              <span className="flex items-center gap-1">
+            </div>
+
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-500">
+              <span className="flex items-center gap-1 font-medium">
                 <BookOpen className="h-3.5 w-3.5 text-slate-400" />
                 {note.subject}
               </span>
@@ -170,85 +216,88 @@ function NoteCard({
                 {note.class_name}
               </span>
               <span className="text-slate-300">·</span>
-              <span className="text-xs text-slate-400">
+              <span>
                 {new Date(note.created_at).toLocaleDateString('en-US', {
-                  month: 'short', day: 'numeric', year: 'numeric'
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
                 })}
               </span>
-            </CardDescription>
+            </div>
           </div>
-          <div className="flex items-center gap-1">
-            <Badge variant="secondary" className="text-[10px] bg-slate-100">
-              {note.attachments?.length || 0} files
-            </Badge>
-          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                className="h-9 w-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+                aria-label="Note actions"
+              >
+                <MoreVertical className="h-4 w-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-xl">
+              <DropdownMenuItem onClick={() => onView(note.id)} className="gap-2 cursor-pointer">
+                <Eye className="h-4 w-4" /> View
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(note.id)} className="gap-2 cursor-pointer">
+                <Pencil className="h-4 w-4" /> Edit
+              </DropdownMenuItem>
+              {!isPublished && (
+                <DropdownMenuItem
+                  onClick={() => onPublish(note.id)}
+                  className="gap-2 cursor-pointer text-emerald-600 focus:text-emerald-600"
+                >
+                  <Send className="h-4 w-4" /> Publish
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => onDelete(note.id)}
+                className="gap-2 cursor-pointer text-rose-600 focus:text-rose-600"
+              >
+                <Trash2 className="h-4 w-4" /> Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </CardHeader>
-      
-      <CardContent className="pb-3">
-        <p className="text-sm text-slate-600 line-clamp-3">
+
+        <p className="text-sm text-slate-600 line-clamp-3 mt-3 leading-relaxed">
           {note.content || 'No content provided.'}
         </p>
+
         {note.attachments && note.attachments.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
+          <div className="mt-3 flex flex-wrap gap-1.5">
             {note.attachments.slice(0, 3).map((file) => (
-              <Badge key={file.id} variant="outline" className="text-[10px] bg-slate-50">
-                <Paperclip className="h-3 w-3 mr-1" />
-                {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
-              </Badge>
+              <span
+                key={file.id}
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[11px] font-medium text-slate-600"
+              >
+                <Paperclip className="h-3 w-3 text-slate-400" />
+                {file.name.length > 18 ? file.name.slice(0, 18) + '…' : file.name}
+              </span>
             ))}
             {note.attachments.length > 3 && (
-              <Badge variant="outline" className="text-[10px] bg-slate-50">
+              <span className="inline-flex items-center px-2 py-1 rounded-lg bg-slate-50 border border-slate-100 text-[11px] font-medium text-slate-500">
                 +{note.attachments.length - 3} more
-              </Badge>
+              </span>
             )}
           </div>
         )}
-      </CardContent>
-      
-      <CardFooter className="pt-2 border-t border-slate-100 flex flex-wrap justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onView(note.id)}
-            className="h-7 text-xs gap-1 text-slate-600 hover:text-blue-600"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            View
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onEdit(note.id)}
-            className="h-7 text-xs gap-1 text-slate-600 hover:text-amber-600"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(note.id)}
-            className="h-7 text-xs gap-1 text-slate-600 hover:text-rose-600"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </Button>
-        </div>
-        
-        {!isPublished && (
+      </div>
+
+      {!isPublished && (
+        <div className="px-4 sm:px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex justify-end">
           <Button
             size="sm"
             onClick={() => onPublish(note.id)}
-            className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+            className="h-9 sm:h-8 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-xl"
           >
             <Send className="h-3.5 w-3.5" />
             Publish
           </Button>
-        )}
-      </CardFooter>
-    </Card>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -269,7 +318,7 @@ function NoteModal({
   classes: ClassOption[]
   subjects: SubjectOption[]
   teacherId: string
-  onSave: (data: any) => Promise<void>
+  onSave: (data: Record<string, unknown>) => Promise<void>
 }) {
   const [title, setTitle] = useState('')
   const [subject, setSubject] = useState('')
@@ -279,7 +328,6 @@ function NoteModal({
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
       if (note) {
@@ -298,6 +346,14 @@ function NoteModal({
     }
   }, [open, note])
 
+  useEffect(() => {
+    if (open) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -310,26 +366,24 @@ function NoteModal({
 
       const { error: uploadError } = await supabase.storage
         .from('notes')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        })
+        .upload(filePath, file, { cacheControl: '3600', upsert: true })
 
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('notes')
-        .getPublicUrl(filePath)
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from('notes').getPublicUrl(filePath)
 
-      const newAttachment: Attachment = {
-        id: Date.now().toString(),
-        name: file.name,
-        url: publicUrl,
-        size: file.size,
-        type: file.type
-      }
-
-      setAttachments(prev => [...prev, newAttachment])
+      setAttachments((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          name: file.name,
+          url: publicUrl,
+          size: file.size,
+          type: file.type,
+        },
+      ])
       toast.success('File uploaded successfully')
     } catch (error) {
       console.error('Upload error:', error)
@@ -341,26 +395,14 @@ function NoteModal({
   }
 
   const removeAttachment = (id: string) => {
-    setAttachments(prev => prev.filter(a => a.id !== id))
+    setAttachments((prev) => prev.filter((a) => a.id !== id))
   }
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      toast.error('Please enter a title')
-      return
-    }
-    if (!subject) {
-      toast.error('Please select a subject')
-      return
-    }
-    if (!class_name) {
-      toast.error('Please select a class')
-      return
-    }
-    if (!content.trim()) {
-      toast.error('Please enter some content')
-      return
-    }
+    if (!title.trim()) return toast.error('Please enter a title')
+    if (!subject) return toast.error('Please select a subject')
+    if (!class_name) return toast.error('Please select a class')
+    if (!content.trim()) return toast.error('Please enter some content')
 
     setSaving(true)
     try {
@@ -386,42 +428,50 @@ function NoteModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800">
-            {note ? 'Edit Note' : 'Create New Note'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex flex-col items-center pt-3 sm:pt-0 shrink-0">
+          <div className="w-12 h-1.5 bg-slate-200 rounded-full mb-3 sm:hidden" />
+          <div className="w-full flex items-center justify-between px-5 pb-3 sm:pt-5 border-b border-slate-100">
+            <h2 className="text-base sm:text-lg font-bold text-slate-800">
+              {note ? 'Edit Note' : 'Create New Note'}
+            </h2>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="h-9 w-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
-        <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-          {/* Title */}
+        {/* Body */}
+        <div className={cn('flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4', hideScrollbar)}>
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Note Title <span className="text-rose-500">*</span>
             </label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="e.g., Chapter 5 Notes: Fractions"
-              className="focus-visible:ring-blue-500"
+              className="h-11 sm:h-10 text-base sm:text-sm rounded-xl"
             />
           </div>
 
-          {/* Subject & Class */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Subject <span className="text-rose-500">*</span>
               </label>
               <Select value={subject} onValueChange={setSubject}>
-                <SelectTrigger className="focus-visible:ring-blue-500">
+                <SelectTrigger className="h-11 sm:h-10 text-base sm:text-sm rounded-xl">
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
                 <SelectContent>
@@ -435,11 +485,11 @@ function NoteModal({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                 Target Class <span className="text-rose-500">*</span>
               </label>
               <Select value={class_name} onValueChange={setClassName}>
-                <SelectTrigger className="focus-visible:ring-blue-500">
+                <SelectTrigger className="h-11 sm:h-10 text-base sm:text-sm rounded-xl">
                   <SelectValue placeholder="Select class" />
                 </SelectTrigger>
                 <SelectContent>
@@ -453,68 +503,66 @@ function NoteModal({
             </div>
           </div>
 
-          {/* Content */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               Note Content <span className="text-rose-500">*</span>
             </label>
             <Textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Write your note content here..."
-              className="min-h-[200px] focus-visible:ring-blue-500"
+              className="min-h-[160px] sm:min-h-[200px] text-base sm:text-sm rounded-xl resize-none"
             />
           </div>
 
-          {/* Attachments */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
-              Attachments (optional)
+            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              Attachments
             </label>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <Button
+                type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => document.getElementById('file-upload')?.click()}
+                onClick={() => document.getElementById('note-file-upload')?.click()}
                 disabled={uploading}
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
+                className="h-10 rounded-xl text-blue-600 border-blue-200 hover:bg-blue-50 gap-2"
               >
                 {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <Upload className="h-4 w-4 mr-2" />
+                  <Upload className="h-4 w-4" />
                 )}
                 Upload File
               </Button>
               <input
-                id="file-upload"
+                id="note-file-upload"
                 type="file"
                 className="hidden"
                 onChange={handleFileUpload}
               />
-              <span className="text-xs text-slate-400">
-                PDF, Word, Excel, Images up to 10MB
-              </span>
+              <span className="text-xs text-slate-400">PDF, Word, Excel, Images · max 10MB</span>
             </div>
 
-            {/* Attachment list */}
             {attachments.length > 0 && (
               <div className="mt-2 space-y-1.5">
                 {attachments.map((file) => (
                   <div
                     key={file.id}
-                    className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100"
+                    className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100"
                   >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <FileIcon className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                      <span className="text-sm truncate">{file.name}</span>
-                      <span className="text-xs text-slate-400 flex-shrink-0">
+                    <div className="flex items-center gap-2 overflow-hidden min-w-0">
+                      <FileIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                      <span className="text-sm truncate font-medium text-slate-700">
+                        {file.name}
+                      </span>
+                      <span className="text-xs text-slate-400 shrink-0">
                         {(file.size / 1024).toFixed(0)} KB
                       </span>
                     </div>
                     <button
                       onClick={() => removeAttachment(file.id)}
-                      className="text-slate-400 hover:text-rose-500 transition-colors"
+                      className="h-8 w-8 flex items-center justify-center rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -525,20 +573,22 @@ function NoteModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={onClose} disabled={saving}>
+        {/* Footer */}
+        <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={saving}
+            className="h-11 sm:h-10 rounded-xl"
+          >
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            className="h-11 sm:h-10 bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-xl"
           >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             {note ? 'Update' : 'Create'} Note
           </Button>
         </div>
@@ -558,46 +608,72 @@ function ViewNoteModal({
   onClose: () => void
   note: Note | null
 }) {
+  useEffect(() => {
+    if (open) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [open])
+
   if (!open || !note) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between shrink-0">
-          <div>
-            <h2 className="text-xl font-bold text-slate-800">{note.title}</h2>
-            <p className="text-sm text-slate-500 flex items-center gap-2">
-              <BookOpen className="h-4 w-4" />
-              {note.subject}
-              <span className="text-slate-300">·</span>
-              <Users className="h-4 w-4" />
-              {note.class_name}
-              <span className="text-slate-300">·</span>
-              <Calendar className="h-4 w-4" />
-              {new Date(note.created_at).toLocaleDateString('en-US', {
-                month: 'long', day: 'numeric', year: 'numeric'
-              })}
-            </p>
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <div className="relative w-full sm:max-w-2xl bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[92dvh] sm:max-h-[90vh] flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-200">
+        <div className="flex flex-col items-center pt-3 sm:pt-0 shrink-0">
+          <div className="w-12 h-1.5 bg-slate-200 rounded-full mb-3 sm:hidden" />
+          <div className="w-full flex items-start justify-between gap-3 px-5 pb-3 sm:pt-5 border-b border-slate-100">
+            <div className="min-w-0">
+              <h2 className="text-base sm:text-lg font-bold text-slate-800 leading-snug">
+                {note.title}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-500 flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
+                <span className="flex items-center gap-1">
+                  <BookOpen className="h-3.5 w-3.5" />
+                  {note.subject}
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="flex items-center gap-1">
+                  <Users className="h-3.5 w-3.5" />
+                  {note.class_name}
+                </span>
+                <span className="text-slate-300">·</span>
+                <span className="flex items-center gap-1">
+                  <Calendar className="h-3.5 w-3.5" />
+                  {new Date(note.created_at).toLocaleDateString('en-US', {
+                    month: 'long',
+                    day: 'numeric',
+                    year: 'numeric',
+                  })}
+                </span>
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="h-9 w-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors shrink-0"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1 space-y-5">
+        <div className={cn('flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-5', hideScrollbar)}>
           <div className="flex flex-wrap gap-2">
-            <Badge className="bg-blue-100 text-blue-700">{note.subject}</Badge>
-            <Badge className="bg-purple-100 text-purple-700">{note.class_name}</Badge>
+            <Badge className="bg-blue-100 text-blue-700 border-0">{note.subject}</Badge>
+            <Badge className="bg-violet-100 text-violet-700 border-0">{note.class_name}</Badge>
             {note.status === 'published' ? (
-              <Badge className="bg-emerald-100 text-emerald-700">
+              <Badge className="bg-emerald-100 text-emerald-700 border-0">
                 <CheckCircle2 className="h-3 w-3 mr-1" />
                 Published
               </Badge>
             ) : (
-              <Badge variant="outline" className="text-amber-600 border-amber-200">
+              <Badge className="bg-amber-100 text-amber-700 border-0">
                 <Clock className="h-3 w-3 mr-1" />
                 Draft
               </Badge>
@@ -605,15 +681,19 @@ function ViewNoteModal({
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-1">Content</p>
-            <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-600 whitespace-pre-wrap border border-slate-100">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+              Content
+            </p>
+            <div className="bg-slate-50 rounded-2xl p-4 text-sm text-slate-700 whitespace-pre-wrap border border-slate-100 leading-relaxed">
               {note.content}
             </div>
           </div>
 
           {note.attachments && note.attachments.length > 0 && (
             <div>
-              <p className="text-sm font-semibold text-slate-700 mb-2">Attachments</p>
+              <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                Attachments
+              </p>
               <div className="space-y-1.5">
                 {note.attachments.map((file) => (
                   <a
@@ -621,10 +701,12 @@ function ViewNoteModal({
                     href={file.url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 p-2.5 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors"
+                    className="flex items-center gap-2.5 p-3 bg-slate-50 rounded-xl border border-slate-100 hover:bg-slate-100 transition-colors"
                   >
-                    <Paperclip className="h-4 w-4 text-blue-500" />
-                    <span className="text-sm text-slate-700">{file.name}</span>
+                    <Paperclip className="h-4 w-4 text-blue-500 shrink-0" />
+                    <span className="text-sm font-medium text-slate-700 truncate">
+                      {file.name}
+                    </span>
                   </a>
                 ))}
               </div>
@@ -632,8 +714,8 @@ function ViewNoteModal({
           )}
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={onClose}>
+        <div className="px-5 py-4 border-t border-slate-100 flex justify-end shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-4">
+          <Button variant="outline" onClick={onClose} className="h-11 sm:h-10 rounded-xl">
             Close
           </Button>
         </div>
@@ -654,13 +736,11 @@ export default function StaffNotesPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingNote, setEditingNote] = useState<Note | null>(null)
   const [viewingNote, setViewingNote] = useState<Note | null>(null)
-  
+
   const [classes, setClasses] = useState<ClassOption[]>([])
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'published'>('all')
   const [searchQuery, setSearchQuery] = useState('')
-
-  // ─── Fetch Classes ──────────────────────────────────────────────────────────
 
   const fetchClasses = useCallback(async () => {
     if (!user?.id) return []
@@ -672,9 +752,8 @@ export default function StaffNotesPage() {
 
       if (error) throw error
 
-      const classNames = teacherClasses?.map((tc: any) => tc.class_name) || []
-      
-      // Get student counts for each class
+      const classNames = teacherClasses?.map((tc: { class_name: string }) => tc.class_name) || []
+
       const { data: students, error: studentError } = await supabase
         .from('profiles')
         .select('class')
@@ -685,10 +764,8 @@ export default function StaffNotesPage() {
       if (studentError) throw studentError
 
       const classCounts: Record<string, number> = {}
-      students?.forEach((s: any) => {
-        if (s.class) {
-          classCounts[s.class] = (classCounts[s.class] || 0) + 1
-        }
+      students?.forEach((s: { class?: string }) => {
+        if (s.class) classCounts[s.class] = (classCounts[s.class] || 0) + 1
       })
 
       const result = classNames.map((name: string) => ({
@@ -705,8 +782,6 @@ export default function StaffNotesPage() {
     }
   }, [user?.id])
 
-  // ─── Fetch Subjects ─────────────────────────────────────────────────────────
-
   const fetchSubjects = useCallback(async () => {
     const subjectOptions: SubjectOption[] = PRIMARY_SUBJECTS.map((sub) => ({
       id: sub.id,
@@ -716,27 +791,24 @@ export default function StaffNotesPage() {
     return subjectOptions
   }, [])
 
-  // ─── Fetch Notes ────────────────────────────────────────────────────────────
-
   const fetchNotes = useCallback(async () => {
     if (!user?.id) return
     setRefreshing(true)
     try {
       const { data, error } = await supabase
         .from('notes')
-        .select(`
-          *,
-          teacher:profiles!teacher_id(full_name)
-        `)
+        .select(`*, teacher:profiles!teacher_id(full_name)`)
         .eq('teacher_id', user.id)
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      setNotes((data || []).map((note: any) => ({
-        ...note,
-        teacher_name: note.teacher?.full_name || 'Unknown',
-      })))
+      setNotes(
+        (data || []).map((note: Note & { teacher?: { full_name?: string } }) => ({
+          ...note,
+          teacher_name: note.teacher?.full_name || 'Unknown',
+        }))
+      )
     } catch (error) {
       console.error('Error fetching notes:', error)
       toast.error('Failed to load notes')
@@ -745,31 +817,22 @@ export default function StaffNotesPage() {
     }
   }, [user?.id])
 
-  // ─── Initial Load ──────────────────────────────────────────────────────────
-
   useEffect(() => {
     if (!authLoading && user?.id) {
       const loadAll = async () => {
         setLoading(true)
-        await Promise.all([
-          fetchClasses(),
-          fetchSubjects(),
-          fetchNotes(),
-        ])
+        await Promise.all([fetchClasses(), fetchSubjects(), fetchNotes()])
         setLoading(false)
       }
       loadAll()
     }
   }, [authLoading, user?.id, fetchClasses, fetchSubjects, fetchNotes])
 
-  // ─── Save Note ──────────────────────────────────────────────────────────────
-
-  const handleSaveNote = async (data: any) => {
+  const handleSaveNote = async (data: Record<string, unknown>) => {
     if (!user?.id) return
 
     try {
       if (data.id) {
-        // Update existing note
         const { error } = await supabase
           .from('notes')
           .update({
@@ -780,23 +843,20 @@ export default function StaffNotesPage() {
             attachments: data.attachments,
             updated_at: new Date().toISOString(),
           })
-          .eq('id', data.id)
+          .eq('id', data.id as string)
 
         if (error) throw error
         toast.success('Note updated successfully')
       } else {
-        // Create new note
-        const { error } = await supabase
-          .from('notes')
-          .insert({
-            title: data.title,
-            subject: data.subject,
-            class_name: data.class_name,
-            content: data.content,
-            attachments: data.attachments,
-            teacher_id: user.id,
-            status: data.status || 'draft',
-          })
+        const { error } = await supabase.from('notes').insert({
+          title: data.title,
+          subject: data.subject,
+          class_name: data.class_name,
+          content: data.content,
+          attachments: data.attachments,
+          teacher_id: user.id,
+          status: (data.status as string) || 'draft',
+        })
 
         if (error) throw error
         toast.success('Note created successfully')
@@ -809,20 +869,14 @@ export default function StaffNotesPage() {
     }
   }
 
-  // ─── Publish Note ───────────────────────────────────────────────────────────
-
   const handlePublish = async (id: string) => {
     try {
       const { error } = await supabase
         .from('notes')
-        .update({
-          status: 'published',
-          published_at: new Date().toISOString(),
-        })
+        .update({ status: 'published', published_at: new Date().toISOString() })
         .eq('id', id)
 
       if (error) throw error
-      
       toast.success('Note published! Pupils can now view it.')
       await fetchNotes()
     } catch (error) {
@@ -831,19 +885,12 @@ export default function StaffNotesPage() {
     }
   }
 
-  // ─── Delete Note ────────────────────────────────────────────────────────────
-
   const handleDelete = async (id: string) => {
     if (!confirm('Are you sure you want to delete this note?')) return
 
     try {
-      const { error } = await supabase
-        .from('notes')
-        .delete()
-        .eq('id', id)
-
+      const { error } = await supabase.from('notes').delete().eq('id', id)
       if (error) throw error
-
       toast.success('Note deleted')
       await fetchNotes()
     } catch (error) {
@@ -852,14 +899,8 @@ export default function StaffNotesPage() {
     }
   }
 
-  // ─── Filtered Notes ─────────────────────────────────────────────────────────
-
   const filteredNotes = notes.filter((note) => {
-    // Status filter
-    if (filterStatus !== 'all' && note.status !== filterStatus) {
-      return false
-    }
-    // Search filter
+    if (filterStatus !== 'all' && note.status !== filterStatus) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       return (
@@ -871,35 +912,31 @@ export default function StaffNotesPage() {
     return true
   })
 
-  // ─── Loading States ──────────────────────────────────────────────────────
+  const publishedCount = notes.filter((n) => n.status === 'published').length
+  const draftCount = notes.filter((n) => n.status === 'draft').length
+  const totalFiles = notes.reduce((sum, n) => sum + (n.attachments?.length || 0), 0)
 
-  if (authLoading || loading) {
-    return <LoadingScreen />
-  }
+  if (authLoading || loading) return <LoadingScreen />
 
   if (!user) {
     router.replace('/portal')
     return null
   }
 
-  // ─── Render ────────────────────────────────────────────────────────────────
-
   return (
-    <div className="min-h-screen bg-slate-50">
-
-      {/* ── Sticky Header ─────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-100 sticky top-0 z-30 shadow-sm">
+    <div className="min-h-[100dvh] bg-slate-50/50 pb-24 lg:pb-8">
+      {/* Sticky Header */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                <NotebookPen className="h-4 w-4 text-white" />
+          <div className="flex items-center justify-between h-[73px]">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shrink-0">
+                <NotebookPen className="h-5 w-5 text-white" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-800 leading-none">Study Notes</p>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-none">
-                  Create, manage, and publish notes
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-none truncate">
+                  Create, manage & publish notes
                 </p>
               </div>
             </div>
@@ -909,131 +946,113 @@ export default function StaffNotesPage() {
                 setEditingNote(null)
                 setModalOpen(true)
               }}
-              className="bg-blue-600 hover:bg-blue-700 text-white gap-2 h-9 text-sm"
+              className="bg-blue-600 hover:bg-blue-700 text-white gap-2 h-10 sm:h-9 text-sm rounded-xl shrink-0"
             >
               <Plus className="h-4 w-4" />
-              New Note
+              <span className="hidden xs:inline sm:inline">New Note</span>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ── Main Content ──────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5 space-y-5">
+        {/* Stats — horizontal scroll on mobile */}
+        <div
+          className={cn(
+            'flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:pb-0',
+            hideScrollbar
+          )}
+        >
+          <StatCard label="Total" value={notes.length} icon={FileText} color="blue" />
+          <StatCard label="Published" value={publishedCount} icon={CheckCircle2} color="emerald" />
+          <StatCard label="Drafts" value={draftCount} icon={Clock} color="amber" />
+          <StatCard label="Total Files" value={totalFiles} icon={Paperclip} color="violet" />
+        </div>
 
-        {/* ── Filters Bar ────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        {/* Sticky filter bar */}
+        <div className="sticky top-[73px] z-20 bg-slate-50/90 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:static space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search notes..."
-              className="pl-9 focus-visible:ring-blue-500"
+              className="pl-10 h-11 sm:h-10 text-base sm:text-sm rounded-xl bg-white"
             />
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant={filterStatus === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('all')}
-              className={cn(
-                "h-8 text-xs",
-                filterStatus === 'all' ? "bg-slate-800 text-white" : "text-slate-600"
-              )}
-            >
-              All
-            </Button>
-            <Button
-              variant={filterStatus === 'draft' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('draft')}
-              className={cn(
-                "h-8 text-xs",
-                filterStatus === 'draft' ? "bg-amber-600 text-white" : "text-slate-600"
-              )}
-            >
-              Drafts
-            </Button>
-            <Button
-              variant={filterStatus === 'published' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('published')}
-              className={cn(
-                "h-8 text-xs",
-                filterStatus === 'published' ? "bg-emerald-600 text-white" : "text-slate-600"
-              )}
-            >
-              Published
-            </Button>
+          <div className={cn('flex gap-2 overflow-x-auto pb-1', hideScrollbar)}>
+            {(
+              [
+                { id: 'all', label: 'All', active: 'bg-slate-800 text-white' },
+                { id: 'draft', label: 'Drafts', active: 'bg-amber-600 text-white' },
+                { id: 'published', label: 'Published', active: 'bg-emerald-600 text-white' },
+              ] as const
+            ).map((f) => (
+              <button
+                key={f.id}
+                onClick={() => setFilterStatus(f.id)}
+                className={cn(
+                  'shrink-0 h-9 px-4 rounded-full text-xs font-semibold transition-all border',
+                  filterStatus === f.id
+                    ? f.active + ' border-transparent shadow-sm'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* ── Stats Bar ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Total</p>
-            <p className="text-lg font-bold text-slate-800">{notes.length}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Published</p>
-            <p className="text-lg font-bold text-emerald-600">
-              {notes.filter(a => a.status === 'published').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Drafts</p>
-            <p className="text-lg font-bold text-amber-600">
-              {notes.filter(a => a.status === 'draft').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Total Files</p>
-            <p className="text-lg font-bold text-blue-600">
-              {notes.reduce((sum, n) => sum + (n.attachments?.length || 0), 0)}
-            </p>
-          </div>
-        </div>
-
-        {/* ── Notes Grid ──────────────────────────────────────────────────── */}
+        {/* Notes grid */}
         {filteredNotes.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
+          <div className="bg-white rounded-3xl border border-slate-100 shadow-sm p-10 sm:p-12 text-center">
             <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
               <NotebookPen className="h-8 w-8 text-slate-400" />
             </div>
             <h3 className="text-lg font-bold text-slate-700 mb-1">No notes found</h3>
             <p className="text-sm text-slate-400 max-w-sm mx-auto">
               {searchQuery
-                ? 'No notes match your search criteria.'
+                ? 'No notes match your search. Try a different term.'
                 : filterStatus !== 'all'
-                ? `No ${filterStatus} notes yet.`
-                : 'Create your first note to get started.'}
+                  ? `No ${filterStatus} notes yet.`
+                  : 'Create your first note to get started.'}
             </p>
-            <Button
-              onClick={() => {
-                setEditingNote(null)
-                setModalOpen(true)
-              }}
-              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Create Note
-            </Button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 mt-5">
+              {(searchQuery || filterStatus !== 'all') && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSearchQuery('')
+                    setFilterStatus('all')
+                  }}
+                  className="h-10 rounded-xl"
+                >
+                  Clear filters
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  setEditingNote(null)
+                  setModalOpen(true)
+                }}
+                className="h-10 bg-blue-600 hover:bg-blue-700 text-white gap-2 rounded-xl"
+              >
+                <Plus className="h-4 w-4" />
+                Create Note
+              </Button>
+            </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
             {filteredNotes.map((note) => (
               <NoteCard
                 key={note.id}
                 note={note}
-                onView={(id) => {
-                  const found = notes.find(n => n.id === id)
-                  setViewingNote(found || null)
-                }}
+                onView={(id) => setViewingNote(notes.find((n) => n.id === id) || null)}
                 onEdit={(id) => {
-                  const found = notes.find(n => n.id === id)
-                  setEditingNote(found || null)
+                  setEditingNote(notes.find((n) => n.id === id) || null)
                   setModalOpen(true)
                 }}
                 onDelete={handleDelete}
@@ -1043,22 +1062,21 @@ export default function StaffNotesPage() {
           </div>
         )}
 
-        {/* ── Footer ────────────────────────────────────────────────────────── */}
-        <div className="text-center text-xs text-slate-400 pt-4 mt-6 border-t border-slate-200/50">
-          <p>Vincollins Schools Staff • Study Notes</p>
-          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
+        <div className="text-center text-xs text-slate-400 pt-4 mt-2 border-t border-slate-200/50">
+          <p>Vincollins Schools Staff · Study Notes</p>
+          <p className="mt-1">
+            &copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.
+          </p>
         </div>
-
-        {/* ── Refresh indicator ──────────────────────────────────────────── */}
-        {refreshing && (
-          <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-full shadow-xl text-xs font-medium">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-            Refreshing...
-          </div>
-        )}
       </div>
 
-      {/* ── Note Modal ────────────────────────────────────────────────────── */}
+      {refreshing && (
+        <div className="fixed bottom-24 lg:bottom-6 right-4 z-40 flex items-center gap-2 px-4 py-2.5 bg-slate-900 text-white rounded-full shadow-xl text-xs font-medium">
+          <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+          Refreshing...
+        </div>
+      )}
+
       <NoteModal
         open={modalOpen}
         onClose={() => {
@@ -1072,7 +1090,6 @@ export default function StaffNotesPage() {
         onSave={handleSaveNote}
       />
 
-      {/* ── View Note Modal ───────────────────────────────────────────────── */}
       <ViewNoteModal
         open={!!viewingNote}
         onClose={() => setViewingNote(null)}

@@ -56,10 +56,6 @@ import {
   FileText,
   BarChart3,
   ShieldAlert,
-  Info,
-  Calendar,
-  Mail,
-  MapPin,
   AlertCircle,
   CheckCircle2,
   Clock,
@@ -105,36 +101,38 @@ interface PupilStats {
   byClassArm: Record<string, number>
 }
 
+// ── Shared Scrollbar Hiding Class ──────────────────────────────────────────────
+const hideScrollbar = "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+
 // ── Loading Skeleton ──────────────────────────────────────────────────────────
 function PupilsLoadingSkeleton() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="h-8 w-48 bg-slate-200 animate-pulse rounded" />
-          <div className="h-4 w-64 bg-slate-200 animate-pulse rounded mt-1" />
+          <div className="h-8 w-48 bg-slate-200 animate-pulse rounded-lg" />
+          <div className="h-4 w-64 bg-slate-200 animate-pulse rounded mt-2" />
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-10 w-32 bg-slate-200 animate-pulse rounded-lg" />
-          <div className="h-10 w-10 bg-slate-200 animate-pulse rounded-lg" />
+          <div className="h-10 w-32 bg-slate-200 animate-pulse rounded-xl" />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className={`flex overflow-x-auto gap-4 pb-2 ${hideScrollbar}`}>
         {[1, 2, 3, 4].map((i) => (
-          <div key={i} className="h-24 bg-slate-200 animate-pulse rounded-xl" />
+          <div key={i} className="h-24 w-[160px] md:w-auto md:flex-1 shrink-0 bg-slate-200 animate-pulse rounded-2xl" />
         ))}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="h-10 flex-1 bg-slate-200 animate-pulse rounded-lg" />
-        <div className="h-10 w-40 bg-slate-200 animate-pulse rounded-lg" />
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="h-12 flex-1 bg-slate-200 animate-pulse rounded-xl" />
+        <div className="h-12 w-32 bg-slate-200 animate-pulse rounded-xl hidden sm:block" />
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="p-4">
+      <div className="rounded-2xl border border-slate-100 bg-white overflow-hidden">
+        <div className="p-4 space-y-3">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-12 bg-slate-100 animate-pulse rounded my-2" />
+            <div key={i} className="h-16 bg-slate-100 animate-pulse rounded-xl" />
           ))}
         </div>
       </div>
@@ -149,38 +147,36 @@ function StatCard({
   icon: Icon,
   color,
   subtitle,
-  onClick,
 }: {
   title: string
   value: number | string
   icon: React.ElementType
-  color: 'blue' | 'green' | 'amber' | 'rose' | 'violet' | 'cyan' | 'slate'
+  color: 'blue' | 'green' | 'amber' | 'violet'
   subtitle?: string
-  onClick?: () => void
 }) {
   const colors = {
     blue: 'bg-blue-50 border-blue-200 text-blue-600',
     green: 'bg-emerald-50 border-emerald-200 text-emerald-600',
     amber: 'bg-amber-50 border-amber-200 text-amber-600',
-    rose: 'bg-rose-50 border-rose-200 text-rose-600',
     violet: 'bg-violet-50 border-violet-200 text-violet-600',
-    cyan: 'bg-cyan-50 border-cyan-200 text-cyan-600',
-    slate: 'bg-slate-50 border-slate-200 text-slate-600',
   }
 
   return (
-    <div 
-      className={cn('rounded-2xl p-4 border shadow-sm', colors[color], onClick && 'cursor-pointer hover:shadow-md transition-all')}
-      onClick={onClick}
-    >
-      <div className="flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-white/50">
-          <Icon className="h-5 w-5" />
+    <div className={cn('rounded-2xl p-4 border shrink-0 w-[150px] sm:w-auto sm:flex-1 snap-start', colors[color])}>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center justify-between">
+          <div className="p-2 rounded-xl bg-white/60">
+            <Icon className="h-5 w-5" />
+          </div>
+          <p className="text-2xl font-bold tracking-tight">{value}</p>
         </div>
         <div>
-          <p className="text-2xl font-bold">{value}</p>
-          <p className="text-xs font-medium text-slate-500">{title}</p>
-          {subtitle && <p className="text-[10px] text-slate-400">{subtitle}</p>}
+          <p className="text-xs font-semibold text-slate-700">{title}</p>
+          {subtitle ? (
+            <p className="text-[10px] font-medium text-slate-500 mt-0.5">{subtitle}</p>
+          ) : (
+            <div className="h-[15px]" /> // Spacer to align cards
+          )}
         </div>
       </div>
     </div>
@@ -203,9 +199,14 @@ function PupilCard({ pupil, onView }: {
   const avatarUrl = pupil.photo_url || pupil.avatar_url || undefined
 
   return (
-    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors group">
-      <div className="flex items-center gap-3 min-w-0">
-        <Avatar className="h-10 w-10 shrink-0">
+    <div className="flex items-center justify-between p-3 sm:p-4 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all group">
+      
+      {/* Clickable Area for Mobile-First Tapping */}
+      <div 
+        onClick={() => onView(pupil)} 
+        className="flex-1 flex items-center gap-3 min-w-0 cursor-pointer"
+      >
+        <Avatar className="h-12 w-12 shrink-0 border border-slate-100">
           <AvatarImage src={avatarUrl} alt={displayName} />
           <AvatarFallback className={cn(
             'text-white text-sm font-bold',
@@ -216,94 +217,72 @@ function PupilCard({ pupil, onView }: {
             {initials || 'P'}
           </AvatarFallback>
         </Avatar>
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-800 truncate">{displayName}</p>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span className="flex items-center gap-0.5">
+        
+        <div className="min-w-0 flex-1">
+          <p className="text-sm sm:text-base font-semibold text-slate-800 truncate">
+            {displayName}
+          </p>
+          <div className="flex items-center gap-2 text-[11px] sm:text-xs text-slate-500 mt-0.5">
+            <span className="flex items-center gap-1 font-medium text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded-md">
               <GraduationCap className="h-3 w-3" />
               {pupil.class || 'Unassigned'}
               {pupil.class_arm && ` ${pupil.class_arm}`}
             </span>
-            {pupil.gender && (
-              <>
-                <span>•</span>
-                <span>{pupil.gender}</span>
-              </>
-            )}
             {pupil.vin_id && (
-              <>
-                <span>•</span>
-                <span>ID: {pupil.vin_id}</span>
-              </>
+              <span className="hidden sm:inline-block truncate">ID: {pupil.vin_id}</span>
             )}
           </div>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 ml-2 shrink-0">
         <Badge
           variant={pupil.is_active ? 'default' : 'secondary'}
           className={cn(
-            'text-[10px]',
-            pupil.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+            'text-[10px] hidden sm:flex',
+            pupil.is_active ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' : 'bg-slate-200 text-slate-600'
           )}
         >
-          {pupil.is_active ? (
-            <span className="flex items-center gap-1">
-              <CheckCircle2 className="h-2.5 w-2.5" />
-              Active
-            </span>
-          ) : (
-            <span className="flex items-center gap-1">
-              <Clock className="h-2.5 w-2.5" />
-              Inactive
-            </span>
-          )}
+          {pupil.is_active ? 'Active' : 'Inactive'}
         </Badge>
 
         {!pupil.is_active && (
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="h-5 w-5 rounded-full bg-amber-100 flex items-center justify-center">
-                  <AlertCircle className="h-3 w-3 text-amber-600" />
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p className="text-xs">This pupil is inactive</p>
-                <p className="text-xs text-slate-400">They can view previous info only</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <div className="h-6 w-6 rounded-full bg-amber-100 flex items-center justify-center sm:hidden">
+            <AlertCircle className="h-3.5 w-3.5 text-amber-600" />
+          </div>
         )}
 
+        {/* Action Dropdown */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full"
+            >
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => onView(pupil)}>
+          <DropdownMenuContent align="end" className="w-48 rounded-xl">
+            <DropdownMenuItem onClick={() => onView(pupil)} className="py-2">
               <Eye className="h-4 w-4 mr-2" />
               View Details
             </DropdownMenuItem>
-            {pupil.is_active && (
-              <DropdownMenuItem className="text-amber-600">
+            {pupil.is_active ? (
+              <DropdownMenuItem className="text-amber-600 py-2">
                 <UserX className="h-4 w-4 mr-2" />
-                Deactivate (Admin Only)
+                Deactivate
               </DropdownMenuItem>
-            )}
-            {!pupil.is_active && (
-              <DropdownMenuItem className="text-emerald-600">
+            ) : (
+              <DropdownMenuItem className="text-emerald-600 py-2">
                 <UserCheck className="h-4 w-4 mr-2" />
-                Activate (Admin Only)
+                Activate
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="text-xs text-slate-400" disabled>
+            <DropdownMenuItem className="text-xs text-slate-400 py-2" disabled>
               <ShieldAlert className="h-4 w-4 mr-2" />
-              Changes require admin access
+              Requires Admin
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -325,13 +304,14 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
+      <DialogContent className="w-[95vw] max-w-2xl rounded-2xl max-h-[90vh] overflow-hidden flex flex-col p-0 gap-0">
+        
+        <DialogHeader className="p-4 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50">
+          <DialogTitle className="flex items-center gap-4">
+            <Avatar className="h-14 w-14 border-2 border-white shadow-sm">
               <AvatarImage src={avatarUrl} alt={displayName} />
               <AvatarFallback className={cn(
-                'text-white font-bold',
+                'text-white font-bold text-lg',
                 pupil.is_active
                   ? 'bg-gradient-to-br from-blue-500 to-indigo-600'
                   : 'bg-gradient-to-br from-slate-400 to-slate-500'
@@ -339,180 +319,140 @@ function PupilDetailDialog({ pupil, open, onOpenChange }: {
                 {displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <div className="text-xl font-bold">{displayName}</div>
-              <div className="text-sm font-normal text-slate-500">{pupil.email}</div>
+            <div className="text-left">
+              <div className="text-lg sm:text-xl font-bold text-slate-800 leading-tight">
+                {displayName}
+              </div>
+              <div className="text-xs sm:text-sm font-medium text-slate-500 mt-1 flex items-center gap-2">
+                {pupil.vin_id && <span className="bg-slate-200 px-1.5 py-0.5 rounded text-[10px] text-slate-700">ID: {pupil.vin_id}</span>}
+                {pupil.class || 'No Class'}
+              </div>
             </div>
           </DialogTitle>
-          <DialogDescription>
-            Complete pupil information and details
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-5">
           {/* Status Banner */}
-          <div className="md:col-span-2">
-            <div className={cn(
-              'rounded-lg p-3 flex items-center gap-3',
-              pupil.is_active ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'
-            )}>
-              {pupil.is_active ? (
-                <>
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-700">Active Student</p>
-                    <p className="text-xs text-emerald-600">This student is currently active and receives all updates</p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <AlertCircle className="h-5 w-5 text-amber-600" />
-                  <div>
-                    <p className="text-sm font-semibold text-amber-700">Inactive Student</p>
-                    <p className="text-xs text-amber-600">This student cannot receive updates but can view previous information</p>
-                  </div>
-                </>
-              )}
+          <div className={cn(
+            'rounded-xl p-3 sm:p-4 flex items-start sm:items-center gap-3',
+            pupil.is_active ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'
+          )}>
+            {pupil.is_active ? (
+              <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+            )}
+            <div>
+              <p className={cn("text-sm font-semibold", pupil.is_active ? "text-emerald-800" : "text-amber-800")}>
+                {pupil.is_active ? 'Active Student' : 'Inactive Student'}
+              </p>
+              <p className={cn("text-xs mt-0.5", pupil.is_active ? "text-emerald-600" : "text-amber-600")}>
+                {pupil.is_active ? 'Currently active and receiving updates.' : 'Cannot receive updates; historical view only.'}
+              </p>
             </div>
           </div>
 
-          {/* Personal Information */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <User className="h-4 w-4 text-blue-500" />
-              Personal Information
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Full Name</span>
-                <span className="font-medium text-slate-700">{pupil.full_name || 'N/A'}</span>
-              </div>
-              {pupil.display_name && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Display Name</span>
-                  <span className="font-medium text-slate-700">{pupil.display_name}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            {/* Personal Information */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <User className="h-4 w-4" /> Personal
+              </h4>
+              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Full Name</span>
+                  <span className="font-semibold text-slate-800">{pupil.full_name || 'N/A'}</span>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-slate-500">Gender</span>
-                <span className="font-medium text-slate-700">{pupil.gender || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Date of Birth</span>
-                <span className="font-medium text-slate-700">
-                  {pupil.date_of_birth ? new Date(pupil.date_of_birth).toLocaleDateString() : 'N/A'}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* School Information */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <School className="h-4 w-4 text-emerald-500" />
-              School Information
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Class</span>
-                <span className="font-medium text-slate-700">{pupil.class || 'Unassigned'}</span>
-              </div>
-              {pupil.class_arm && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Class Arm</span>
-                  <span className="font-medium text-slate-700">{pupil.class_arm}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Gender</span>
+                  <span className="font-medium text-slate-700 capitalize">{pupil.gender || 'N/A'}</span>
                 </div>
-              )}
-              <div className="flex justify-between">
-                <span className="text-slate-500">Admission Number</span>
-                <span className="font-medium text-slate-700">{pupil.admission_number || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">VIN ID</span>
-                <span className="font-medium text-slate-700">{pupil.vin_id || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Status</span>
-                <Badge variant={pupil.is_active ? 'default' : 'secondary'} className="text-xs">
-                  {pupil.is_active ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-            </div>
-          </div>
-
-          {/* Contact Information */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Phone className="h-4 w-4 text-cyan-500" />
-              Contact Information
-            </h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Email</span>
-                <span className="font-medium text-slate-700 truncate max-w-[200px]">{pupil.email || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Phone</span>
-                <span className="font-medium text-slate-700">{pupil.phone || 'N/A'}</span>
-              </div>
-              {pupil.address && (
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Address</span>
-                  <span className="font-medium text-slate-700 text-right max-w-[200px]">{pupil.address}</span>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Date of Birth</span>
+                  <span className="font-medium text-slate-700">
+                    {pupil.date_of_birth ? new Date(pupil.date_of_birth).toLocaleDateString() : 'N/A'}
+                  </span>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
 
-          {/* Guardian Information */}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-              <Users className="h-4 w-4 text-violet-500" />
-              Guardian Information
-            </h4>
-            <div className="space-y-2 text-sm">
-              {pupil.guardian_name ? (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-slate-500">Guardian Name</span>
-                    <span className="font-medium text-slate-700">{pupil.guardian_name}</span>
-                  </div>
-                  {pupil.guardian_phone && (
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Guardian Phone</span>
-                      <span className="font-medium text-slate-700">{pupil.guardian_phone}</span>
+            {/* School Information */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <School className="h-4 w-4" /> Academic
+              </h4>
+              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Class & Arm</span>
+                  <span className="font-semibold text-slate-800">
+                    {pupil.class || 'Unassigned'} {pupil.class_arm && `(${pupil.class_arm})`}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Admission Number</span>
+                  <span className="font-medium text-slate-700">{pupil.admission_number || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Joined Date</span>
+                  <span className="font-medium text-slate-700">
+                    {new Date(pupil.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact Information */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Phone className="h-4 w-4" /> Contact
+              </h4>
+              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100">
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Email Address</span>
+                  <span className="font-medium text-slate-700 break-all">{pupil.email || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="text-[11px] text-slate-500 font-medium">Phone Number</span>
+                  <span className="font-medium text-slate-700">{pupil.phone || 'N/A'}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Guardian Information */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-2">
+                <Users className="h-4 w-4" /> Guardian
+              </h4>
+              <div className="space-y-2.5 text-sm bg-slate-50/50 rounded-xl p-4 border border-slate-100 h-[calc(100%-1.75rem)]">
+                {pupil.guardian_name ? (
+                  <>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-[11px] text-slate-500 font-medium">Guardian Name</span>
+                      <span className="font-medium text-slate-700">{pupil.guardian_name}</span>
                     </div>
-                  )}
-                </>
-              ) : (
-                <p className="text-slate-400 text-sm">No guardian information available</p>
-              )}
-            </div>
-          </div>
-
-          {/* Last Active */}
-          <div className="md:col-span-2">
-            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Clock className="h-3.5 w-3.5" />
-                <span>Last Active: {pupil.last_active ? new Date(pupil.last_active).toLocaleString() : 'N/A'}</span>
-                <span className="mx-2">•</span>
-                <span>Joined: {new Date(pupil.created_at).toLocaleDateString()}</span>
+                    {pupil.guardian_phone && (
+                      <div className="flex flex-col gap-0.5">
+                        <span className="text-[11px] text-slate-500 font-medium">Guardian Phone</span>
+                        <span className="font-medium text-slate-700">{pupil.guardian_phone}</span>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-slate-400 text-sm italic">No guardian data available</p>
+                )}
               </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="p-4 sm:p-6 border-t border-slate-100 bg-white">
+          <Button variant="outline" className="w-full sm:w-auto rounded-xl" onClick={() => onOpenChange(false)}>
             Close
           </Button>
-          <Button 
-            className="bg-blue-600 hover:bg-blue-700"
-            disabled
-          >
+          <Button className="w-full sm:w-auto rounded-xl bg-blue-600 hover:bg-blue-700 text-white" disabled>
             <ShieldAlert className="h-4 w-4 mr-2" />
-            Admin Only
+            Admin Edit
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -532,7 +472,6 @@ export default function StaffPupilsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedClass, setSelectedClass] = useState<string>('all')
   const [selectedStatus, setSelectedStatus] = useState<string>('all')
-  const [selectedView, setSelectedView] = useState<'list' | 'grid'>('list')
   const [selectedPupil, setSelectedPupil] = useState<Pupil | null>(null)
   const [detailOpen, setDetailOpen] = useState(false)
   
@@ -547,7 +486,7 @@ export default function StaffPupilsPage() {
 
   const [classes, setClasses] = useState<string[]>([])
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 20
+  const itemsPerPage = 30
 
   const isAdmin = user?.role === 'admin'
 
@@ -562,11 +501,7 @@ export default function StaffPupilsPage() {
         .in('role', ['pupil', 'student'])
         .order('full_name', { ascending: true })
 
-      if (error) {
-        console.error('Error fetching pupils:', error)
-        toast.error('Failed to load pupils')
-        return
-      }
+      if (error) throw error
 
       const pupilsData = (data || []) as Pupil[]
       setPupils(pupilsData)
@@ -581,16 +516,13 @@ export default function StaffPupilsPage() {
       const byClassArm: Record<string, number> = {}
       
       pupilsData.forEach(p => {
-        // By class
         const className = p.class || 'Unassigned'
         byClass[className] = (byClass[className] || 0) + 1
         
-        // By gender
         if (p.gender?.toLowerCase() === 'male') byGender.male++
         else if (p.gender?.toLowerCase() === 'female') byGender.female++
         else byGender.other++
         
-        // By class arm
         if (p.class_arm) {
           const key = `${className} - ${p.class_arm}`
           byClassArm[key] = (byClassArm[key] || 0) + 1
@@ -606,7 +538,6 @@ export default function StaffPupilsPage() {
         byClassArm,
       })
 
-      // Get unique classes
       const uniqueClasses = Array.from(new Set(pupilsData.map(p => p.class).filter(Boolean)))
       setClasses(uniqueClasses)
 
@@ -629,26 +560,19 @@ export default function StaffPupilsPage() {
   useEffect(() => {
     let filtered = [...pupils]
 
-    // Search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase().trim()
       filtered = filtered.filter(p =>
         p.full_name?.toLowerCase().includes(query) ||
         p.display_name?.toLowerCase().includes(query) ||
-        p.first_name?.toLowerCase().includes(query) ||
-        p.last_name?.toLowerCase().includes(query) ||
-        p.email?.toLowerCase().includes(query) ||
-        p.vin_id?.toLowerCase().includes(query) ||
-        p.admission_number?.toLowerCase().includes(query)
+        p.vin_id?.toLowerCase().includes(query)
       )
     }
 
-    // Class filter
     if (selectedClass !== 'all') {
       filtered = filtered.filter(p => p.class === selectedClass)
     }
 
-    // Status filter
     if (selectedStatus === 'active') {
       filtered = filtered.filter(p => p.is_active !== false)
     } else if (selectedStatus === 'inactive') {
@@ -656,7 +580,7 @@ export default function StaffPupilsPage() {
     }
 
     setFilteredPupils(filtered)
-    setCurrentPage(1)
+    setCurrentPage(1) // Reset to page 1 on filter change
   }, [searchQuery, selectedClass, selectedStatus, pupils])
 
   // ─── Pagination ──────────────────────────────────────────────────────────────
@@ -667,11 +591,10 @@ export default function StaffPupilsPage() {
     return filteredPupils.slice(start, end)
   }, [filteredPupils, currentPage, itemsPerPage])
 
-  // ─── Handlers ────────────────────────────────────────────────────────────────
   const handleRefresh = async () => {
     setRefreshing(true)
     await fetchPupils()
-    toast.success('Pupils refreshed!')
+    toast.success('Pupils list updated!')
     setRefreshing(false)
   }
 
@@ -680,11 +603,11 @@ export default function StaffPupilsPage() {
     setDetailOpen(true)
   }
 
-  // ─── Loading State ──────────────────────────────────────────────────────────
+  // ─── Render States ──────────────────────────────────────────────────────────
   if (authLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="min-h-[100dvh] bg-slate-50/50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           <PupilsLoadingSkeleton />
         </div>
       </div>
@@ -697,24 +620,24 @@ export default function StaffPupilsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+    <div className="min-h-[100dvh] bg-slate-50/50 pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
         {/* ── Header ──────────────────────────────────────────────────────────── */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
               <Users className="h-7 w-7 text-blue-600" />
-              Pupils
+              Pupil Directory
             </h1>
             <p className="text-sm text-slate-500 mt-1">
-              View all pupils across classes {!isAdmin && '• Read-only access'}
+              Manage and view all enrolled pupils across the school.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 self-start sm:self-auto">
             {!isAdmin && (
-              <Badge className="bg-amber-100 text-amber-700 text-xs">
-                <ShieldAlert className="h-3 w-3 mr-1" />
+              <Badge className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-lg border-0 shadow-sm">
+                <ShieldAlert className="h-3.5 w-3.5 mr-1" />
                 Read Only
               </Badge>
             )}
@@ -723,198 +646,157 @@ export default function StaffPupilsPage() {
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="border-slate-200"
+              className="rounded-xl border-slate-200 shadow-sm"
             >
-              <RefreshCw className={cn('h-4 w-4 mr-2', refreshing && 'animate-spin')} />
+              <RefreshCw className={cn('h-4 w-4 mr-2 text-slate-500', refreshing && 'animate-spin')} />
               Refresh
             </Button>
           </div>
         </div>
 
-        {/* ── Stats ────────────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Pupils"
-            value={stats.total}
-            icon={Users}
-            color="blue"
-          />
-          <StatCard
-            title="Active"
-            value={stats.active}
-            icon={UserCheck}
-            color="green"
-            subtitle={`${stats.active > 0 ? Math.round((stats.active / stats.total) * 100) : 0}% of total`}
-          />
-          <StatCard
-            title="Inactive"
-            value={stats.inactive}
-            icon={UserX}
-            color="amber"
-          />
-          <StatCard
-            title="Classes"
-            value={classes.length}
-            icon={GraduationCap}
-            color="violet"
-          />
+        {/* ── Mobile Horizontal Scroll Stats ────────────────────────────────────── */}
+        <div className={cn("flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:pb-0", hideScrollbar)}>
+          <StatCard title="Total Enrolled" value={stats.total} icon={Users} color="blue" />
+          <StatCard title="Active Pupils" value={stats.active} icon={UserCheck} color="green" subtitle={`${stats.active > 0 ? Math.round((stats.active / stats.total) * 100) : 0}% retention`} />
+          <StatCard title="Inactive" value={stats.inactive} icon={UserX} color="amber" />
+          <StatCard title="Total Classes" value={classes.length} icon={GraduationCap} color="violet" />
         </div>
 
-        {/* ── Search & Filters ─────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search pupils by name, email, ID..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 border-slate-200 focus:border-blue-400"
-            />
-          </div>
-          <div className="flex gap-2">
-            <Select value={selectedClass} onValueChange={setSelectedClass}>
-              <SelectTrigger className="w-[180px] border-slate-200">
-                <SelectValue placeholder="All Classes" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Classes</SelectItem>
-                {classes.map((cls) => (
-                  <SelectItem key={cls} value={cls}>{cls}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-[140px] border-slate-200">
-                <SelectValue placeholder="All Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="inactive">Inactive</SelectItem>
-              </SelectContent>
-            </Select>
+        {/* ── Sticky Search & Filters for Mobile ───────────────────────────────── */}
+        <div className="sticky top-0 z-20 bg-slate-50/90 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:static flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search name or ID..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                // text-base prevents iOS zoom on focus
+                className="pl-10 h-11 text-base sm:text-sm rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-blue-500"
+              />
+            </div>
+            
+            <div className="flex gap-2 shrink-0">
+              <Select value={selectedClass} onValueChange={setSelectedClass}>
+                <SelectTrigger className="w-[140px] h-11 rounded-xl bg-white border-slate-200 shadow-sm text-base sm:text-sm">
+                  <SelectValue placeholder="Class" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {classes.map((cls) => (
+                    <SelectItem key={cls} value={cls}>{cls}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-[120px] h-11 rounded-xl bg-white border-slate-200 shadow-sm text-base sm:text-sm">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
 
         {/* ── Results Count ────────────────────────────────────────────────────── */}
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-slate-500">
-            Showing {paginatedPupils.length} of {filteredPupils.length} pupils
+        <div className="flex items-center justify-between text-sm text-slate-500 font-medium">
+          <p>
+            {filteredPupils.length} {filteredPupils.length === 1 ? 'Pupil' : 'Pupils'} found
           </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedView('list')}
-              className={cn(
-                'h-8 w-8 p-0',
-                selectedView === 'list' ? 'bg-slate-200' : ''
-              )}
-            >
-              <FileText className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedView('grid')}
-              className={cn(
-                'h-8 w-8 p-0',
-                selectedView === 'grid' ? 'bg-slate-200' : ''
-              )}
-            >
-              <Grid3x3 className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
 
         {/* ── Pupils List ──────────────────────────────────────────────────────── */}
-        <Card className="border-0 shadow-soft">
-          <CardContent className="p-4">
-            {paginatedPupils.length === 0 ? (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
-                <p className="text-slate-500">No pupils found</p>
-                <p className="text-sm text-slate-400 mt-1">
-                  {searchQuery ? 'Try adjusting your search or filters' : 'No pupils registered yet'}
-                </p>
+        <div className="bg-transparent border-0 shadow-none">
+          {paginatedPupils.length === 0 ? (
+            <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 border-dashed">
+              <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Users className="h-8 w-8 text-slate-300" />
               </div>
-            ) : (
-              <div className="space-y-2">
-                {paginatedPupils.map((pupil) => (
-                  <PupilCard
-                    key={pupil.id}
-                    pupil={pupil}
-                    onView={handleView}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              <p className="text-slate-600 font-medium">No pupils found</p>
+              <p className="text-sm text-slate-400 mt-1 max-w-[250px] mx-auto">
+                {searchQuery ? 'Adjust your search or filters to find what you are looking for.' : 'No pupils are registered yet.'}
+              </p>
+              {(searchQuery || selectedClass !== 'all' || selectedStatus !== 'all') && (
+                <Button 
+                  variant="link" 
+                  onClick={() => { setSearchQuery(''); setSelectedClass('all'); setSelectedStatus('all'); }}
+                  className="mt-2 text-blue-600"
+                >
+                  Clear all filters
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+              {paginatedPupils.map((pupil) => (
+                <PupilCard
+                  key={pupil.id}
+                  pupil={pupil}
+                  onView={handleView}
+                />
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── Pagination ───────────────────────────────────────────────────────── */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between pt-4 border-t border-slate-200">
-            <p className="text-sm text-slate-500">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-slate-200/60">
+            <p className="text-sm text-slate-500 font-medium text-center sm:text-left">
               Page {currentPage} of {totalPages}
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.max(p - 1, 1))}
                 disabled={currentPage === 1}
-                className="border-slate-200"
+                className="rounded-xl border-slate-200 h-10 px-4"
               >
-                <ChevronLeft className="h-4 w-4" />
-                Previous
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Prev
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))}
                 disabled={currentPage === totalPages}
-                className="border-slate-200"
+                className="rounded-xl border-slate-200 h-10 px-4"
               >
                 Next
-                <ChevronRight className="h-4 w-4" />
+                <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
           </div>
         )}
 
-        {/* ── Class Breakdown ────────────────────────────────────────────────── */}
+        {/* ── Class Breakdown (Mobile Horizontal Scroll) ──────────────────────── */}
         {Object.keys(stats.byClass).length > 0 && (
-          <Card className="border-0 shadow-soft">
-            <CardHeader>
-              <CardTitle className="text-sm flex items-center gap-2">
-                <BarChart3 className="h-4 w-4 text-slate-600" />
-                Class Breakdown
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {Object.entries(stats.byClass)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([className, count]) => (
-                    <div
-                      key={className}
-                      className="flex items-center justify-between p-3 rounded-xl bg-slate-50"
-                    >
-                      <span className="text-sm font-medium text-slate-700">{className}</span>
-                      <Badge className="bg-blue-100 text-blue-700">{count} pupils</Badge>
-                    </div>
-                  ))}
-              </div>
-            </CardContent>
-          </Card>
+          <div className="pt-8">
+            <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2 mb-4">
+              <BarChart3 className="h-4 w-4 text-blue-500" />
+              Class Capacity Breakdown
+            </h3>
+            <div className={cn("flex overflow-x-auto gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:pb-0", hideScrollbar)}>
+              {Object.entries(stats.byClass)
+                .sort((a, b) => b[1] - a[1])
+                .map(([className, count]) => (
+                  <div
+                    key={className}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-white border border-slate-100 shadow-sm shrink-0 w-[140px] sm:w-auto"
+                  >
+                    <span className="text-sm font-semibold text-slate-700">{className}</span>
+                    <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200">{count}</Badge>
+                  </div>
+                ))}
+            </div>
+          </div>
         )}
-
-        {/* ── Footer ──────────────────────────────────────────────────────────── */}
-        <div className="text-center text-xs text-slate-400 pt-4 border-t border-slate-200/50">
-          <p>Vincollins Schools Pupils Management</p>
-          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
-        </div>
       </div>
 
       {/* ── Dialogs ───────────────────────────────────────────────────────────── */}

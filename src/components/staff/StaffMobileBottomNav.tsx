@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,13 +8,14 @@ import {
   LayoutDashboard, Calculator, CalendarCheck, BarChart3, 
   MoreHorizontal, X, FileText, Users, Notebook, 
   ClipboardCheck, Megaphone, UserCog, Settings, LogOut,
-  ChevronRight
+  ChevronRight, Bell
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface StaffMobileBottomNavProps {
   activeTab?: string
   onLogout?: () => void
+  accentColor?: string
 }
 
 const primaryNav = [
@@ -31,16 +31,30 @@ const moreNav = [
   { name: 'Study Notes', href: '/staff/notes', icon: Notebook, id: 'notes' },
   { name: 'Report Cards', href: '/staff/report-cards', icon: ClipboardCheck, id: 'report-cards' },
   { name: 'Announcements', href: '/staff/announcements', icon: Megaphone, id: 'announcements' },
+  { name: 'Notifications', href: '/staff/notifications', icon: Bell, id: 'notifications' },
   { name: 'Profile', href: '/staff/profile', icon: UserCog, id: 'profile' },
   { name: 'Settings', href: '/staff/settings', icon: Settings, id: 'settings' },
 ]
 
-export function StaffMobileBottomNav({ activeTab, onLogout }: StaffMobileBottomNavProps) {
+export function StaffMobileBottomNav({ 
+  onLogout,
+  accentColor = '#2563EB' // Default to Teacher Blue
+}: StaffMobileBottomNavProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [isMoreOpen, setIsMoreOpen] = useState(false)
 
-  // Check if the current path is in the "More" menu to highlight the More button
+  // Prevent body scroll when bottom sheet is open
+  useEffect(() => {
+    if (isMoreOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [isMoreOpen])
+
+  // Check if current path is in "More" menu to highlight More button
   const isMoreActive = moreNav.some(item => 
     pathname === item.href || pathname?.startsWith(item.href + '/')
   )
@@ -53,21 +67,38 @@ export function StaffMobileBottomNav({ activeTab, onLogout }: StaffMobileBottomN
   return (
     <>
       {/* ─── Bottom Nav Bar ──────────────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 lg:hidden pb-[env(safe-area-inset-bottom)]">
-        <div className="flex items-center justify-around h-16 px-2">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200/60 dark:border-slate-800/60 lg:hidden pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center justify-around h-16 px-1">
           {primaryNav.map((item) => {
             const isActive = pathname === item.href || (item.href !== '/staff' && pathname?.startsWith(item.href))
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className={cn(
-                  "flex flex-col items-center justify-center w-full h-full gap-1 transition-colors",
-                  isActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-                )}
+                className="group relative flex flex-col items-center justify-center w-full h-full gap-1 outline-none rounded-xl"
+                style={isActive ? { color: accentColor } : undefined}
               >
-                <item.icon className={cn("h-5 w-5", isActive && "stroke-[2.5px]")} />
-                <span className="text-[10px] font-medium">{item.name}</span>
+                {/* Active Indicator Blob (Optional visual enhancement over just colored text) */}
+                {isActive && (
+                  <motion.div
+                    layoutId="bottom-nav-indicator"
+                    className="absolute inset-0 opacity-10 rounded-xl"
+                    style={{ backgroundColor: accentColor }}
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                <item.icon 
+                  className={cn(
+                    "h-[22px] w-[22px] transition-transform group-active:scale-95", 
+                    isActive ? "stroke-[2.5px]" : "text-slate-500 dark:text-slate-400 stroke-[2px]"
+                  )} 
+                />
+                <span className={cn(
+                  "text-[10px] tracking-wide transition-colors",
+                  isActive ? "font-semibold" : "font-medium text-slate-500 dark:text-slate-400"
+                )}>
+                  {item.name}
+                </span>
               </Link>
             )
           })}
@@ -75,13 +106,29 @@ export function StaffMobileBottomNav({ activeTab, onLogout }: StaffMobileBottomN
           {/* More Button */}
           <button
             onClick={() => setIsMoreOpen(true)}
-            className={cn(
-              "flex flex-col items-center justify-center w-full h-full gap-1 transition-colors",
-              isMoreActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100"
-            )}
+            className="group relative flex flex-col items-center justify-center w-full h-full gap-1 outline-none rounded-xl"
+            style={isMoreActive ? { color: accentColor } : undefined}
           >
-            <MoreHorizontal className={cn("h-5 w-5", isMoreActive && "stroke-[2.5px]")} />
-            <span className="text-[10px] font-medium">More</span>
+            {isMoreActive && (
+              <motion.div
+                layoutId="bottom-nav-indicator"
+                className="absolute inset-0 opacity-10 rounded-xl"
+                style={{ backgroundColor: accentColor }}
+                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+              />
+            )}
+            <MoreHorizontal 
+              className={cn(
+                "h-[22px] w-[22px] transition-transform group-active:scale-95", 
+                isMoreActive ? "stroke-[2.5px]" : "text-slate-500 dark:text-slate-400 stroke-[2px]"
+              )} 
+            />
+            <span className={cn(
+              "text-[10px] tracking-wide transition-colors",
+              isMoreActive ? "font-semibold" : "font-medium text-slate-500 dark:text-slate-400"
+            )}>
+              More
+            </span>
           </button>
         </div>
       </nav>
@@ -96,7 +143,7 @@ export function StaffMobileBottomNav({ activeTab, onLogout }: StaffMobileBottomN
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMoreOpen(false)}
-              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 lg:hidden"
+              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 lg:hidden"
             />
 
             {/* Sheet */}
@@ -105,22 +152,34 @@ export function StaffMobileBottomNav({ activeTab, onLogout }: StaffMobileBottomN
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 rounded-t-3xl shadow-2xl lg:hidden max-h-[85vh] flex flex-col pb-[env(safe-area-inset-bottom)]"
+              drag="y"
+              dragConstraints={{ top: 0 }}
+              dragElastic={0.2}
+              onDragEnd={(_, { offset, velocity }) => {
+                if (offset.y > 100 || velocity.y > 500) {
+                  setIsMoreOpen(false)
+                }
+              }}
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 rounded-t-3xl shadow-2xl lg:hidden max-h-[85dvh] flex flex-col pb-[env(safe-area-inset-bottom)]"
             >
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800">
-                <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">More Options</h3>
-                <button
-                  onClick={() => setIsMoreOpen(false)}
-                  className="p-2 -mr-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+              {/* Drag Indicator & Header */}
+              <div className="flex flex-col items-center pt-3 pb-2 px-4 border-b border-slate-100 dark:border-slate-800/60 shrink-0">
+                <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-4" />
+                <div className="w-full flex items-center justify-between">
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">More Options</h3>
+                  <button
+                    onClick={() => setIsMoreOpen(false)}
+                    aria-label="Close menu"
+                    className="h-9 w-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Links */}
-              <div className="overflow-y-auto p-3">
-                <div className="grid grid-cols-1 gap-1">
+              {/* Scrollable Links */}
+              <div className="overflow-y-auto overscroll-contain px-4 py-3 hide-scrollbar">
+                <div className="grid grid-cols-1 gap-1.5">
                   {moreNav.map((item) => {
                     const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
                     return (
@@ -131,35 +190,48 @@ export function StaffMobileBottomNav({ activeTab, onLogout }: StaffMobileBottomN
                           router.push(item.href)
                         }}
                         className={cn(
-                          "flex items-center gap-3 w-full p-3 rounded-xl transition-all text-left",
+                          "flex items-center gap-3 w-full p-3 rounded-2xl transition-all text-left outline-none focus-visible:ring-2",
                           isActive 
-                            ? "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400" 
-                            : "hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300"
+                            ? "" 
+                            : "hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 active:scale-[0.98]"
                         )}
+                        style={isActive ? { 
+                          backgroundColor: `${accentColor}15`, 
+                          color: accentColor 
+                        } : undefined}
                       >
-                        <div className={cn(
-                          "h-9 w-9 rounded-lg flex items-center justify-center shrink-0",
-                          isActive ? "bg-emerald-100 dark:bg-emerald-900/50" : "bg-slate-100 dark:bg-slate-800"
-                        )}>
-                          <item.icon className={cn("h-4 w-4", isActive ? "text-emerald-600 dark:text-emerald-400" : "text-slate-500")} />
+                        <div 
+                          className={cn(
+                            "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
+                            isActive ? "" : "bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700"
+                          )}
+                          style={isActive ? { backgroundColor: `${accentColor}25` } : undefined}
+                        >
+                          <item.icon 
+                            className={cn("h-5 w-5", !isActive && "text-slate-500 dark:text-slate-400")} 
+                            style={isActive ? { color: accentColor } : undefined}
+                          />
                         </div>
-                        <span className="flex-1 text-sm font-medium">{item.name}</span>
-                        <ChevronRight className={cn("h-4 w-4", isActive ? "text-emerald-400" : "text-slate-300")} />
+                        <span className="flex-1 text-[15px] font-semibold">{item.name}</span>
+                        <ChevronRight 
+                          className={cn("h-4 w-4", !isActive && "text-slate-300 dark:text-slate-600")} 
+                          style={isActive ? { color: accentColor } : undefined}
+                        />
                       </button>
                     )
                   })}
                 </div>
 
                 {/* Logout Button */}
-                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/60">
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-3 w-full p-3 rounded-xl transition-all text-left hover:bg-red-50 dark:hover:bg-red-950/30 text-red-600 dark:text-red-400"
+                    className="flex items-center gap-3 w-full p-3 rounded-2xl transition-all text-left bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-700 dark:text-red-400 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-red-500"
                   >
-                    <div className="h-9 w-9 rounded-lg flex items-center justify-center shrink-0 bg-red-100 dark:bg-red-900/50">
-                      <LogOut className="h-4 w-4 text-red-600 dark:text-red-400" />
+                    <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 bg-white dark:bg-red-900/40 border border-red-100 dark:border-red-900/50 shadow-sm">
+                      <LogOut className="h-5 w-5 text-red-600 dark:text-red-400" />
                     </div>
-                    <span className="flex-1 text-sm font-medium">Sign Out</span>
+                    <span className="flex-1 text-[15px] font-semibold">Sign Out</span>
                   </button>
                 </div>
               </div>

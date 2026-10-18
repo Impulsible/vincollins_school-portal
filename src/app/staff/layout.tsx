@@ -3,9 +3,9 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useUser } from '@/contexts/UserContext'
+import { useUser, getRoleColors } from '@/contexts/UserContext' // ✅ Imported getRoleColors
 import { StaffSidebar } from '@/components/staff/StaffSidebar'
-import { StaffMobileBottomNav } from '@/components/staff/StaffMobileBottomNav' // ✅ Imported Bottom Nav
+import { StaffMobileBottomNav } from '@/components/staff/StaffMobileBottomNav'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { Loader2, ChevronRight, Home } from 'lucide-react'
@@ -98,6 +98,10 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
   const { user, loading: userLoading, logout } = useUser()
   const router = useRouter()
   const pathname = usePathname()
+  
+  // ✅ Get the role colors dynamically
+  const roleColors = getRoleColors(user?.role || 'teacher')
+
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [activeTab, setActiveTab] = useState('overview')
   const [mounted, setMounted] = useState(false)
@@ -307,10 +311,11 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
         </div>
       </div>
 
-      {/* ✅ Staff Mobile Bottom Navigation */}
+      {/* ✅ Pass the dynamic role color to the bottom nav */}
       <StaffMobileBottomNav 
         activeTab={activeTab} 
         onLogout={handleLogout} 
+        accentColor={roleColors.primary}
       />
     </div>
   )

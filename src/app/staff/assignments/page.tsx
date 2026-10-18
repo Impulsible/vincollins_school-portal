@@ -18,14 +18,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -34,10 +26,17 @@ import {
   Loader2, CheckCircle2, Trash2,
   Eye, Send, BookOpen,
   Pencil, Paperclip, FileIcon,
-  X, Upload, Save, RefreshCw, Search
+  X, Upload, Save, Search, MoreVertical,
 } from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
-// ── Types ─────────────────────────────────────────────────────────────────────
+const hideScrollbar = "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
 
 interface Assignment {
   id: string
@@ -74,8 +73,6 @@ interface SubjectOption {
   name: string
 }
 
-// ── Primary Subjects (from your existing constant) ──────────────────────────
-
 const PRIMARY_SUBJECTS = [
   { id: 'english', name: 'English', category: 'Core' },
   { id: 'mathematics', name: 'Mathematics', category: 'Core' },
@@ -101,26 +98,54 @@ const PRIMARY_SUBJECTS = [
   { id: 'phe', name: 'Physical and Health Education', category: 'Core' },
 ] as const
 
-// ── Loading Screen ────────────────────────────────────────────────────────────
-
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50/50">
       <div className="text-center">
         <div className="relative w-16 h-16 mx-auto mb-4">
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse" />
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse" />
           <div className="absolute inset-0 flex items-center justify-center">
             <BookOpen className="h-8 w-8 text-white" />
           </div>
         </div>
-        <p className="font-semibold text-slate-700">Loading assignments...</p>
-        <p className="text-sm text-slate-400 mt-1">Fetching your classes</p>
+        <p className="font-bold text-slate-800 text-lg">Loading assignments...</p>
+        <p className="text-sm text-slate-500 mt-1">Fetching your classes</p>
       </div>
     </div>
   )
 }
 
-// ── Assignment Card ────────────────────────────────────────────────────────────
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+}: {
+  label: string
+  value: number | string
+  icon: React.ElementType
+  color: 'blue' | 'emerald' | 'amber' | 'purple'
+}) {
+  const colorMap = {
+    blue: { bg: 'bg-blue-50', icon: 'bg-blue-500', border: 'border-blue-100' },
+    emerald: { bg: 'bg-emerald-50', icon: 'bg-emerald-500', border: 'border-emerald-100' },
+    amber: { bg: 'bg-amber-50', icon: 'bg-amber-500', border: 'border-amber-100' },
+    purple: { bg: 'bg-purple-50', icon: 'bg-purple-500', border: 'border-purple-100' },
+  }
+  const c = colorMap[color]
+
+  return (
+    <div className={cn('rounded-2xl p-4 border shrink-0 w-[140px] sm:w-auto snap-start shadow-sm', c.bg, c.border)}>
+      <div className="flex items-center justify-between mb-3">
+        <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shadow-sm', c.icon)}>
+          <Icon className="h-5 w-5 text-white" />
+        </div>
+      </div>
+      <p className="text-2xl font-bold text-slate-800 leading-none">{value}</p>
+      <p className="text-xs text-slate-500 font-semibold mt-1.5">{label}</p>
+    </div>
+  )
+}
 
 function AssignmentCard({
   assignment,
@@ -139,135 +164,123 @@ function AssignmentCard({
   const isOverdue = assignment.due_date && new Date(assignment.due_date) < new Date()
   
   return (
-    <Card className={cn(
-      "border-0 shadow-sm hover:shadow-md transition-all overflow-hidden",
-      isPublished ? "border-l-4 border-emerald-500" : "border-l-4 border-amber-400"
+    <div className={cn(
+      "rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all overflow-hidden group",
+      isPublished ? "border-l-4 border-l-emerald-500" : "border-l-4 border-l-amber-400"
     )}>
-      <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <CardTitle className="text-lg font-bold text-slate-800 flex items-center gap-2">
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-2 mb-2">
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-tight line-clamp-2 mb-1.5">
               {assignment.title}
-              {isPublished && (
-                <Badge className="bg-emerald-100 text-emerald-700 text-[10px]">
+            </h3>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {isPublished ? (
+                <Badge className="bg-emerald-100 text-emerald-700 text-[10px] border-0">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
                   Published
                 </Badge>
-              )}
-              {!isPublished && (
-                <Badge variant="outline" className="text-amber-600 border-amber-200 text-[10px]">
+              ) : (
+                <Badge className="bg-amber-100 text-amber-700 text-[10px] border-0">
                   <Clock className="h-3 w-3 mr-1" />
                   Draft
                 </Badge>
               )}
               {isPublished && isOverdue && (
-                <Badge variant="destructive" className="text-[10px]">
+                <Badge className="bg-rose-100 text-rose-700 text-[10px] border-0">
                   Overdue
                 </Badge>
               )}
-            </CardTitle>
-            <CardDescription className="mt-1 flex flex-wrap items-center gap-2 text-xs">
-              <span className="flex items-center gap-1">
-                <BookOpen className="h-3.5 w-3.5 text-slate-400" />
-                {assignment.subject}
-              </span>
-              <span className="text-slate-300">·</span>
-              <span className="flex items-center gap-1">
-                <Users className="h-3.5 w-3.5 text-slate-400" />
-                {assignment.class_name}
-              </span>
-              {assignment.due_date && (
-                <>
-                  <span className="text-slate-300">·</span>
-                  <span className={cn(
-                    "flex items-center gap-1",
-                    isOverdue && isPublished ? "text-rose-500 font-medium" : "text-slate-400"
-                  )}>
-                    <Calendar className="h-3.5 w-3.5" />
-                    {new Date(assignment.due_date).toLocaleDateString('en-US', {
-                      month: 'short', day: 'numeric', year: 'numeric'
-                    })}
-                  </span>
-                </>
+              <Badge className="bg-slate-100 text-slate-600 text-[10px] border-0">
+                {assignment.submission_count || 0} submissions
+              </Badge>
+            </div>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full shrink-0 text-slate-400 hover:text-slate-600">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44 rounded-xl">
+              <DropdownMenuItem onClick={() => onView(assignment.id)} className="py-2">
+                <Eye className="h-4 w-4 mr-2" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onEdit(assignment.id)} className="py-2 text-amber-600">
+                <Pencil className="h-4 w-4 mr-2" />
+                Edit
+              </DropdownMenuItem>
+              {!isPublished && (
+                <DropdownMenuItem onClick={() => onPublish(assignment.id)} className="py-2 text-emerald-600">
+                  <Send className="h-4 w-4 mr-2" />
+                  Publish Now
+                </DropdownMenuItem>
               )}
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-1">
-            <Badge variant="secondary" className="text-[10px] bg-slate-100">
-              {assignment.submission_count || 0} submissions
-            </Badge>
-          </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => onDelete(assignment.id)} className="py-2 text-rose-600">
+                <Trash2 className="h-4 w-4 mr-2" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </CardHeader>
-      
-      <CardContent className="pb-3">
-        <p className="text-sm text-slate-600 line-clamp-2">
+        
+        <p className="text-sm text-slate-600 line-clamp-2 mb-3 leading-relaxed">
           {assignment.description || 'No description provided.'}
         </p>
+
+        <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium text-slate-500 mb-3">
+          <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md">
+            <BookOpen className="h-3 w-3" />
+            {assignment.subject}
+          </span>
+          <span className="flex items-center gap-1 bg-slate-50 px-2 py-1 rounded-md">
+            <Users className="h-3 w-3" />
+            {assignment.class_name}
+          </span>
+          {assignment.due_date && (
+            <span className={cn(
+              "flex items-center gap-1 px-2 py-1 rounded-md",
+              isOverdue && isPublished ? "bg-rose-50 text-rose-600" : "bg-slate-50"
+            )}>
+              <Calendar className="h-3 w-3" />
+              {new Date(assignment.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+        </div>
+
         {assignment.attachments && assignment.attachments.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {assignment.attachments.slice(0, 3).map((file) => (
-              <Badge key={file.id} variant="outline" className="text-[10px] bg-slate-50">
+          <div className="flex flex-wrap gap-1.5 pt-3 border-t border-slate-100">
+            {assignment.attachments.slice(0, 2).map((file) => (
+              <Badge key={file.id} className="text-[10px] bg-blue-50 text-blue-700 border-0 font-medium">
                 <Paperclip className="h-3 w-3 mr-1" />
-                {file.name.length > 20 ? file.name.substring(0, 20) + '...' : file.name}
+                {file.name.length > 15 ? file.name.substring(0, 15) + '...' : file.name}
               </Badge>
             ))}
-            {assignment.attachments.length > 3 && (
-              <Badge variant="outline" className="text-[10px] bg-slate-50">
-                +{assignment.attachments.length - 3} more
+            {assignment.attachments.length > 2 && (
+              <Badge className="text-[10px] bg-slate-100 text-slate-600 border-0">
+                +{assignment.attachments.length - 2}
               </Badge>
             )}
           </div>
         )}
-      </CardContent>
-      
-      <CardFooter className="pt-2 border-t border-slate-100 flex flex-wrap justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onView(assignment.id)}
-            className="h-7 text-xs gap-1 text-slate-600 hover:text-blue-600"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            View
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onEdit(assignment.id)}
-            className="h-7 text-xs gap-1 text-slate-600 hover:text-amber-600"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            Edit
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => onDelete(assignment.id)}
-            className="h-7 text-xs gap-1 text-slate-600 hover:text-rose-600"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete
-          </Button>
-        </div>
-        
+
         {!isPublished && (
           <Button
             size="sm"
             onClick={() => onPublish(assignment.id)}
-            className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white gap-1"
+            className="w-full mt-3 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs"
           >
-            <Send className="h-3.5 w-3.5" />
-            Publish
+            <Send className="h-3.5 w-3.5 mr-1.5" />
+            Publish Assignment
           </Button>
         )}
-      </CardFooter>
-    </Card>
+      </div>
+    </div>
   )
 }
-
-// ── Create/Edit Assignment Modal ─────────────────────────────────────────────
 
 function AssignmentModal({
   open,
@@ -296,7 +309,6 @@ function AssignmentModal({
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Reset form when modal opens/closes
   useEffect(() => {
     if (open) {
       if (assignment) {
@@ -308,13 +320,8 @@ function AssignmentModal({
         setDueDate(assignment.due_date ? assignment.due_date.split('T')[0] : '')
         setAttachments(assignment.attachments || [])
       } else {
-        setTitle('')
-        setSubject('')
-        setClassName('')
-        setDescription('')
-        setInstructions('')
-        setDueDate('')
-        setAttachments([])
+        setTitle(''); setSubject(''); setClassName('')
+        setDescription(''); setInstructions(''); setDueDate(''); setAttachments([])
       }
     }
   }, [open, assignment])
@@ -322,70 +329,35 @@ function AssignmentModal({
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-
     setUploading(true)
     try {
       const fileExt = file.name.split('.').pop()
       const fileName = `${teacherId}-${Date.now()}.${fileExt}`
       const filePath = `assignments/${teacherId}/${fileName}`
-
-      const { error: uploadError } = await supabase.storage
-        .from('assignments')
-        .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: true
-        })
-
+      const { error: uploadError } = await supabase.storage.from('assignments').upload(filePath, file, { cacheControl: '3600', upsert: true })
       if (uploadError) throw uploadError
-
-      const { data: { publicUrl } } = supabase.storage
-        .from('assignments')
-        .getPublicUrl(filePath)
-
-      const newAttachment: Attachment = {
-        id: Date.now().toString(),
-        name: file.name,
-        url: publicUrl,
-        size: file.size,
-        type: file.type
-      }
-
-      setAttachments(prev => [...prev, newAttachment])
-      toast.success('File uploaded successfully')
+      const { data: { publicUrl } } = supabase.storage.from('assignments').getPublicUrl(filePath)
+      setAttachments(prev => [...prev, { id: Date.now().toString(), name: file.name, url: publicUrl, size: file.size, type: file.type }])
+      toast.success('File uploaded')
     } catch (error) {
-      console.error('Upload error:', error)
-      toast.error('Failed to upload file')
+      toast.error('Upload failed')
     } finally {
       setUploading(false)
       e.target.value = ''
     }
   }
 
-  const removeAttachment = (id: string) => {
-    setAttachments(prev => prev.filter(a => a.id !== id))
-  }
+  const removeAttachment = (id: string) => setAttachments(prev => prev.filter(a => a.id !== id))
 
   const handleSubmit = async () => {
-    if (!title.trim()) {
-      toast.error('Please enter a title')
-      return
-    }
-    if (!subject) {
-      toast.error('Please select a subject')
-      return
-    }
-    if (!class_name) {
-      toast.error('Please select a class')
-      return
-    }
-
+    if (!title.trim()) { toast.error('Please enter a title'); return }
+    if (!subject) { toast.error('Please select a subject'); return }
+    if (!class_name) { toast.error('Please select a class'); return }
     setSaving(true)
     try {
       await onSave({
         id: assignment?.id,
-        title: title.trim(),
-        subject,
-        class_name,
+        title: title.trim(), subject, class_name,
         description: description.trim() || null,
         instructions: instructions.trim() || null,
         due_date: dueDate || null,
@@ -395,8 +367,7 @@ function AssignmentModal({
       })
       onClose()
     } catch (error) {
-      console.error('Save error:', error)
-      toast.error('Failed to save assignment')
+      toast.error('Failed to save')
     } finally {
       setSaving(false)
     }
@@ -405,162 +376,120 @@ function AssignmentModal({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-xl font-bold text-slate-800">
-            {assignment ? 'Edit Assignment' : 'Create New Assignment'}
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl max-h-[92vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
+        
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
+          <h2 className="text-lg sm:text-xl font-bold text-slate-800">
+            {assignment ? 'Edit Assignment' : 'New Assignment'}
           </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-600 transition-colors"
-          >
+          <button onClick={onClose} className="h-9 w-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200">
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-120px)]">
-          {/* Title */}
+        <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
-              Assignment Title <span className="text-rose-500">*</span>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+              Title <span className="text-rose-500">*</span>
             </label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g., Chapter 5 Homework: Fractions"
-              className="focus-visible:ring-blue-500"
+              placeholder="e.g., Chapter 5 Homework"
+              className="h-11 text-base sm:text-sm rounded-xl focus-visible:ring-blue-500"
             />
           </div>
 
-          {/* Subject & Class */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
                 Subject <span className="text-rose-500">*</span>
               </label>
               <Select value={subject} onValueChange={setSubject}>
-                <SelectTrigger className="focus-visible:ring-blue-500">
+                <SelectTrigger className="h-11 text-base sm:text-sm rounded-xl">
                   <SelectValue placeholder="Select subject" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.name}>
-                      {s.name}
-                    </SelectItem>
+                    <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-sm font-semibold text-slate-700">
-                Target Class <span className="text-rose-500">*</span>
+              <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
+                Class <span className="text-rose-500">*</span>
               </label>
               <Select value={class_name} onValueChange={setClassName}>
-                <SelectTrigger className="focus-visible:ring-blue-500">
+                <SelectTrigger className="h-11 text-base sm:text-sm rounded-xl">
                   <SelectValue placeholder="Select class" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   {classes.map((c) => (
-                    <SelectItem key={c.id} value={c.name}>
-                      {c.name} ({c.studentCount} pupils)
-                    </SelectItem>
+                    <SelectItem key={c.id} value={c.name}>{c.name} ({c.studentCount})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
 
-          {/* Due Date */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
-              Due Date (optional)
-            </label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Due Date</label>
             <Input
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
-              className="focus-visible:ring-blue-500"
+              className="h-11 text-base sm:text-sm rounded-xl"
             />
           </div>
 
-          {/* Description */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
-              Description
-            </label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Description</label>
             <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Describe the assignment..."
-              className="min-h-[80px] focus-visible:ring-blue-500"
+              className="min-h-[80px] text-base sm:text-sm rounded-xl"
             />
           </div>
 
-          {/* Instructions */}
           <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
-              Instructions for Pupils
-            </label>
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Instructions</label>
             <Textarea
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
-              placeholder="Step-by-step instructions for pupils..."
-              className="min-h-[80px] focus-visible:ring-blue-500"
+              placeholder="Step-by-step instructions..."
+              className="min-h-[80px] text-base sm:text-sm rounded-xl"
             />
           </div>
 
-          {/* Attachments */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-semibold text-slate-700">
-              Attachments
-            </label>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => document.getElementById('file-upload')?.click()}
-                disabled={uploading}
-                className="text-blue-600 border-blue-200 hover:bg-blue-50"
-              >
-                {uploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <Upload className="h-4 w-4 mr-2" />
-                )}
-                Upload File
-              </Button>
-              <input
-                id="file-upload"
-                type="file"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-              <span className="text-xs text-slate-400">
-                PDF, Word, Excel, Images up to 10MB
-              </span>
-            </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Attachments</label>
+            <Button
+              variant="outline"
+              onClick={() => document.getElementById('file-upload')?.click()}
+              disabled={uploading}
+              className="w-full h-11 rounded-xl border-dashed border-slate-300 text-blue-600 hover:bg-blue-50"
+            >
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Upload className="h-4 w-4 mr-2" />}
+              {uploading ? 'Uploading...' : 'Upload File'}
+            </Button>
+            <input id="file-upload" type="file" className="hidden" onChange={handleFileUpload} />
 
-            {/* Attachment list */}
             {attachments.length > 0 && (
-              <div className="mt-2 space-y-1.5">
+              <div className="space-y-2 pt-2">
                 {attachments.map((file) => (
-                  <div
-                    key={file.id}
-                    className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100"
-                  >
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <FileIcon className="h-4 w-4 text-blue-500 flex-shrink-0" />
-                      <span className="text-sm truncate">{file.name}</span>
-                      <span className="text-xs text-slate-400 flex-shrink-0">
-                        {(file.size / 1024).toFixed(0)} KB
+                  <div key={file.id} className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0">
+                      <FileIcon className="h-4 w-4 text-blue-500 shrink-0" />
+                      <span className="text-sm truncate text-slate-700">{file.name}</span>
+                      <span className="text-xs text-slate-400 shrink-0">
+                        {(file.size / 1024).toFixed(0)}KB
                       </span>
                     </div>
-                    <button
-                      onClick={() => removeAttachment(file.id)}
-                      className="text-slate-400 hover:text-rose-500 transition-colors"
-                    >
+                    <button onClick={() => removeAttachment(file.id)} className="h-7 w-7 flex items-center justify-center rounded-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0">
                       <X className="h-4 w-4" />
                     </button>
                   </div>
@@ -570,29 +499,23 @@ function AssignmentModal({
           </div>
         </div>
 
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-          <Button variant="outline" onClick={onClose} disabled={saving}>
+        <div className="px-5 sm:px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-2 bg-white">
+          <Button variant="outline" onClick={onClose} disabled={saving} className="flex-1 sm:flex-none h-11 rounded-xl">
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={saving}
-            className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
+            className="flex-1 sm:flex-none h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold"
           >
-            {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4" />
-            )}
-            {assignment ? 'Update' : 'Create'} Assignment
+            {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+            {assignment ? 'Update' : 'Create'}
           </Button>
         </div>
       </div>
     </div>
   )
 }
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function StaffAssignmentsPage() {
   const router = useRouter()
@@ -604,405 +527,217 @@ export default function StaffAssignmentsPage() {
   const [modalOpen, setModalOpen] = useState(false)
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null)
   const [viewingAssignment, setViewingAssignment] = useState<Assignment | null>(null)
-  
   const [classes, setClasses] = useState<ClassOption[]>([])
   const [subjects, setSubjects] = useState<SubjectOption[]>([])
   const [filterStatus, setFilterStatus] = useState<'all' | 'draft' | 'published'>('all')
   const [searchQuery, setSearchQuery] = useState('')
 
-  // ─── Fetch Classes ──────────────────────────────────────────────────────────
-
   const fetchClasses = useCallback(async () => {
     if (!user?.id) return []
     try {
-      const { data: teacherClasses, error } = await supabase
-        .from('teacher_classes')
-        .select('class_name')
-        .eq('teacher_id', user.id)
-
+      const { data: teacherClasses, error } = await supabase.from('teacher_classes').select('class_name').eq('teacher_id', user.id)
       if (error) throw error
-
       const classNames = teacherClasses?.map((tc: any) => tc.class_name) || []
-      
-      // Get student counts for each class
-      const { data: students, error: studentError } = await supabase
-        .from('profiles')
-        .select('class')
-        .in('role', ['student', 'pupil'])
-        .in('class', classNames)
-        .eq('is_active', true)
-
+      const { data: students, error: studentError } = await supabase.from('profiles').select('class').in('role', ['student', 'pupil']).in('class', classNames).eq('is_active', true)
       if (studentError) throw studentError
-
       const classCounts: Record<string, number> = {}
-      students?.forEach((s: any) => {
-        if (s.class) {
-          classCounts[s.class] = (classCounts[s.class] || 0) + 1
-        }
-      })
-
-      const result = classNames.map((name: string) => ({
-        id: name,
-        name,
-        studentCount: classCounts[name] || 0,
-      }))
-
+      students?.forEach((s: any) => { if (s.class) classCounts[s.class] = (classCounts[s.class] || 0) + 1 })
+      const result = classNames.map((name: string) => ({ id: name, name, studentCount: classCounts[name] || 0 }))
       setClasses(result)
       return result
-    } catch (error) {
-      console.error('Error fetching classes:', error)
-      return []
-    }
+    } catch (error) { return [] }
   }, [user?.id])
 
-  // ─── Fetch Subjects ─────────────────────────────────────────────────────────
-
   const fetchSubjects = useCallback(async () => {
-    const subjectOptions: SubjectOption[] = PRIMARY_SUBJECTS.map((sub) => ({
-      id: sub.id,
-      name: sub.name,
-    }))
+    const subjectOptions: SubjectOption[] = PRIMARY_SUBJECTS.map((sub) => ({ id: sub.id, name: sub.name }))
     setSubjects(subjectOptions)
     return subjectOptions
   }, [])
-
-  // ─── Fetch Assignments ──────────────────────────────────────────────────────
 
   const fetchAssignments = useCallback(async () => {
     if (!user?.id) return
     setRefreshing(true)
     try {
-      const { data, error } = await supabase
-        .from('assignments')
-        .select(`
-          *,
-          teacher:profiles!teacher_id(full_name)
-        `)
-        .eq('teacher_id', user.id)
-        .order('created_at', { ascending: false })
-
+      const { data, error } = await supabase.from('assignments').select(`*, teacher:profiles!teacher_id(full_name)`).eq('teacher_id', user.id).order('created_at', { ascending: false })
       if (error) throw error
-
-      // Fetch submission counts for each assignment
-      const assignmentsWithCounts = await Promise.all(
-        (data || []).map(async (assignment: any) => {
-          const { count } = await supabase
-            .from('assignment_submissions')
-            .select('*', { count: 'exact', head: true })
-            .eq('assignment_id', assignment.id)
-
-          return {
-            ...assignment,
-            teacher_name: assignment.teacher?.full_name || 'Unknown',
-            submission_count: count || 0,
-          }
-        })
-      )
-
+      const assignmentsWithCounts = await Promise.all((data || []).map(async (assignment: any) => {
+        const { count } = await supabase.from('assignment_submissions').select('*', { count: 'exact', head: true }).eq('assignment_id', assignment.id)
+        return { ...assignment, teacher_name: assignment.teacher?.full_name || 'Unknown', submission_count: count || 0 }
+      }))
       setAssignments(assignmentsWithCounts)
     } catch (error) {
-      console.error('Error fetching assignments:', error)
       toast.error('Failed to load assignments')
-    } finally {
-      setRefreshing(false)
-    }
+    } finally { setRefreshing(false) }
   }, [user?.id])
-
-  // ─── Initial Load ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (!authLoading && user?.id) {
       const loadAll = async () => {
         setLoading(true)
-        await Promise.all([
-          fetchClasses(),
-          fetchSubjects(),
-          fetchAssignments(),
-        ])
+        await Promise.all([fetchClasses(), fetchSubjects(), fetchAssignments()])
         setLoading(false)
       }
       loadAll()
     }
   }, [authLoading, user?.id, fetchClasses, fetchSubjects, fetchAssignments])
 
-  // ─── Save Assignment ──────────────────────────────────────────────────────
-
   const handleSaveAssignment = async (data: any) => {
     if (!user?.id) return
-
     try {
       if (data.id) {
-        // Update existing assignment
-        const { error } = await supabase
-          .from('assignments')
-          .update({
-            title: data.title,
-            subject: data.subject,
-            class_name: data.class_name,
-            description: data.description,
-            instructions: data.instructions,
-            due_date: data.due_date,
-            attachments: data.attachments,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', data.id)
-
+        const { error } = await supabase.from('assignments').update({
+          title: data.title, subject: data.subject, class_name: data.class_name,
+          description: data.description, instructions: data.instructions,
+          due_date: data.due_date, attachments: data.attachments,
+          updated_at: new Date().toISOString(),
+        }).eq('id', data.id)
         if (error) throw error
-        toast.success('Assignment updated successfully')
+        toast.success('Assignment updated')
       } else {
-        // Create new assignment
-        const { error } = await supabase
-          .from('assignments')
-          .insert({
-            title: data.title,
-            subject: data.subject,
-            class_name: data.class_name,
-            description: data.description,
-            instructions: data.instructions,
-            due_date: data.due_date,
-            attachments: data.attachments,
-            teacher_id: user.id,
-            status: data.status || 'draft',
-          })
-
+        const { error } = await supabase.from('assignments').insert({
+          title: data.title, subject: data.subject, class_name: data.class_name,
+          description: data.description, instructions: data.instructions,
+          due_date: data.due_date, attachments: data.attachments,
+          teacher_id: user.id, status: data.status || 'draft',
+        })
         if (error) throw error
-        toast.success('Assignment created successfully')
+        toast.success('Assignment created')
       }
-
       await fetchAssignments()
-    } catch (error) {
-      console.error('Error saving assignment:', error)
-      throw error
-    }
+    } catch (error) { throw error }
   }
-
-  // ─── Publish Assignment ────────────────────────────────────────────────────
 
   const handlePublish = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('assignments')
-        .update({
-          status: 'published',
-          published_at: new Date().toISOString(),
-        })
-        .eq('id', id)
-
+      const { error } = await supabase.from('assignments').update({ status: 'published', published_at: new Date().toISOString() }).eq('id', id)
       if (error) throw error
-      
-      toast.success('Assignment published! Pupils can now view it.')
+      toast.success('Published! Pupils can now view it.')
       await fetchAssignments()
-    } catch (error) {
-      console.error('Error publishing assignment:', error)
-      toast.error('Failed to publish assignment')
-    }
+    } catch (error) { toast.error('Failed to publish') }
   }
-
-  // ─── Delete Assignment ─────────────────────────────────────────────────────
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this assignment?')) return
-
+    if (!confirm('Delete this assignment?')) return
     try {
-      const { error } = await supabase
-        .from('assignments')
-        .delete()
-        .eq('id', id)
-
+      const { error } = await supabase.from('assignments').delete().eq('id', id)
       if (error) throw error
-
-      toast.success('Assignment deleted')
+      toast.success('Deleted')
       await fetchAssignments()
-    } catch (error) {
-      console.error('Error deleting assignment:', error)
-      toast.error('Failed to delete assignment')
-    }
+    } catch (error) { toast.error('Failed to delete') }
   }
 
-  // ─── Filtered Assignments ──────────────────────────────────────────────────
-
-  const filteredAssignments = assignments.filter((assignment) => {
-    // Status filter
-    if (filterStatus !== 'all' && assignment.status !== filterStatus) {
-      return false
-    }
-    // Search filter
+  const filteredAssignments = assignments.filter((a) => {
+    if (filterStatus !== 'all' && a.status !== filterStatus) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      return (
-        assignment.title.toLowerCase().includes(q) ||
-        assignment.subject.toLowerCase().includes(q) ||
-        assignment.class_name.toLowerCase().includes(q)
-      )
+      return a.title.toLowerCase().includes(q) || a.subject.toLowerCase().includes(q) || a.class_name.toLowerCase().includes(q)
     }
     return true
   })
 
-  // ─── Loading States ──────────────────────────────────────────────────────
-
-  if (authLoading || loading) {
-    return <LoadingScreen />
-  }
-
-  if (!user) {
-    router.replace('/portal')
-    return null
-  }
-
-  // ─── Render ────────────────────────────────────────────────────────────────
+  if (authLoading || loading) return <LoadingScreen />
+  if (!user) { router.replace('/portal'); return null }
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-[100dvh] bg-slate-50/50 pb-20">
 
-      {/* ── Sticky Header ─────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-100 sticky top-0 z-30 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14">
-            
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm">
-                <FileText className="h-4 w-4 text-white" />
+      {/* Sticky Header */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shrink-0">
+                <FileText className="h-5 w-5 text-white" />
               </div>
-              <div>
-                <p className="text-sm font-bold text-slate-800 leading-none">Assignments</p>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-none">
-                  Create, manage, and publish assignments
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">Assignments</h1>
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-0.5 leading-none truncate">
+                  Create, publish & track homework
                 </p>
               </div>
             </div>
 
             <Button
-              onClick={() => {
-                setEditingAssignment(null)
-                setModalOpen(true)
-              }}
-              className="bg-blue-600 hover:bg-blue-700 text-white gap-2 h-9 text-sm"
+              onClick={() => { setEditingAssignment(null); setModalOpen(true) }}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-10 px-3 sm:px-4 shadow-sm shrink-0 font-semibold"
             >
-              <Plus className="h-4 w-4" />
-              New Assignment
+              <Plus className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">New</span>
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ── Main Content ──────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
 
-        {/* ── Filters Bar ────────────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        {/* Horizontal Scroll Stats */}
+        <div className={cn("flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-4 sm:gap-4 sm:pb-0", hideScrollbar)}>
+          <StatCard label="Total" value={assignments.length} icon={FileText} color="blue" />
+          <StatCard label="Published" value={assignments.filter(a => a.status === 'published').length} icon={CheckCircle2} color="emerald" />
+          <StatCard label="Drafts" value={assignments.filter(a => a.status === 'draft').length} icon={Clock} color="amber" />
+          <StatCard label="Submissions" value={assignments.reduce((sum, a) => sum + (a.submission_count || 0), 0)} icon={Users} color="purple" />
+        </div>
+
+        {/* Search & Filters */}
+        <div className="sticky top-[73px] z-20 bg-slate-50/90 backdrop-blur-md py-3 -mx-4 px-4 sm:mx-0 sm:px-0 sm:py-0 sm:bg-transparent sm:static space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search assignments..."
-              className="pl-9 focus-visible:ring-blue-500"
+              placeholder="Search by title, subject or class..."
+              className="pl-10 h-11 text-base sm:text-sm rounded-xl border-slate-200 bg-white shadow-sm focus-visible:ring-blue-500"
             />
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <Button
-              variant={filterStatus === 'all' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('all')}
-              className={cn(
-                "h-8 text-xs",
-                filterStatus === 'all' ? "bg-slate-800 text-white" : "text-slate-600"
-              )}
-            >
-              All
-            </Button>
-            <Button
-              variant={filterStatus === 'draft' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('draft')}
-              className={cn(
-                "h-8 text-xs",
-                filterStatus === 'draft' ? "bg-amber-600 text-white" : "text-slate-600"
-              )}
-            >
-              Drafts
-            </Button>
-            <Button
-              variant={filterStatus === 'published' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus('published')}
-              className={cn(
-                "h-8 text-xs",
-                filterStatus === 'published' ? "bg-emerald-600 text-white" : "text-slate-600"
-              )}
-            >
-              Published
-            </Button>
+          <div className={cn("flex gap-2 overflow-x-auto pb-1", hideScrollbar)}>
+            {([
+              { v: 'all', label: 'All', color: 'bg-slate-800' },
+              { v: 'draft', label: 'Drafts', color: 'bg-amber-600' },
+              { v: 'published', label: 'Published', color: 'bg-emerald-600' },
+            ] as const).map((item) => (
+              <Button
+                key={item.v}
+                variant={filterStatus === item.v ? 'default' : 'outline'}
+                onClick={() => setFilterStatus(item.v)}
+                className={cn(
+                  "h-10 rounded-xl shrink-0 font-semibold transition-colors border-slate-200",
+                  filterStatus === item.v ? `${item.color} text-white border-transparent` : 'bg-white text-slate-600 hover:bg-slate-50'
+                )}
+              >
+                {item.label}
+              </Button>
+            ))}
           </div>
         </div>
 
-        {/* ── Stats Bar ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Total</p>
-            <p className="text-lg font-bold text-slate-800">{assignments.length}</p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Published</p>
-            <p className="text-lg font-bold text-emerald-600">
-              {assignments.filter(a => a.status === 'published').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Drafts</p>
-            <p className="text-lg font-bold text-amber-600">
-              {assignments.filter(a => a.status === 'draft').length}
-            </p>
-          </div>
-          <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
-            <p className="text-xs text-slate-400 font-medium">Total Submissions</p>
-            <p className="text-lg font-bold text-blue-600">
-              {assignments.reduce((sum, a) => sum + (a.submission_count || 0), 0)}
-            </p>
-          </div>
+        {/* Results */}
+        <div className="flex items-center justify-between text-sm text-slate-500 font-medium">
+          <p>{filteredAssignments.length} assignment{filteredAssignments.length !== 1 ? 's' : ''}</p>
         </div>
 
-        {/* ── Assignments Grid ───────────────────────────────────────────── */}
         {filteredAssignments.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-              <FileText className="h-8 w-8 text-slate-400" />
+          <div className="text-center py-16 bg-white rounded-3xl border border-slate-100 border-dashed">
+            <div className="h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FileText className="h-8 w-8 text-slate-300" />
             </div>
-            <h3 className="text-lg font-bold text-slate-700 mb-1">No assignments found</h3>
-            <p className="text-sm text-slate-400 max-w-sm mx-auto">
-              {searchQuery
-                ? 'No assignments match your search criteria.'
-                : filterStatus !== 'all'
-                ? `No ${filterStatus} assignments yet.`
-                : 'Create your first assignment to get started.'}
+            <p className="text-slate-600 font-medium">No assignments found</p>
+            <p className="text-sm text-slate-400 mt-1 max-w-[280px] mx-auto">
+              {searchQuery ? 'Try adjusting your search.' : filterStatus !== 'all' ? `No ${filterStatus} assignments yet.` : 'Create your first assignment to get started.'}
             </p>
-            <Button
-              onClick={() => {
-                setEditingAssignment(null)
-                setModalOpen(true)
-              }}
-              className="mt-4 bg-blue-600 hover:bg-blue-700 text-white gap-2"
-            >
-              <Plus className="h-4 w-4" />
+            <Button onClick={() => { setEditingAssignment(null); setModalOpen(true) }} className="mt-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-11 px-6">
+              <Plus className="h-4 w-4 mr-2" />
               Create Assignment
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {filteredAssignments.map((assignment) => (
               <AssignmentCard
                 key={assignment.id}
                 assignment={assignment}
-                onView={(id) => {
-                  const found = assignments.find(a => a.id === id)
-                  setViewingAssignment(found || null)
-                }}
-                onEdit={(id) => {
-                  const found = assignments.find(a => a.id === id)
-                  setEditingAssignment(found || null)
-                  setModalOpen(true)
-                }}
+                onView={(id) => { const found = assignments.find(a => a.id === id); setViewingAssignment(found || null) }}
+                onEdit={(id) => { const found = assignments.find(a => a.id === id); setEditingAssignment(found || null); setModalOpen(true) }}
                 onDelete={handleDelete}
                 onPublish={handlePublish}
               />
@@ -1010,28 +745,15 @@ export default function StaffAssignmentsPage() {
           </div>
         )}
 
-        {/* ── Footer ────────────────────────────────────────────────────────── */}
-        <div className="text-center text-xs text-slate-400 pt-4 mt-6 border-t border-slate-200/50">
-          <p>Vincollins Schools Staff • Assignment Management</p>
-          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
+        <div className="text-center text-xs text-slate-400 pt-8 border-t border-slate-200/60 mt-8">
+          <p className="font-medium">Vincollins Schools Assignments</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} All rights reserved.</p>
         </div>
-
-        {/* ── Refresh indicator ──────────────────────────────────────────── */}
-        {refreshing && (
-          <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-full shadow-xl text-xs font-medium">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-            Refreshing...
-          </div>
-        )}
       </div>
 
-      {/* ── Assignment Modal ─────────────────────────────────────────────── */}
       <AssignmentModal
         open={modalOpen}
-        onClose={() => {
-          setModalOpen(false)
-          setEditingAssignment(null)
-        }}
+        onClose={() => { setModalOpen(false); setEditingAssignment(null) }}
         assignment={editingAssignment}
         classes={classes}
         subjects={subjects}
@@ -1039,104 +761,79 @@ export default function StaffAssignmentsPage() {
         onSave={handleSaveAssignment}
       />
 
-      {/* ── View Assignment Modal ────────────────────────────────────────── */}
       {viewingAssignment && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
-            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-slate-800">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[92vh] overflow-hidden flex flex-col animate-in slide-in-from-bottom sm:zoom-in-95 duration-300">
+            <div className="px-5 sm:px-6 py-4 border-b border-slate-100 flex items-start justify-between gap-3 bg-gradient-to-b from-slate-50 to-white">
+              <h2 className="text-lg sm:text-xl font-bold text-slate-800 flex-1 min-w-0">
                 {viewingAssignment.title}
               </h2>
-              <button
-                onClick={() => setViewingAssignment(null)}
-                className="text-slate-400 hover:text-slate-600 transition-colors"
-              >
+              <button onClick={() => setViewingAssignment(null)} className="h-9 w-9 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 shrink-0">
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-5 sm:p-6 space-y-4 overflow-y-auto flex-1">
               <div className="flex flex-wrap gap-2">
-                <Badge className="bg-blue-100 text-blue-700">
-                  {viewingAssignment.subject}
-                </Badge>
-                <Badge className="bg-purple-100 text-purple-700">
-                  {viewingAssignment.class_name}
-                </Badge>
+                <Badge className="bg-blue-100 text-blue-700 border-0">{viewingAssignment.subject}</Badge>
+                <Badge className="bg-purple-100 text-purple-700 border-0">{viewingAssignment.class_name}</Badge>
                 {viewingAssignment.status === 'published' ? (
-                  <Badge className="bg-emerald-100 text-emerald-700">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Published
-                  </Badge>
+                  <Badge className="bg-emerald-100 text-emerald-700 border-0"><CheckCircle2 className="h-3 w-3 mr-1" />Published</Badge>
                 ) : (
-                  <Badge variant="outline" className="text-amber-600 border-amber-200">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Draft
-                  </Badge>
+                  <Badge className="bg-amber-100 text-amber-700 border-0"><Clock className="h-3 w-3 mr-1" />Draft</Badge>
                 )}
               </div>
 
               {viewingAssignment.description && (
-                <div>
-                  <p className="text-sm font-semibold text-slate-700 mb-1">Description</p>
-                  <p className="text-sm text-slate-600">{viewingAssignment.description}</p>
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Description</p>
+                  <p className="text-sm text-slate-700 leading-relaxed">{viewingAssignment.description}</p>
                 </div>
               )}
 
               {viewingAssignment.instructions && (
-                <div>
-                  <p className="text-sm font-semibold text-slate-700 mb-1">Instructions</p>
-                  <p className="text-sm text-slate-600 whitespace-pre-wrap">{viewingAssignment.instructions}</p>
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Instructions</p>
+                  <p className="text-sm text-slate-700 whitespace-pre-wrap leading-relaxed">{viewingAssignment.instructions}</p>
                 </div>
               )}
 
               {viewingAssignment.due_date && (
-                <div>
-                  <p className="text-sm font-semibold text-slate-700 mb-1">Due Date</p>
-                  <p className="text-sm text-slate-600">
-                    {new Date(viewingAssignment.due_date).toLocaleDateString('en-US', {
-                      weekday: 'long',
-                      month: 'long',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
+                <div className="bg-slate-50 rounded-xl p-4">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Due Date</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {new Date(viewingAssignment.due_date).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
                   </p>
                 </div>
               )}
 
               {viewingAssignment.attachments && viewingAssignment.attachments.length > 0 && (
                 <div>
-                  <p className="text-sm font-semibold text-slate-700 mb-1">Attachments</p>
-                  <div className="space-y-1.5">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Attachments</p>
+                  <div className="space-y-2">
                     {viewingAssignment.attachments.map((file) => (
-                      <a
-                        key={file.id}
-                        href={file.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-100 hover:bg-slate-100 transition-colors"
-                      >
-                        <Paperclip className="h-4 w-4 text-blue-500" />
-                        <span className="text-sm text-slate-700">{file.name}</span>
+                      <a key={file.id} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-3 bg-blue-50 rounded-xl border border-blue-100 hover:bg-blue-100 transition-colors">
+                        <Paperclip className="h-4 w-4 text-blue-500 shrink-0" />
+                        <span className="text-sm text-slate-700 truncate">{file.name}</span>
                       </a>
                     ))}
                   </div>
                 </div>
               )}
             </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <Button variant="outline" onClick={() => setViewingAssignment(null)}>
+            <div className="px-5 sm:px-6 py-4 border-t border-slate-100 flex items-center justify-end gap-2 bg-white">
+              <Button variant="outline" onClick={() => setViewingAssignment(null)} className="flex-1 sm:flex-none h-11 rounded-xl">
                 Close
               </Button>
               <Button
                 onClick={() => {
-                  setViewingAssignment(null)
                   const found = assignments.find(a => a.id === viewingAssignment.id)
+                  setViewingAssignment(null)
                   setEditingAssignment(found || null)
                   setModalOpen(true)
                 }}
-                className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+                className="flex-1 sm:flex-none h-11 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-semibold"
               >
-                <Pencil className="h-4 w-4" />
+                <Pencil className="h-4 w-4 mr-2" />
                 Edit
               </Button>
             </div>

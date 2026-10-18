@@ -1,5 +1,4 @@
 /* eslint-disable react-hooks/set-state-in-effect */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // app/admin/layout.tsx
@@ -10,7 +9,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { Header } from '@/components/layout/header'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
-import { MobileBottomNav } from '@/components/layout/MobileBottomNav'
+import { AdminMobileBottomNav } from '@/components/admin/AdminMobileBottomNav'
 import AdminLoading from '@/components/admin/AdminLoading'
 import { cn } from '@/lib/utils'
 import { motion, AnimatePresence, type Variants } from 'framer-motion'
@@ -31,29 +30,34 @@ interface AdminProfile {
   role?: string
 }
 
-// ─── Route Maps ───────────────────────────────────────────────────────────────
 const routeToTabMap: Record<string, string> = {
   '/admin': 'overview',
+  '/admin/notifications': 'notifications',
   '/admin/broadsheet': 'broadsheet',
   '/admin/students': 'students',
   '/admin/staff': 'staff',
+  '/admin/teacher-classes': 'teacher-classes',
   '/admin/report-cards': 'report-cards',
   '/admin/inquiries': 'inquiries',
   '/admin/announcements': 'announcements',
   '/admin/promotions': 'promotions',
   '/admin/settings': 'settings',
+  '/admin/help': 'help',
 }
 
 const tabToRouteMap: Record<string, string> = {
   overview: '/admin',
+  notifications: '/admin/notifications',
   broadsheet: '/admin/broadsheet',
   students: '/admin/students',
   staff: '/admin/staff',
+  'teacher-classes': '/admin/teacher-classes',
   'report-cards': '/admin/report-cards',
   inquiries: '/admin/inquiries',
   announcements: '/admin/announcements',
   promotions: '/admin/promotions',
   settings: '/admin/settings',
+  help: '/admin/help',
 }
 
 const getTabFromPathname = (pathname: string): string => {
@@ -64,7 +68,6 @@ const getTabFromPathname = (pathname: string): string => {
   return 'overview'
 }
 
-// ─── Format Profile ───────────────────────────────────────────────────────────
 function formatProfileForHeader(profile: AdminProfile | null) {
   if (!profile) return undefined
   const displayName = profile.display_name || profile.full_name || 'Administrator'
@@ -81,13 +84,9 @@ function formatProfileForHeader(profile: AdminProfile | null) {
   }
 }
 
-// ─── Counts Cache ─────────────────────────────────────────────────────────────
 let countsCache: { data: any; timestamp: number } | null = null
 const COUNTS_CACHE_DURATION = 120_000
 
-// ─── Page transition variants ─────────────────────────────────────────────────
-// ✅ FIX 1: Properly typed `Variants` — `ease` must be a cubic-bezier tuple
-//    or one of the accepted string literals. Cast to Variants for safety.
 const pageVariants: Variants = {
   hidden: { opacity: 0, y: 8 },
   visible: {
@@ -102,34 +101,30 @@ const pageVariants: Variants = {
   },
 }
 
-// ─── Sidebar widths ───────────────────────────────────────────────────────────
 const SIDEBAR_EXPANDED = 256
 const SIDEBAR_COLLAPSED = 72
 
-// ─── Breadcrumb Component ─────────────────────────────────────────────────────
 function AdminBreadcrumb({ pathname }: { pathname: string }) {
-  // Don't show breadcrumb on the main admin page
   if (pathname === '/admin' || pathname === '/admin/') return null
 
-  // Generate breadcrumb items from pathname
   const segments = pathname.split('/').filter(Boolean)
-  
-  // Remove 'admin' from the segments for display
-  const displaySegments = segments.slice(1) // Skip 'admin'
+  const displaySegments = segments.slice(1)
   
   if (displaySegments.length === 0) return null
 
-  // Map segment to a readable label
   const getLabel = (segment: string): string => {
     const map: Record<string, string> = {
       'broadsheet': 'Broadsheet',
       'students': 'Students',
       'staff': 'Staff',
+      'teacher-classes': 'Teacher Classes',
       'report-cards': 'Report Cards',
       'inquiries': 'Inquiries',
       'announcements': 'Announcements',
       'promotions': 'Promotions',
+      'notifications': 'Notifications',
       'settings': 'Settings',
+      'help': 'Help & Support',
     }
     return map[segment] || segment.charAt(0).toUpperCase() + segment.slice(1).replace(/-/g, ' ')
   }
@@ -191,14 +186,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const prevPathRef = useRef(pathname)
   const isInitialMount = useRef(true)
 
-  // ── Init ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const init = async () => {
       setLoading(true)
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession()
+        const { data: { session } } = await supabase.auth.getSession()
 
         if (!session?.user) {
           router.push('/portal')
@@ -207,18 +199,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         const { data } = await supabase
           .from('profiles')
-          .select(
-            'id, full_name, display_name, first_name, last_name, middle_name, email, photo_url, avatar_url, role'
-          )
+          .select('id, full_name, display_name, first_name, last_name, middle_name, email, photo_url, avatar_url, role')
           .eq('id', session.user.id)
           .single()
 
         if (data) setProfile(data)
 
-        if (
-          countsCache &&
-          Date.now() - countsCache.timestamp < COUNTS_CACHE_DURATION
-        ) {
+        if (countsCache && Date.now() - countsCache.timestamp < COUNTS_CACHE_DURATION) {
           const c = countsCache.data
           setNotificationCount(c.notificationCount)
           setPendingReports(c.pendingReports)
@@ -229,41 +216,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         try {
           const [notifRes, reportsRes, inquiriesRes] = await Promise.allSettled([
-            supabase
-              .from('notifications')
-              .select('*', { count: 'exact', head: true })
-              .eq('user_id', session.user.id)
-              .eq('read', false),
-            supabase
-              .from('report_cards')
-              .select('*', { count: 'exact', head: true })
-              .eq('status', 'pending'),
-            supabase
-              .from('inquiries')
-              .select('*', { count: 'exact', head: true })
-              .eq('status', 'pending'),
+            supabase.from('notifications').select('*', { count: 'exact', head: true }).eq('user_id', session.user.id).eq('read', false),
+            supabase.from('report_cards').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+            supabase.from('inquiries').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
           ])
 
           const counts = {
-            notificationCount:
-              notifRes.status === 'fulfilled' ? notifRes.value.count ?? 0 : 0,
-            pendingReports:
-              reportsRes.status === 'fulfilled'
-                ? reportsRes.value.count ?? 0
-                : 0,
-            pendingInquiries:
-              inquiriesRes.status === 'fulfilled'
-                ? inquiriesRes.value.count ?? 0
-                : 0,
+            notificationCount: notifRes.status === 'fulfilled' ? notifRes.value.count ?? 0 : 0,
+            pendingReports: reportsRes.status === 'fulfilled' ? reportsRes.value.count ?? 0 : 0,
+            pendingInquiries: inquiriesRes.status === 'fulfilled' ? inquiriesRes.value.count ?? 0 : 0,
           }
 
           countsCache = { data: counts, timestamp: Date.now() }
           setNotificationCount(counts.notificationCount)
           setPendingReports(counts.pendingReports)
           setPendingInquiries(counts.pendingInquiries)
-        } catch {
-          /* silent */
-        }
+        } catch { /* silent */ }
       } catch (err) {
         console.error('[AdminLayout] init error:', err)
       } finally {
@@ -274,7 +242,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     init()
   }, [router])
 
-  // ── Sync tab with pathname ────────────────────────────────────────────────
   useEffect(() => {
     if (!pathname) return
     const tab = getTabFromPathname(pathname)
@@ -295,7 +262,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }, [pathname])
 
-  // ── Close mobile sidebar on route change ─────────────────────────────────
   useEffect(() => {
     if (mobileOpen) setMobileOpen(false)
   }, [pathname])
@@ -324,7 +290,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="min-h-screen bg-slate-50/60 overflow-x-hidden">
-      {/* Top progress bar */}
       <AnimatePresence>
         {isNavigating && (
           <motion.div
@@ -342,7 +307,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <Header user={headerUser} onLogout={handleLogout} />
 
       <div className="flex min-h-screen overflow-x-hidden">
-        {/* Desktop Sidebar */}
         <div className="hidden lg:block shrink-0">
           <AdminSidebar
             profile={profile}
@@ -353,10 +317,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             setActiveTab={handleTabChange}
             pendingReports={pendingReports}
             pendingInquiries={pendingInquiries}
+            unreadNotifications={notificationCount}
           />
         </div>
 
-        {/* Mobile Sidebar */}
         <AnimatePresence>
           {mobileOpen && (
             <motion.div
@@ -375,6 +339,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 setActiveTab={handleTabChange}
                 pendingReports={pendingReports}
                 pendingInquiries={pendingInquiries}
+                unreadNotifications={notificationCount}
                 isMobile
                 onMobileClose={() => setMobileOpen(false)}
               />
@@ -382,28 +347,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           )}
         </AnimatePresence>
 
-        {/* ✅ FIX 2: Main content — margin only on lg+ (fixes mobile squishing) */}
         <main
           className={cn(
             'flex-1 min-h-screen w-full',
-            'pt-16 pb-24 lg:pb-10',
+            'pt-16 pb-20 lg:pb-10',
             'overflow-x-hidden',
             'transition-[margin-left] duration-300 ease-in-out',
             'lg:ml-[var(--sidebar-w)]'
           )}
-          style={
-            {
-              '--sidebar-w': `${sidebarWidth}px`,
-            } as React.CSSProperties
-          }
+          style={{ '--sidebar-w': `${sidebarWidth}px` } as React.CSSProperties}
         >
           <div className="relative min-h-[calc(100vh-4rem)]">
             <div className="absolute top-0 inset-x-0 h-24 bg-gradient-to-b from-slate-100/60 to-transparent pointer-events-none z-0" />
-
             <div className="relative z-10 max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-              {/* Breadcrumb Navigation */}
               <AdminBreadcrumb pathname={pathname || '/admin'} />
-
               <AnimatePresence mode="wait">
                 <motion.div
                   key={pathname}
@@ -420,9 +377,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </main>
       </div>
 
-      {/* ✅ FIX 3: Removed `onLogout` prop — MobileBottomNav doesn't accept it.
-          Pass whatever props your MobileBottomNav actually expects below. */}
-      <MobileBottomNav />
+      <AdminMobileBottomNav 
+        onLogout={handleLogout}
+        pendingReports={pendingReports}
+        pendingInquiries={pendingInquiries}
+        unreadNotifications={notificationCount}
+        accentColor={roleColors.primary}
+      />
     </div>
   )
 }

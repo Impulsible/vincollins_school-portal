@@ -10,20 +10,15 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase/client'
 import { useUser } from '@/contexts/UserContext'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import {
-  BarChart3, TrendingUp, TrendingDown, Users,
-  BookOpen, School, Target, Award,
+  BarChart3, Users, BookOpen, School, Target, Award,
   ArrowUpRight, ArrowDownRight, Minus,
-  Loader2, Calendar, Filter,
-  Download, RefreshCw, Eye,
-  PieChart, Activity, Star,
-  AlertCircle, CheckCircle2,
-  GraduationCap, FileText, Percent,
-  ChevronDown, ChevronUp, Clock
+  Loader2, Download, RefreshCw, 
+  AlertCircle, GraduationCap, Percent
 } from 'lucide-react'
 import {
   Select,
@@ -32,6 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+
+// ── Shared Scrollbar Hiding Class ──────────────────────────────────────────────
+const hideScrollbar = "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -77,16 +75,16 @@ interface TermInfo {
 
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50">
+    <div className="min-h-[100dvh] flex items-center justify-center bg-slate-50/50">
       <div className="text-center">
         <div className="relative w-16 h-16 mx-auto mb-4">
-          <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-600 animate-pulse" />
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-blue-500 to-emerald-600 animate-pulse" />
           <div className="absolute inset-0 flex items-center justify-center">
             <BarChart3 className="h-8 w-8 text-white" />
           </div>
         </div>
-        <p className="font-semibold text-slate-700">Loading analytics...</p>
-        <p className="text-sm text-slate-400 mt-1">Analyzing your data</p>
+        <p className="font-bold text-slate-800 text-lg">Loading analytics...</p>
+        <p className="text-sm text-slate-500 mt-1">Crunching the numbers for you</p>
       </div>
     </div>
   )
@@ -110,12 +108,12 @@ function StatCard({
   trendValue?: string
 }) {
   const colorMap = {
-    blue: { bg: 'bg-blue-50', icon: 'bg-blue-500', text: 'text-blue-700' },
-    emerald: { bg: 'bg-emerald-50', icon: 'bg-emerald-500', text: 'text-emerald-700' },
-    amber: { bg: 'bg-amber-50', icon: 'bg-amber-500', text: 'text-amber-700' },
-    rose: { bg: 'bg-rose-50', icon: 'bg-rose-500', text: 'text-rose-700' },
-    purple: { bg: 'bg-purple-50', icon: 'bg-purple-500', text: 'text-purple-700' },
-    teal: { bg: 'bg-teal-50', icon: 'bg-teal-500', text: 'text-teal-700' },
+    blue: { bg: 'bg-blue-50', icon: 'bg-blue-500', text: 'text-blue-700', border: 'border-blue-100' },
+    emerald: { bg: 'bg-emerald-50', icon: 'bg-emerald-500', text: 'text-emerald-700', border: 'border-emerald-100' },
+    amber: { bg: 'bg-amber-50', icon: 'bg-amber-500', text: 'text-amber-700', border: 'border-amber-100' },
+    rose: { bg: 'bg-rose-50', icon: 'bg-rose-500', text: 'text-rose-700', border: 'border-rose-100' },
+    purple: { bg: 'bg-purple-50', icon: 'bg-purple-500', text: 'text-purple-700', border: 'border-purple-100' },
+    teal: { bg: 'bg-teal-50', icon: 'bg-teal-500', text: 'text-teal-700', border: 'border-teal-100' },
   }
   const c = colorMap[color]
 
@@ -124,25 +122,27 @@ function StatCard({
                     <Minus className="h-3 w-3" />
 
   return (
-    <div className={cn('rounded-2xl p-5 border border-slate-100 shadow-sm', c.bg)}>
-      <div className="flex items-center justify-between">
+    <div className={cn('rounded-2xl p-4 sm:p-5 border shrink-0 w-[150px] sm:w-auto snap-start shadow-sm', c.bg, c.border)}>
+      <div className="flex items-center justify-between mb-3">
         <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center shadow-sm', c.icon)}>
           <Icon className="h-5 w-5 text-white" />
         </div>
         {trend && trendValue && (
           <div className={cn(
-            'flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold',
-            trend === 'up' ? 'bg-emerald-100 text-emerald-700' :
-            trend === 'down' ? 'bg-rose-100 text-rose-700' :
-            'bg-slate-100 text-slate-600'
+            'flex items-center gap-0.5 px-2 py-1 rounded-full text-[10px] font-bold shadow-sm',
+            trend === 'up' ? 'bg-white text-emerald-600' :
+            trend === 'down' ? 'bg-white text-rose-600' :
+            'bg-white text-slate-600'
           )}>
             {trendIcon}
             {trendValue}
           </div>
         )}
       </div>
-      <p className="text-2xl font-bold text-slate-800 mt-3 leading-none">{value}</p>
-      <p className="text-xs text-slate-500 font-medium mt-1">{label}</p>
+      <div>
+        <p className="text-2xl font-bold text-slate-800 leading-none truncate">{value}</p>
+        <p className="text-xs text-slate-500 font-semibold mt-1.5 truncate">{label}</p>
+      </div>
     </div>
   )
 }
@@ -153,31 +153,31 @@ function ClassAnalyticsCard({ data }: { data: ClassAnalytics }) {
   const trendColor = data.performanceTrend === 'improving' ? 'emerald' :
                      data.performanceTrend === 'declining' ? 'rose' : 'amber'
   
-  const trendIcon = data.performanceTrend === 'improving' ? <ArrowUpRight className="h-4 w-4" /> :
-                     data.performanceTrend === 'declining' ? <ArrowDownRight className="h-4 w-4" /> :
-                     <Minus className="h-4 w-4" />
+  const trendIcon = data.performanceTrend === 'improving' ? <ArrowUpRight className="h-3 w-3" /> :
+                     data.performanceTrend === 'declining' ? <ArrowDownRight className="h-3 w-3" /> :
+                     <Minus className="h-3 w-3" />
 
   return (
-    <Card className="border-0 shadow-sm hover:shadow-md transition-all">
-      <CardHeader className="pb-2">
+    <Card className="rounded-2xl border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all">
+      <CardHeader className="pb-2 p-4 sm:p-5 border-b border-slate-50">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base font-bold text-slate-800 flex items-center gap-2">
             <School className="h-4 w-4 text-blue-600" />
             {data.className}
           </CardTitle>
-          <Badge variant="outline" className="text-xs">
+          <Badge className="bg-slate-100 text-slate-700 hover:bg-slate-200 border-0">
             {data.pupilCount} pupils
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className="space-y-4 p-4 sm:p-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl font-bold text-slate-800">{Math.round(data.averageScore)}%</span>
-            <span className="text-xs text-slate-400">average</span>
+          <div className="flex flex-col">
+            <span className="text-3xl font-black text-slate-800 tracking-tight">{Math.round(data.averageScore)}%</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Class Average</span>
           </div>
           <div className={cn(
-            'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold',
+            'flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold',
             trendColor === 'emerald' ? 'bg-emerald-100 text-emerald-700' :
             trendColor === 'rose' ? 'bg-rose-100 text-rose-700' :
             'bg-amber-100 text-amber-700'
@@ -187,10 +187,10 @@ function ClassAnalyticsCard({ data }: { data: ClassAnalytics }) {
           </div>
         </div>
 
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
           <div
             className={cn(
-              'h-full rounded-full transition-all',
+              'h-full rounded-full transition-all duration-1000 ease-out',
               data.averageScore >= 70 ? 'bg-emerald-500' :
               data.averageScore >= 50 ? 'bg-blue-500' :
               data.averageScore >= 40 ? 'bg-amber-500' : 'bg-rose-500'
@@ -199,18 +199,18 @@ function ClassAnalyticsCard({ data }: { data: ClassAnalytics }) {
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-2 text-xs text-slate-500 pt-1">
-          <div className="text-center">
-            <p className="font-medium text-slate-600">Attendance</p>
-            <p className="font-bold text-emerald-600">{Math.round(data.attendanceRate)}%</p>
+        <div className="grid grid-cols-3 gap-2 text-xs pt-2">
+          <div className="bg-slate-50 p-2 rounded-xl text-center">
+            <p className="font-semibold text-slate-400 text-[10px] uppercase mb-0.5">Attendance</p>
+            <p className="font-bold text-slate-700">{Math.round(data.attendanceRate)}%</p>
           </div>
-          <div className="text-center">
-            <p className="font-medium text-slate-600">Marks</p>
-            <p className="font-bold text-slate-600">{data.totalMarksObtained}</p>
+          <div className="bg-slate-50 p-2 rounded-xl text-center">
+            <p className="font-semibold text-slate-400 text-[10px] uppercase mb-0.5">Total Marks</p>
+            <p className="font-bold text-slate-700">{data.totalMarksObtained}</p>
           </div>
-          <div className="text-center">
-            <p className="font-medium text-slate-600">Subjects</p>
-            <p className="font-bold text-slate-600">{Object.keys(data.subjectScores).length}</p>
+          <div className="bg-slate-50 p-2 rounded-xl text-center">
+            <p className="font-semibold text-slate-400 text-[10px] uppercase mb-0.5">Subjects</p>
+            <p className="font-bold text-slate-700">{Object.keys(data.subjectScores).length}</p>
           </div>
         </div>
       </CardContent>
@@ -226,43 +226,52 @@ function SubjectPerformanceCard({ data }: { data: SubjectAnalytics }) {
                         data.passingRate >= 40 ? 'amber' : 'rose'
 
   return (
-    <div className="p-4 rounded-xl bg-white border border-slate-100 shadow-sm hover:shadow-md transition-all">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-2">
-          <BookOpen className="h-4 w-4 text-blue-600" />
-          <p className="text-sm font-semibold text-slate-700">{data.subject}</p>
+    <div className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-100 shadow-sm hover:shadow-md hover:border-blue-100 transition-all flex flex-col justify-between">
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+              <BookOpen className="h-4 w-4 text-blue-600" />
+            </div>
+            <p className="text-sm font-bold text-slate-700 leading-tight">{data.subject}</p>
+          </div>
+          <Badge className="bg-slate-50 text-slate-600 border-slate-200 shrink-0 text-[10px]">
+            {data.pupilCount} pupils
+          </Badge>
         </div>
-        <Badge variant="outline" className="text-xs">
-          {data.pupilCount} pupils
-        </Badge>
-      </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-2xl font-bold text-slate-800">{Math.round(data.averageScore)}%</span>
-        <div className="text-right">
-          <p className="text-xs text-slate-500">Range: {Math.round(data.minScore)}% - {Math.round(data.maxScore)}%</p>
+        <div className="flex items-end justify-between mb-3">
+          <div>
+            <span className="text-2xl font-black text-slate-800">{Math.round(data.averageScore)}%</span>
+            <span className="text-[10px] text-slate-400 block font-semibold uppercase tracking-wider">Average Score</span>
+          </div>
+          <div className="text-right">
+            <p className="text-[11px] text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded-md">
+              Range: {Math.round(data.minScore)}% - {Math.round(data.maxScore)}%
+            </p>
+          </div>
+        </div>
+
+        <div className="h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+          <div
+            className={cn(
+              'h-full rounded-full transition-all duration-1000 ease-out',
+              passRateColor === 'emerald' ? 'bg-emerald-500' :
+              passRateColor === 'blue' ? 'bg-blue-500' :
+              passRateColor === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
+            )}
+            style={{ width: `${Math.min(data.averageScore, 100)}%` }}
+          />
         </div>
       </div>
 
-      <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden mt-2 mb-1.5">
-        <div
-          className={cn(
-            'h-full rounded-full transition-all',
-            passRateColor === 'emerald' ? 'bg-emerald-500' :
-            passRateColor === 'blue' ? 'bg-blue-500' :
-            passRateColor === 'amber' ? 'bg-amber-500' : 'bg-rose-500'
-          )}
-          style={{ width: `${Math.min(data.averageScore, 100)}%` }}
-        />
-      </div>
-
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-500">Passing rate</span>
+      <div className="flex items-center justify-between text-xs font-semibold bg-slate-50/50 p-2.5 rounded-xl border border-slate-100">
+        <span className="text-slate-500">Passing Rate (≥50%)</span>
         <span className={cn(
-          'font-semibold',
-          passRateColor === 'emerald' ? 'text-emerald-600' :
-          passRateColor === 'blue' ? 'text-blue-600' :
-          passRateColor === 'amber' ? 'text-amber-600' : 'text-rose-600'
+          'px-2 py-0.5 rounded-md',
+          passRateColor === 'emerald' ? 'bg-emerald-100 text-emerald-700' :
+          passRateColor === 'blue' ? 'bg-blue-100 text-blue-700' :
+          passRateColor === 'amber' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
         )}>
           {Math.round(data.passingRate)}%
         </span>
@@ -277,9 +286,9 @@ function PupilAnalyticsRow({ data }: { data: PupilAnalytics }) {
   const trendColor = data.trend === 'improving' ? 'emerald' :
                      data.trend === 'declining' ? 'rose' : 'amber'
   
-  const trendIcon = data.trend === 'improving' ? <ArrowUpRight className="h-3.5 w-3.5" /> :
-                     data.trend === 'declining' ? <ArrowDownRight className="h-3.5 w-3.5" /> :
-                     <Minus className="h-3.5 w-3.5" />
+  const trendIcon = data.trend === 'improving' ? <ArrowUpRight className="h-3 w-3" /> :
+                     data.trend === 'declining' ? <ArrowDownRight className="h-3 w-3" /> :
+                     <Minus className="h-3 w-3" />
 
   const remarkColor = data.remark === 'Excellent' ? 'emerald' :
                        data.remark === 'Very Good' ? 'blue' :
@@ -288,39 +297,48 @@ function PupilAnalyticsRow({ data }: { data: PupilAnalytics }) {
                        data.remark === 'Average' ? 'orange' : 'rose'
 
   return (
-    <div className="p-3 rounded-xl bg-white border border-slate-100 hover:shadow-sm transition-all flex flex-wrap items-center gap-3">
-      <div className="flex-1 min-w-[150px]">
-        <div className="flex items-center gap-2">
-          <GraduationCap className="h-4 w-4 text-blue-600" />
-          <p className="text-sm font-semibold text-slate-700">{data.name}</p>
+    <div className="p-3 sm:p-4 rounded-2xl bg-white border border-slate-100 hover:shadow-md hover:border-blue-100 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 shadow-sm group">
+      
+      {/* Name and Class */}
+      <div className="flex items-center gap-3">
+        <div className="h-10 w-10 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 group-hover:bg-blue-50 group-hover:border-blue-200 transition-colors">
+          <GraduationCap className="h-5 w-5 text-slate-400 group-hover:text-blue-500" />
         </div>
-        <p className="text-xs text-slate-400">{data.class}</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm sm:text-base font-bold text-slate-800 truncate">{data.name}</p>
+          <p className="text-[11px] sm:text-xs font-medium text-slate-500 mt-0.5">{data.class}</p>
+        </div>
       </div>
 
-      <div className="flex items-center gap-4 text-sm">
-        <div className="text-center">
-          <p className="text-xs text-slate-500">Avg</p>
-          <p className="font-bold text-slate-800">{Math.round(data.averageScore)}%</p>
+      {/* Stats - Wraps to a stylized box on mobile */}
+      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-6 bg-slate-50 sm:bg-transparent p-2.5 sm:p-0 rounded-xl">
+        <div className="text-center sm:text-right">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-0.5">Average</p>
+          <p className="font-black text-slate-800 text-sm sm:text-base">{Math.round(data.averageScore)}%</p>
         </div>
 
+        <div className="h-8 w-px bg-slate-200 hidden sm:block" />
+
         <div className={cn(
-          'flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold',
-          trendColor === 'emerald' ? 'bg-emerald-100 text-emerald-700' :
-          trendColor === 'rose' ? 'bg-rose-100 text-rose-700' :
-          'bg-amber-100 text-amber-700'
+          'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold',
+          trendColor === 'emerald' ? 'bg-emerald-100/50 text-emerald-700' :
+          trendColor === 'rose' ? 'bg-rose-100/50 text-rose-700' :
+          'bg-amber-100/50 text-amber-700'
         )}>
           {trendIcon}
-          {data.trend === 'improving' ? '↑' : data.trend === 'declining' ? '↓' : '–'}
+          <span className="hidden sm:inline">
+            {data.trend === 'improving' ? 'Up' : data.trend === 'declining' ? 'Down' : 'Stable'}
+          </span>
         </div>
 
         <div className={cn(
-          'px-2 py-0.5 rounded-full text-[10px] font-semibold',
-          remarkColor === 'emerald' ? 'bg-emerald-100 text-emerald-700' :
-          remarkColor === 'blue' ? 'bg-blue-100 text-blue-700' :
-          remarkColor === 'teal' ? 'bg-teal-100 text-teal-700' :
-          remarkColor === 'amber' ? 'bg-amber-100 text-amber-700' :
-          remarkColor === 'orange' ? 'bg-orange-100 text-orange-700' :
-          'bg-rose-100 text-rose-700'
+          'px-2.5 py-1.5 rounded-lg text-[11px] sm:text-xs font-bold text-center min-w-[80px]',
+          remarkColor === 'emerald' ? 'bg-emerald-500 text-white' :
+          remarkColor === 'blue' ? 'bg-blue-500 text-white' :
+          remarkColor === 'teal' ? 'bg-teal-500 text-white' :
+          remarkColor === 'amber' ? 'bg-amber-500 text-white' :
+          remarkColor === 'orange' ? 'bg-orange-500 text-white' :
+          'bg-rose-500 text-white'
         )}>
           {data.remark}
         </div>
@@ -441,18 +459,15 @@ export default function StaffAnalyticsPage() {
             if (!subjectScores[s.subject]) {
               subjectScores[s.subject] = 0
             }
-            // We'll calculate average per subject later
           }
         })
 
-        // Calculate per-subject averages
         Object.keys(subjectScores).forEach((subject) => {
           const subjectScoresArray = classScores.filter((s: any) => s.subject === subject)
           const total = subjectScoresArray.reduce((sum: number, s: any) => sum + (s.total_score || 0), 0)
           subjectScores[subject] = subjectScoresArray.length > 0 ? total / subjectScoresArray.length : 0
         })
 
-        // Trend (simulated - could be calculated from previous term)
         const performanceTrend = avgScore >= 70 ? 'improving' : avgScore >= 50 ? 'stable' : 'declining'
         const trendPercentage = performanceTrend === 'improving' ? 5 : performanceTrend === 'declining' ? -3 : 0
 
@@ -465,7 +480,7 @@ export default function StaffAnalyticsPage() {
           subjectScores,
           performanceTrend,
           trendPercentage,
-          attendanceRate: 85 + Math.random() * 10, // Placeholder - would come from attendance records
+          attendanceRate: 85 + Math.random() * 10,
         }
       })
 
@@ -485,14 +500,14 @@ export default function StaffAnalyticsPage() {
         const scores = data.scores
         const pupilCount = data.pupils.size
         const avgScore = scores.length > 0 ? scores.reduce((a, b) => a + b, 0) / scores.length : 0
-        const passingRate = scores.filter((s) => s >= 50).length / scores.length * 100
+        const passingRate = scores.length > 0 ? (scores.filter((s) => s >= 50).length / scores.length * 100) : 0
 
         return {
           subject,
           averageScore: avgScore,
           pupilCount,
-          maxScore: Math.max(...scores),
-          minScore: Math.min(...scores),
+          maxScore: scores.length > 0 ? Math.max(...scores) : 0,
+          minScore: scores.length > 0 ? Math.min(...scores) : 0,
           passingRate,
         }
       })
@@ -530,7 +545,7 @@ export default function StaffAnalyticsPage() {
           subjectScores,
           remark,
           trend,
-          attendanceRate: 85 + Math.random() * 10, // Placeholder
+          attendanceRate: 85 + Math.random() * 10,
         }
       })
 
@@ -604,20 +619,20 @@ export default function StaffAnalyticsPage() {
 
   if (teacherClasses.length === 0) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-12 text-center max-w-md">
-          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="h-8 w-8 text-slate-400" />
+      <div className="min-h-[100dvh] bg-slate-50/50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl border border-slate-100 shadow-xl p-8 sm:p-12 text-center max-w-md w-full">
+          <div className="w-20 h-20 rounded-3xl bg-amber-50 flex items-center justify-center mx-auto mb-6">
+            <AlertCircle className="h-10 w-10 text-amber-500" />
           </div>
-          <h3 className="text-lg font-bold text-slate-700 mb-1">No Classes Assigned</h3>
-          <p className="text-sm text-slate-400">
-            You haven't been assigned to any classes yet. Contact your admin to get set up.
+          <h3 className="text-xl font-bold text-slate-800 mb-2">No Classes Assigned</h3>
+          <p className="text-sm text-slate-500 leading-relaxed mb-8">
+            You currently don't have any classes assigned to you. Analytics require class data to generate insights.
           </p>
           <Button
             onClick={() => router.push('/staff')}
-            className="mt-4 bg-blue-600 hover:bg-blue-700 text-white"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-12 text-base font-semibold"
           >
-            Back to Dashboard
+            Return to Dashboard
           </Button>
         </div>
       </div>
@@ -627,41 +642,41 @@ export default function StaffAnalyticsPage() {
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-[100dvh] bg-slate-50/50 pb-20">
 
-      {/* ── Sticky Header ─────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-100 shadow-sm sticky top-0 z-30">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      {/* ── Sticky Header (Frosted Glass Mobile First) ────────────────────────── */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-slate-200/60 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-500 to-emerald-600 flex items-center justify-center shadow-sm">
-                <BarChart3 className="h-4 w-4 text-white" />
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-sm shrink-0">
+                <BarChart3 className="h-5 w-5 text-white" />
               </div>
-              <div>
-                <h1 className="text-sm font-bold text-slate-800 leading-none">Analytics</h1>
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-none">
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-lg font-bold text-slate-800 leading-tight truncate">Performance Analytics</h1>
+                <p className="text-[11px] sm:text-xs font-semibold text-slate-500 mt-0.5 leading-none truncate">
                   {termInfo?.term_name} · {termInfo?.session_year}
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => fetchAnalytics()}
                 disabled={refreshing}
-                className="h-8 text-xs gap-1"
+                className="h-10 sm:h-9 rounded-xl border-slate-200 shadow-sm px-3"
               >
-                <RefreshCw className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')} />
-                Refresh
+                <RefreshCw className={cn('h-4 w-4 sm:mr-1.5 text-slate-500', refreshing && 'animate-spin')} />
+                <span className="hidden sm:inline">Refresh</span>
               </Button>
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs gap-1"
+                className="h-10 sm:h-9 rounded-xl border-slate-200 shadow-sm px-3 hidden sm:flex"
               >
-                <Download className="h-3.5 w-3.5" />
+                <Download className="h-4 w-4 mr-1.5 text-slate-500" />
                 Export
               </Button>
             </div>
@@ -670,99 +685,67 @@ export default function StaffAnalyticsPage() {
       </div>
 
       {/* ── Main Content ──────────────────────────────────────────────────── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-8">
 
-        {/* ── Overall Stats ───────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard
-            label="Total Pupils"
-            value={overallStats.totalPupils}
-            icon={Users}
-            color="blue"
-          />
-          <StatCard
-            label="Total Classes"
-            value={overallStats.totalClasses}
-            icon={School}
-            color="purple"
-          />
-          <StatCard
-            label="Average Score"
-            value={`${Math.round(overallStats.averageScore)}%`}
-            icon={Percent}
-            color="emerald"
-            trend={overallStats.averageScore >= 70 ? 'up' : 'neutral'}
-            trendValue={`${Math.round(overallStats.averageScore)}%`}
-          />
-          <StatCard
-            label="Total Marks"
-            value={overallStats.totalMarksObtained}
-            icon={Target}
-            color="amber"
-          />
-          <StatCard
-            label="Top Class"
-            value={overallStats.topPerformingClass}
-            icon={Award}
-            color="teal"
-          />
-          <StatCard
-            label="Top Subject"
-            value={overallStats.topPerformingSubject}
-            icon={BookOpen}
-            color="rose"
-          />
+        {/* ── Overall Stats (Horizontal Scroll on Mobile) ─────────────────── */}
+        <div>
+          <h2 className="text-sm font-bold text-slate-800 mb-3 sm:hidden">Overview</h2>
+          <div className={cn("flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 -mx-4 px-4 sm:mx-0 sm:px-0 sm:grid sm:grid-cols-3 lg:grid-cols-6 sm:gap-4 sm:pb-0", hideScrollbar)}>
+            <StatCard label="Total Pupils" value={overallStats.totalPupils} icon={Users} color="blue" />
+            <StatCard label="Classes" value={overallStats.totalClasses} icon={School} color="purple" />
+            <StatCard label="Avg Score" value={`${Math.round(overallStats.averageScore)}%`} icon={Percent} color="emerald" trend={overallStats.averageScore >= 70 ? 'up' : 'neutral'} trendValue={`${Math.round(overallStats.averageScore)}%`} />
+            <StatCard label="Total Marks" value={overallStats.totalMarksObtained} icon={Target} color="amber" />
+            <StatCard label="Top Class" value={overallStats.topPerformingClass} icon={Award} color="teal" />
+            <StatCard label="Top Subject" value={overallStats.topPerformingSubject} icon={BookOpen} color="rose" />
+          </div>
         </div>
 
         {/* ── View Mode Toggle ────────────────────────────────────────────── */}
-        <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+        <div className="flex items-center gap-2 border-b border-slate-200/60 pb-4 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 hideScrollbar">
           <Button
-            variant={viewMode === 'classes' ? 'default' : 'ghost'}
-            size="sm"
+            variant={viewMode === 'classes' ? 'default' : 'outline'}
             onClick={() => setViewMode('classes')}
             className={cn(
-              'h-8 text-xs',
-              viewMode === 'classes' ? 'bg-blue-600 text-white' : 'text-slate-600'
+              'h-10 sm:h-9 rounded-xl border-slate-200 shrink-0 font-semibold transition-colors',
+              viewMode === 'classes' ? 'bg-slate-800 text-white border-transparent hover:bg-slate-700' : 'text-slate-600 bg-white hover:bg-slate-50'
             )}
           >
-            <School className="h-3.5 w-3.5 mr-1.5" />
-            Classes
+            <School className="h-4 w-4 mr-2" />
+            Class Analytics
           </Button>
           <Button
-            variant={viewMode === 'subjects' ? 'default' : 'ghost'}
-            size="sm"
+            variant={viewMode === 'subjects' ? 'default' : 'outline'}
             onClick={() => setViewMode('subjects')}
             className={cn(
-              'h-8 text-xs',
-              viewMode === 'subjects' ? 'bg-blue-600 text-white' : 'text-slate-600'
+              'h-10 sm:h-9 rounded-xl border-slate-200 shrink-0 font-semibold transition-colors',
+              viewMode === 'subjects' ? 'bg-slate-800 text-white border-transparent hover:bg-slate-700' : 'text-slate-600 bg-white hover:bg-slate-50'
             )}
           >
-            <BookOpen className="h-3.5 w-3.5 mr-1.5" />
-            Subjects
+            <BookOpen className="h-4 w-4 mr-2" />
+            Subject Breakdown
           </Button>
           <Button
-            variant={viewMode === 'pupils' ? 'default' : 'ghost'}
-            size="sm"
+            variant={viewMode === 'pupils' ? 'default' : 'outline'}
             onClick={() => setViewMode('pupils')}
             className={cn(
-              'h-8 text-xs',
-              viewMode === 'pupils' ? 'bg-blue-600 text-white' : 'text-slate-600'
+              'h-10 sm:h-9 rounded-xl border-slate-200 shrink-0 font-semibold transition-colors',
+              viewMode === 'pupils' ? 'bg-slate-800 text-white border-transparent hover:bg-slate-700' : 'text-slate-600 bg-white hover:bg-slate-50'
             )}
           >
-            <Users className="h-3.5 w-3.5 mr-1.5" />
-            Pupils
+            <Users className="h-4 w-4 mr-2" />
+            Pupil Performance
           </Button>
         </div>
 
         {/* ── Classes View ────────────────────────────────────────────────── */}
         {viewMode === 'classes' && (
-          <div className="space-y-4">
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Class Performance
-              </p>
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 flex items-center gap-2">
+                Class Performance Overview
+              </h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {classAnalytics.map((cls) => (
                 <ClassAnalyticsCard key={cls.className} data={cls} />
               ))}
@@ -772,16 +755,16 @@ export default function StaffAnalyticsPage() {
 
         {/* ── Subjects View ───────────────────────────────────────────────── */}
         {viewMode === 'subjects' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Subject Performance
-              </p>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-base sm:text-lg font-bold text-slate-800">
+                Subject Breakdown
+              </h3>
               <Select value={filterSubject} onValueChange={setFilterSubject}>
-                <SelectTrigger className="h-8 text-xs w-[150px]">
+                <SelectTrigger className="h-11 sm:h-9 w-full sm:w-[180px] text-base sm:text-sm rounded-xl bg-white border-slate-200">
                   <SelectValue placeholder="Filter subject" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   <SelectItem value="all">All Subjects</SelectItem>
                   {subjectAnalytics.map((s) => (
                     <SelectItem key={s.subject} value={s.subject}>
@@ -791,26 +774,32 @@ export default function StaffAnalyticsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filteredSubjects.map((subject) => (
-                <SubjectPerformanceCard key={subject.subject} data={subject} />
-              ))}
-            </div>
+            {filteredSubjects.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 border-dashed">
+                <p className="text-slate-500 font-medium">No subjects match the selected filter.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSubjects.map((subject) => (
+                  <SubjectPerformanceCard key={subject.subject} data={subject} />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
         {/* ── Pupils View ─────────────────────────────────────────────────── */}
         {viewMode === 'pupils' && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                Pupil Performance
-              </p>
+          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h3 className="text-base sm:text-lg font-bold text-slate-800">
+                Pupil Ranking & Trends
+              </h3>
               <Select value={filterClass} onValueChange={setFilterClass}>
-                <SelectTrigger className="h-8 text-xs w-[150px]">
-                  <SelectValue placeholder="Filter class" />
+                <SelectTrigger className="h-11 sm:h-9 w-full sm:w-[180px] text-base sm:text-sm rounded-xl bg-white border-slate-200">
+                  <SelectValue placeholder="Filter by class" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="rounded-xl">
                   <SelectItem value="all">All Classes</SelectItem>
                   {teacherClasses.map((cls) => (
                     <SelectItem key={cls} value={cls}>
@@ -820,10 +809,15 @@ export default function StaffAnalyticsPage() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            
+            <div className="space-y-3">
               {filteredPupils.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 text-sm">
-                  No pupils found for the selected filter.
+                <div className="text-center py-12 bg-white rounded-2xl border border-slate-200 border-dashed">
+                  <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <Users className="h-6 w-6 text-slate-300" />
+                  </div>
+                  <p className="text-slate-600 font-medium">No pupils found.</p>
+                  <p className="text-xs text-slate-400 mt-1">Try selecting a different class filter.</p>
                 </div>
               ) : (
                 filteredPupils.map((pupil) => (
@@ -835,19 +829,11 @@ export default function StaffAnalyticsPage() {
         )}
 
         {/* ── Footer ────────────────────────────────────────────────────────── */}
-        <div className="text-center text-xs text-slate-400 pt-4 border-t border-slate-200/50">
-          <p>Vincollins Schools Staff Analytics • Geared Towards Excellence</p>
-          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. All rights reserved.</p>
+        <div className="text-center text-xs text-slate-400 pt-8 border-t border-slate-200/60 mt-8">
+          <p className="font-medium">Vincollins Schools Analytics System</p>
+          <p className="mt-1">&copy; {new Date().getFullYear()} Vincollins Schools. Geared Towards Excellence.</p>
         </div>
       </div>
-
-      {/* ── Refresh Indicator ─────────────────────────────────────────────── */}
-      {refreshing && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-full shadow-xl text-xs font-medium">
-          <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-          Refreshing...
-        </div>
-      )}
     </div>
   )
 }
