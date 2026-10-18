@@ -2,11 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Menu, X, GraduationCap, User, LogIn } from 'lucide-react'
-import { cn } from '@/lib/utils'
 
 const navLinks = [
   { label: 'Home', href: '/' },
@@ -19,17 +17,13 @@ const navLinks = [
 
 export const Navigation = () => {
   const [isOpen, setIsOpen] = useState(false)
-  const pathname = usePathname()
-
-  const closeMenu = () => setIsOpen(false)
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-primary/5">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-20">
-          
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2" onClick={closeMenu}>
+          <Link href="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
               <GraduationCap className="w-6 h-6 text-white" />
             </div>
@@ -44,10 +38,7 @@ export const Navigation = () => {
               <Link
                 key={link.label}
                 href={link.href}
-                className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary",
-                  pathname === link.href ? "text-primary font-bold" : "text-muted-foreground"
-                )}
+                className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors"
               >
                 {link.label}
               </Link>
@@ -66,57 +57,47 @@ export const Navigation = () => {
             </Button>
           </div>
 
-          {/* Mobile Menu Button - Fixed Alignment */}
-          <div className="flex items-center md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="p-2 rounded-lg hover:bg-primary/5 transition-colors"
-              aria-label="Toggle Menu"
-            >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsOpen(!isOpen)}
+            className="md:hidden p-2 rounded-lg hover:bg-primary/5 transition-colors"
+          >
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
         </div>
 
-        {/* Mobile Menu - Synced with Desktop */}
-        <AnimatePresence>
-          {isOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="md:hidden overflow-hidden border-t border-primary/5"
-            >
-              <div className="flex flex-col space-y-1 py-4">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.label}
-                    href={link.href}
-                    onClick={closeMenu} // <-- This fixes the menu staying open
-                    className={cn(
-                      "text-sm font-medium transition-colors px-3 py-3 rounded-md",
-                      pathname === link.href 
-                        ? "text-primary bg-primary/5 font-bold" 
-                        : "text-muted-foreground hover:text-primary hover:bg-gray-50"
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                ))}
-                <div className="flex flex-col gap-2 pt-4 mt-2 border-t border-gray-100">
-                  <Button variant="outline" size="sm" className="justify-center w-full">
-                    <User className="w-4 h-4 mr-2" />
-                    Login
-                  </Button>
-                  <Button size="sm" className="bg-primary hover:bg-primary-light justify-center w-full">
-                    <LogIn className="w-4 h-4 mr-2" />
-                    Portal
-                  </Button>
-                </div>
+        {/* Mobile Menu */}
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden py-4 border-t border-primary/5"
+          >
+            <div className="flex flex-col space-y-3">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.label}
+                  href={link.href}
+                  className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors px-2 py-2"
+                  onClick={() => setIsOpen(false)}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              <div className="flex flex-col gap-2 pt-2">
+                <Button variant="outline" size="sm" className="justify-center">
+                  <User className="w-4 h-4 mr-2" />
+                  Login
+                </Button>
+                <Button size="sm" className="bg-primary hover:bg-primary-light justify-center">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Portal
+                </Button>
               </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+            </div>
+          </motion.div>
+        )}
       </div>
     </nav>
   )

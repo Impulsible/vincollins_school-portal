@@ -293,8 +293,8 @@ export default function StaffLayout({ children }: StaffLayoutProps) {
             sidebarCollapsed ? 'lg:ml-20' : 'lg:ml-72',
           )}
         >
-          {/* Mobile-first padding: more space on top for header */}
-          <main className="min-h-[100dvh] pt-[80px] sm:pt-[88px] lg:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
+          {/* ✅ FIXED: Adjusted top padding to pt-16 sm:pt-20 to match the header height perfectly */}
+          <main className="min-h-[100dvh] pt-16 sm:pt-20 lg:pt-24 pb-8 sm:pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
             <div className="w-full max-w-7xl mx-auto">
               {/* Breadcrumb */}
               <StaffBreadcrumb pathname={pathname || ''} />
