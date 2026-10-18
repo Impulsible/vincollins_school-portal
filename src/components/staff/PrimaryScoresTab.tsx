@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/static-components */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable react-hooks/set-state-in-render */
 /* eslint-disable react-hooks/preserve-manual-memoization */
@@ -22,7 +21,7 @@ import {
   Save, Search, Edit, Trash2, Users, Loader2, RefreshCw, CheckCircle2,
   FileText, TrendingUp, Award, GraduationCap, SaveAll, Trash, AlertTriangle,
   Database, Lock, Circle, ChevronRight, BookOpen, Settings2, Eye, Sparkles,
-  BarChart3, Filter, X, ChevronDown,
+  BarChart3, X, ChevronDown, Calendar, SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -36,8 +35,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
-  Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger,
-} from "@/components/ui/sheet";
+  Popover, PopoverContent, PopoverTrigger,
+} from "@/components/ui/popover";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TYPES
@@ -251,7 +250,7 @@ function StatCard({
   gradient: string;
 }) {
   return (
-    <Card className="relative overflow-hidden border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+    <Card className="relative overflow-hidden border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 rounded-2xl">
       <div className={cn("absolute inset-0 opacity-[0.03] dark:opacity-[0.06]", gradient)} />
       <CardContent className="relative p-3 sm:p-4">
         <div className="flex items-center justify-between gap-2">
@@ -319,20 +318,20 @@ function EmptyState({
   action?: React.ReactNode;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 sm:py-20 px-6 text-center">
-      <div className="relative mb-5">
+    <div className="flex flex-col items-center justify-center py-10 sm:py-16 px-6 text-center">
+      <div className="relative mb-4">
         <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/20 to-blue-500/20 rounded-3xl blur-xl" />
-        <div className="relative p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
-          <Icon className="h-8 w-8 sm:h-10 sm:w-10 text-slate-400 dark:text-slate-500" />
+        <div className="relative p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-800/80 border border-slate-200/60 dark:border-slate-700/60">
+          <Icon className="h-7 w-7 sm:h-9 sm:w-9 text-slate-400 dark:text-slate-500" />
         </div>
       </div>
-      <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mb-1.5">
+      <h3 className="text-sm sm:text-base font-semibold text-slate-800 dark:text-slate-200 mb-1">
         {title}
       </h3>
       <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-xs leading-relaxed">
         {description}
       </p>
-      {action && <div className="mt-5">{action}</div>}
+      {action && <div className="mt-4">{action}</div>}
     </div>
   );
 }
@@ -359,46 +358,49 @@ function MobileScoreCard({
   return (
     <Card
       className={cn(
-        "border transition-all duration-200",
+        "border transition-all duration-200 rounded-2xl shadow-sm",
         isSaved
-          ? "border-emerald-200/60 bg-emerald-50/30 dark:border-emerald-900/40 dark:bg-emerald-950/10"
+          ? "border-emerald-200/70 bg-emerald-50/40 dark:border-emerald-900/40 dark:bg-emerald-950/20"
           : total > 0
-          ? "border-amber-200/60 bg-amber-50/30 dark:border-amber-900/40 dark:bg-amber-950/10"
+          ? "border-amber-200/70 bg-amber-50/30 dark:border-amber-900/40 dark:bg-amber-950/10"
           : "border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-900"
       )}
     >
-      <CardContent className="p-3 space-y-3">
+      <CardContent className="p-3.5 space-y-3">
         {/* Student header */}
         <div className="flex items-center gap-2.5">
           <div
             className={cn(
-              "w-9 h-9 rounded-lg flex items-center justify-center text-sm font-bold shrink-0",
+              "w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 shadow-xs",
               isSaved
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
-                : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
+                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300"
+                : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300"
             )}
           >
             {student.full_name.charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate leading-tight">
+            <p className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate leading-tight">
               {student.full_name}
             </p>
             <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-              {student.admission_number} · {student.class_arm || student.class}
+              {student.admission_number}
             </p>
           </div>
           {isSaved && (
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-0 text-[10px] gap-1 px-2 py-0.5">
+              <CheckCircle2 className="h-3 w-3" />
+              Saved
+            </Badge>
           )}
         </div>
 
         {/* Score inputs */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <div className="space-y-1">
             <Label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span>CA</span>
-              <span className="text-slate-400">/40</span>
+              <span>CA Score</span>
+              <span className="text-slate-400 font-normal">/40</span>
             </Label>
             <Input
               type="number"
@@ -407,15 +409,15 @@ function MobileScoreCard({
               max="40"
               value={entry.ca}
               onChange={(e) => onCAChange(e.target.value)}
-              className="h-10 text-center text-base font-semibold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 focus-visible:border-emerald-400 rounded-lg"
+              className="h-10 text-center text-base font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 rounded-xl"
               placeholder="0"
               disabled={isLocked}
             />
           </div>
           <div className="space-y-1">
             <Label className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center justify-between">
-              <span>Exam</span>
-              <span className="text-slate-400">/60</span>
+              <span>Exam Score</span>
+              <span className="text-slate-400 font-normal">/60</span>
             </Label>
             <Input
               type="number"
@@ -424,7 +426,7 @@ function MobileScoreCard({
               max="60"
               value={entry.exam}
               onChange={(e) => onExamChange(e.target.value)}
-              className="h-10 text-center text-base font-semibold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 focus-visible:border-blue-400 rounded-lg"
+              className="h-10 text-center text-base font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 rounded-xl"
               placeholder="0"
               disabled={isLocked}
             />
@@ -432,11 +434,11 @@ function MobileScoreCard({
         </div>
 
         {/* Total + Remark + Save */}
-        <div className="flex items-center gap-2 pt-1">
-          <div className="flex-1 flex items-center gap-2">
+        <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="flex-1 flex items-center gap-2 min-w-0">
             <ScoreBar total={total} />
             {remark && (
-              <Badge className={cn(getRemarkColor(remark), "font-semibold text-[10px] border px-1.5 py-0.5 shrink-0")}>
+              <Badge className={cn(getRemarkColor(remark), "font-semibold text-[10px] border px-2 py-0.5 shrink-0")}>
                 {remark}
               </Badge>
             )}
@@ -446,20 +448,26 @@ function MobileScoreCard({
             onClick={onSave}
             disabled={saving || isLocked || total === 0 || !isValidStaff}
             className={cn(
-              "h-9 w-9 p-0 rounded-lg shrink-0",
+              "h-9 px-3 rounded-xl shrink-0 text-xs font-semibold gap-1.5 transition-all",
               isSaved
-                ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
+                ? "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300"
                 : total > 0
-                ? "bg-amber-100 hover:bg-amber-200 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400"
+                ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                 : "bg-slate-100 text-slate-400 dark:bg-slate-800"
             )}
           >
             {saving ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : isSaved ? (
-              <CheckCircle2 className="h-4 w-4" />
+              <>
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                <span>Updated</span>
+              </>
             ) : (
-              <Save className="h-4 w-4" />
+              <>
+                <Save className="h-3.5 w-3.5" />
+                <span>Save</span>
+              </>
             )}
           </Button>
         </div>
@@ -482,8 +490,8 @@ function MobileViewCard({
   const remark = getRemark(total);
 
   return (
-    <Card className="border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900">
-      <CardContent className="p-3 space-y-2.5">
+    <Card className="border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl shadow-xs">
+      <CardContent className="p-3.5 space-y-2.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="font-semibold text-sm text-slate-800 dark:text-slate-200 truncate">
@@ -498,28 +506,28 @@ function MobileViewCard({
 
         <div className="flex items-center gap-2 py-2 border-y border-slate-100 dark:border-slate-800">
           <div className="flex-1 text-center">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase">CA</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase">CA</p>
             <p className="text-base font-bold text-slate-800 dark:text-slate-200 tabular-nums">
               {score.ca_score || "—"}
             </p>
           </div>
-          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
+          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
           <div className="flex-1 text-center">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase">Exam</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase">Exam</p>
             <p className="text-base font-bold text-blue-600 dark:text-blue-400 tabular-nums">
               {score.exam_score || "—"}
             </p>
           </div>
-          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700" />
+          <div className="h-8 w-px bg-slate-100 dark:bg-slate-800" />
           <div className="flex-1 text-center">
-            <p className="text-[10px] font-semibold text-slate-500 uppercase">Total</p>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase">Total</p>
             <p className="text-base font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
               {total}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center justify-between gap-2 pt-0.5">
           <Badge className={cn(getRemarkColor(remark), "font-semibold text-[10px] border px-2 py-0.5")}>
             {remark}
           </Badge>
@@ -540,7 +548,7 @@ function MobileViewCard({
               size="sm"
               disabled={!isOwn}
               onClick={onEdit}
-              className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-20"
+              className="h-8 w-8 p-0 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-20"
             >
               <Edit className="h-3.5 w-3.5" />
             </Button>
@@ -549,7 +557,7 @@ function MobileViewCard({
               size="sm"
               disabled={!isOwn}
               onClick={onDelete}
-              className="h-7 w-7 p-0 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20"
+              className="h-8 w-8 p-0 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </Button>
@@ -597,7 +605,6 @@ export default function PrimaryScoresTab({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingScore, setEditingScore] = useState<ScoreRecord | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
-  const [showConfigSheet, setShowConfigSheet] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   const isInitialMount = useRef(true);
@@ -646,13 +653,6 @@ export default function PrimaryScoresTab({
       return hasValue && !savedStatus[id];
     }).length;
   }, [scoreEntries, savedStatus]);
-
-  const staffDisplayName = useMemo(() => {
-    if (!staffProfile) return "Not logged in";
-    return staffProfile.full_name || staffProfile.display_name || staffProfile.firstName || "Teacher";
-  }, [staffProfile]);
-
-  const hasConfig = selectedClass && selectedSubject && selectedTerm && selectedYear;
 
   // ═══ DATA FETCHING ═══
   const fetchTerms = useCallback(async () => {
@@ -703,8 +703,8 @@ export default function PrimaryScoresTab({
         return;
       }
       const settings = data as SchoolSettings;
-      setSelectedTerm(settings.current_term ?? "");
-      setSelectedYear(settings.current_session ?? "");
+      setSelectedTerm(settings.current_term ?? "First");
+      setSelectedYear(settings.current_session ?? "2025/2026");
       setTermOptions((prev) =>
         prev.map((t) => ({ ...t, is_current: t.value === settings.current_term }))
       );
@@ -878,7 +878,9 @@ export default function PrimaryScoresTab({
       const year = get(STORAGE_KEYS.SELECTED_YEAR);
       const tab = get(STORAGE_KEYS.ACTIVE_TAB);
       if (cls) setSelectedClass(cls);
+      else setSelectedClass(CLASSES[4].name); // Default to Primary 1 if none
       if (subject) setSelectedSubject(subject);
+      else setSelectedSubject(PRIMARY_SUBJECTS[0]); // Default to English
       if (term) setSelectedTerm(term);
       if (year) setSelectedYear(year);
       if (tab) setActiveTab(tab);
@@ -1137,129 +1139,6 @@ export default function PrimaryScoresTab({
     }
   };
 
-  // ═══ CONFIG PANEL (used in sheet on mobile, inline on desktop) ═══
-  const ConfigPanel = () => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Class */}
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            Class
-          </Label>
-          <Select
-            value={selectedClass}
-            onValueChange={(v) => { setSelectedClass(v); setSelectedSubject(""); resetScoreState(); }}
-          >
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
-              <SelectValue placeholder="Select class" />
-            </SelectTrigger>
-            <SelectContent className="z-[110]">
-              {CLASSES.map((cls) => (
-                <SelectItem key={cls.id} value={cls.name} className="text-sm">
-                  <span className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded">
-                      {cls.code}
-                    </span>
-                    {cls.name}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Subject */}
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            Subject
-          </Label>
-          <Select
-            value={selectedSubject}
-            onValueChange={(v) => { setSelectedSubject(v); resetScoreState(); }}
-          >
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
-              <SelectValue placeholder="Select subject">
-                {selectedSubject && (
-                  <div className="flex items-center justify-between w-full gap-2">
-                    <span className="truncate">{selectedSubject}</span>
-                    <SubjectStatusIcon status={subjectsStatus[selectedSubject]} />
-                  </div>
-                )}
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="z-[110] max-h-[300px]">
-              {checkingSubjects ? (
-                <div className="flex items-center gap-2 py-6 px-3 text-sm text-slate-500 justify-center">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Checking…
-                </div>
-              ) : (
-                PRIMARY_SUBJECTS.map((sub) => (
-                  <SelectItem key={sub} value={sub} className="text-sm">
-                    <div className="flex items-center justify-between w-full gap-3">
-                      <span>{sub}</span>
-                      <SubjectStatusIcon status={subjectsStatus[sub]} />
-                    </div>
-                  </SelectItem>
-                ))
-              )}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Term */}
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            Term
-          </Label>
-          <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); resetScoreState(); }}>
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
-              <SelectValue placeholder="Select term" />
-            </SelectTrigger>
-            <SelectContent className="z-[110]">
-              {termOptions.map((o, i) => (
-                <SelectItem key={`${o.value}-${i}`} value={o.value} className="text-sm">
-                  <span className={cn(o.is_current && "font-semibold text-emerald-600 dark:text-emerald-400")}>
-                    {o.label}{o.is_current && " ✦"}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Session */}
-        <div className="space-y-1.5">
-          <Label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-            Session
-          </Label>
-          <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); resetScoreState(); }}>
-            <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-medium rounded-lg focus:ring-emerald-500">
-              <SelectValue placeholder="Select session" />
-            </SelectTrigger>
-            <SelectContent className="z-[110]">
-              {availableSessions.map((s, i) => (
-                <SelectItem key={`${s}-${i}`} value={s} className="text-sm">{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {isLocked && selectedSubject && (
-        <div className="flex items-start gap-2 p-3 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800/50 text-xs">
-          <Lock className="h-3.5 w-3.5 text-red-500 mt-0.5 flex-shrink-0" />
-          <div>
-            <p className="font-semibold text-red-700 dark:text-red-400">Score entry locked</p>
-            <p className="text-red-600 dark:text-red-500 mt-0.5">
-              {subjectsStatus[selectedSubject]?.otherTeacherName || "Another teacher"} has entered scores.
-            </p>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   // ═════════════════════════════════════════════════════════════════════════════
   // RENDER
   // ═════════════════════════════════════════════════════════════════════════════
@@ -1274,7 +1153,7 @@ export default function PrimaryScoresTab({
           </div>
           <div className="space-y-1">
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              {isLoadingTerm ? "Loading term settings…" : "Preparing assessment module…"}
+              Loading score assessment module…
             </p>
           </div>
         </div>
@@ -1283,12 +1162,13 @@ export default function PrimaryScoresTab({
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6 relative">
+    <div className="space-y-4 sm:space-y-5">
+
       {/* ═══ Staff Warning Banner ═══ */}
       {!isValidStaff && (
-        <Card className="border-2 border-amber-400 bg-amber-50/80 dark:bg-amber-950/20">
-          <CardContent className="p-3 sm:p-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+        <Card className="border-2 border-amber-400 bg-amber-50/80 dark:bg-amber-950/20 rounded-2xl">
+          <CardContent className="p-3.5 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
               <p className="font-semibold text-sm text-amber-800 dark:text-amber-300">
                 Staff Profile Issue
@@ -1301,40 +1181,157 @@ export default function PrimaryScoresTab({
         </Card>
       )}
 
-      {/* ═══ Context Bar (mobile) ═══ */}
-      <div className="sm:hidden">
-        <Card className="border border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-emerald-50/60 to-blue-50/60 dark:from-emerald-950/20 dark:to-blue-950/20">
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-                  Current Context
-                </p>
-                {hasConfig ? (
-                  <div className="flex items-center flex-wrap gap-1">
-                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedClass}</Badge>
-                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedSubject}</Badge>
-                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedTerm}</Badge>
-                    <Badge variant="secondary" className="text-[10px] font-medium">{selectedYear}</Badge>
+      {/* ═══ 1. Direct Inline Selection Controls ═══ */}
+      <Card className="border border-slate-200/60 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900 rounded-2xl overflow-hidden">
+        <CardContent className="p-3.5 sm:p-4 space-y-3.5">
+          
+          {/* Row A: Current Term / Session Pill + Settings Popover */}
+          <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+              <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                {selectedTerm} Term · {selectedYear}
+              </p>
+            </div>
+
+            {/* Term Switcher Popover */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 rounded-lg px-2 gap-1 shrink-0">
+                  <Calendar className="h-3 w-3" />
+                  <span>Change Term</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 p-3 space-y-3 rounded-2xl bg-white dark:bg-slate-900 shadow-xl border-slate-200 dark:border-slate-800">
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase text-slate-400">Term</Label>
+                  <Select value={selectedTerm} onValueChange={(v) => { setSelectedTerm(v); resetScoreState(); }}>
+                    <SelectTrigger className="h-9 text-xs rounded-xl">
+                      <SelectValue placeholder="Term" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {termOptions.map((o, i) => (
+                        <SelectItem key={`${o.value}-${i}`} value={o.value} className="text-xs">
+                          {o.label}{o.is_current && " ✦"}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold uppercase text-slate-400">Session</Label>
+                  <Select value={selectedYear} onValueChange={(v) => { setSelectedYear(v); resetScoreState(); }}>
+                    <SelectTrigger className="h-9 text-xs rounded-xl">
+                      <SelectValue placeholder="Session" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableSessions.map((s, i) => (
+                        <SelectItem key={`${s}-${i}`} value={s} className="text-xs">{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Row B: Quick Class Selector Chips (Horizontal Scroll on Mobile) */}
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+              Select Class
+            </Label>
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar -mx-1 px-1">
+              {CLASSES.map((cls) => {
+                const isSelected = selectedClass === cls.name;
+                return (
+                  <button
+                    key={cls.id}
+                    onClick={() => {
+                      setSelectedClass(cls.name);
+                      setSelectedSubject(PRIMARY_SUBJECTS[0]);
+                      resetScoreState();
+                    }}
+                    className={cn(
+                      "h-9 px-3 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 border",
+                      isSelected
+                        ? "bg-emerald-600 text-white border-emerald-600 shadow-xs scale-[1.02]"
+                        : "bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 border-slate-200/80 dark:border-slate-700/80 hover:bg-slate-100 dark:hover:bg-slate-800"
+                    )}
+                  >
+                    <span className={cn(
+                      "text-[10px] px-1 py-0.2 rounded font-mono",
+                      isSelected ? "bg-white/20 text-white" : "bg-slate-200/70 dark:bg-slate-700 text-slate-500 dark:text-slate-400"
+                    )}>
+                      {cls.code}
+                    </span>
+                    <span>{cls.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Row C: Subject Select Dropdown */}
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
+              <span>Subject</span>
+              {selectedSubject && subjectsStatus[selectedSubject]?.studentCount !== undefined && (
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
+                  {subjectsStatus[selectedSubject].studentCount} Graded
+                </span>
+              )}
+            </Label>
+            <Select
+              value={selectedSubject}
+              onValueChange={(v) => { setSelectedSubject(v); resetScoreState(); }}
+            >
+              <SelectTrigger className="h-11 bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-sm font-semibold rounded-xl focus:ring-emerald-500">
+                <SelectValue placeholder="Select subject">
+                  {selectedSubject && (
+                    <div className="flex items-center justify-between w-full gap-2 pr-2">
+                      <span className="truncate">{selectedSubject}</span>
+                      <SubjectStatusIcon status={subjectsStatus[selectedSubject]} />
+                    </div>
+                  )}
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent className="max-h-[300px]">
+                {checkingSubjects ? (
+                  <div className="flex items-center gap-2 py-6 px-3 text-sm text-slate-500 justify-center">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Checking subjects…
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-500 italic">Tap filter to configure</p>
+                  PRIMARY_SUBJECTS.map((sub) => (
+                    <SelectItem key={sub} value={sub} className="text-sm">
+                      <div className="flex items-center justify-between w-full gap-3">
+                        <span>{sub}</span>
+                        <SubjectStatusIcon status={subjectsStatus[sub]} />
+                      </div>
+                    </SelectItem>
+                  ))
                 )}
-              </div>
-              <Button
-                size="sm"
-                onClick={() => setShowConfigSheet(true)}
-                className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm rounded-lg shrink-0"
-              >
-                <Filter className="h-3.5 w-3.5" />
-                Filter
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+              </SelectContent>
+            </Select>
+          </div>
 
-      {/* ═══ Stats ═══ */}
+          {/* Lock Alert */}
+          {isLocked && selectedSubject && (
+            <div className="flex items-start gap-2.5 p-3 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800/50 text-xs">
+              <Lock className="h-4 w-4 text-red-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="font-semibold text-red-700 dark:text-red-400">Score entry locked</p>
+                <p className="text-red-600 dark:text-red-500 mt-0.5">
+                  {subjectsStatus[selectedSubject]?.otherTeacherName || "Another teacher"} has entered scores for this subject.
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ═══ 2. Key Stats Summary ═══ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
         <StatCard label="Pupils" value={stats.totalStudents} icon={Users} gradient="bg-gradient-to-br from-emerald-500 to-emerald-600" />
         <StatCard label="Graded" value={stats.gradedStudents} sub={`of ${stats.totalStudents}`} icon={GraduationCap} gradient="bg-gradient-to-br from-blue-500 to-blue-600" />
@@ -1342,49 +1339,19 @@ export default function PrimaryScoresTab({
         <StatCard label="Pass Rate" value={stats.passRate > 0 ? `${stats.passRate}%` : "—"} sub={stats.gradedStudents > 0 ? `${stats.passCount}P · ${stats.failCount}F` : undefined} icon={Award} gradient="bg-gradient-to-br from-amber-500 to-amber-600" />
       </div>
 
-      {/* ═══ Config (desktop inline) ═══ */}
-      <Card className="hidden sm:block border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
-        <CardHeader className="pb-4 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-slate-50/80 to-white dark:from-slate-900 dark:to-slate-900">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
-                <Settings2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              </div>
-              <div>
-                <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                  Configuration
-                </CardTitle>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  {students.length > 0 ? `${students.length} pupils loaded` : "Select class to load pupils"}
-                </p>
-              </div>
-            </div>
-            {unsavedCount > 0 && (
-              <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 text-xs border-amber-200 dark:border-amber-800">
-                {unsavedCount} unsaved
-              </Badge>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent className="pt-5">
-          <ConfigPanel />
-        </CardContent>
-      </Card>
-
-      {/* ═══ Action Bar ═══ */}
-      <div className="sticky top-14 sm:top-16 z-30 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl -mx-3 sm:mx-0 px-3 sm:px-0 py-2 sm:py-0 border-y sm:border-0 border-slate-200/60 dark:border-slate-800/60">
-        <div className="flex items-center gap-2 sm:bg-white sm:dark:bg-slate-900 sm:border sm:border-slate-200/60 sm:dark:border-slate-800 sm:rounded-xl sm:p-2.5 sm:shadow-sm">
+      {/* ═══ 3. Floating Quick Action Strip ═══ */}
+      <div className="sticky top-14 sm:top-16 z-20 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md py-2 border-y border-slate-200/60 dark:border-slate-800/60 -mx-3 px-3 sm:mx-0 sm:px-0 sm:border-0 sm:bg-transparent">
+        <div className="flex items-center gap-2 sm:bg-white sm:dark:bg-slate-900 sm:border sm:border-slate-200/60 sm:dark:border-slate-800 sm:rounded-2xl sm:p-2 sm:shadow-xs">
           <Button
             onClick={handleSaveAll}
             disabled={saving || students.length === 0 || isLocked || !selectedSubject || unsavedCount === 0 || !isValidStaff}
             size="sm"
-            className="flex-1 sm:flex-initial h-10 sm:h-9 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-md shadow-emerald-500/20 gap-2 font-medium rounded-lg"
+            className="flex-1 sm:flex-initial h-10 sm:h-9 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white shadow-md shadow-emerald-500/20 gap-2 font-semibold rounded-xl"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <SaveAll className="h-4 w-4" />}
-            <span className="hidden sm:inline">{!isValidStaff ? "No Staff" : isLocked ? "Locked" : saving ? "Saving…" : "Save All"}</span>
-            <span className="sm:hidden">{saving ? "Saving" : "Save All"}</span>
+            <span>{!isValidStaff ? "No Staff" : isLocked ? "Locked" : saving ? "Saving…" : "Save All"}</span>
             {unsavedCount > 0 && !saving && (
-              <Badge className="bg-white/20 text-white text-[10px] border-0 px-1.5">
+              <Badge className="bg-white/20 text-white text-[10px] border-0 px-1.5 ml-1">
                 {unsavedCount}
               </Badge>
             )}
@@ -1395,7 +1362,7 @@ export default function PrimaryScoresTab({
             size="sm"
             onClick={handleRefresh}
             disabled={loading || checkingSubjects}
-            className="h-10 sm:h-9 w-10 sm:w-auto p-0 sm:px-3 rounded-lg border-slate-200 dark:border-slate-700"
+            className="h-10 sm:h-9 w-10 sm:w-auto p-0 sm:px-3 rounded-xl border-slate-200 dark:border-slate-700"
           >
             <RefreshCw className={cn("h-4 w-4", (loading || checkingSubjects) && "animate-spin")} />
             <span className="hidden sm:inline sm:ml-1.5 text-xs">Refresh</span>
@@ -1406,7 +1373,7 @@ export default function PrimaryScoresTab({
             disabled={scores.length === 0 || loading || isLocked}
             variant="ghost"
             size="sm"
-            className="h-10 sm:h-9 w-10 sm:w-auto p-0 sm:px-3 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 rounded-lg ml-auto"
+            className="h-10 sm:h-9 w-10 sm:w-auto p-0 sm:px-3 text-red-500 hover:text-red-700 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 rounded-xl ml-auto"
           >
             <Trash className="h-4 w-4" />
             <span className="hidden sm:inline sm:ml-1.5 text-xs">Delete</span>
@@ -1414,67 +1381,51 @@ export default function PrimaryScoresTab({
         </div>
       </div>
 
-      {/* ═══ Tabs ═══ */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="h-11 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-xl w-full sm:w-auto grid grid-cols-2 sm:inline-flex gap-1 border border-slate-200/60 dark:border-slate-700/60">
+      {/* ═══ 4. Content Tabs (Entry / View) ═══ */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-3">
+        <TabsList className="h-11 bg-slate-100/80 dark:bg-slate-800/80 p-1 rounded-2xl w-full sm:w-auto grid grid-cols-2 sm:inline-flex gap-1 border border-slate-200/60 dark:border-slate-700/60">
           <TabsTrigger
             value="entry"
-            className="flex items-center gap-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900 px-3 sm:px-4 h-9 font-medium"
+            className="flex items-center justify-center gap-2 text-xs sm:text-sm rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-xs dark:data-[state=active]:bg-slate-900 px-3 sm:px-4 h-9 font-semibold"
           >
             <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">Score Entry</span>
-            <span className="sm:hidden">Entry</span>
+            <span>Score Entry</span>
             {students.length > 0 && (
-              <Badge variant="secondary" className="ml-0.5 h-4 px-1 text-[9px] font-bold">
+              <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[9px] font-bold">
                 {students.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="view"
-            className="flex items-center gap-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-900 px-3 sm:px-4 h-9 font-medium"
+            className="flex items-center justify-center gap-2 text-xs sm:text-sm rounded-xl data-[state=active]:bg-white data-[state=active]:shadow-xs dark:data-[state=active]:bg-slate-900 px-3 sm:px-4 h-9 font-semibold"
           >
             <Eye className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-            <span className="hidden sm:inline">View Scores</span>
-            <span className="sm:hidden">View</span>
+            <span>Published</span>
             {scores.length > 0 && (
-              <Badge className="ml-0.5 h-4 px-1 text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0">
+              <Badge className="ml-1 h-4 px-1.5 text-[9px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-0">
                 {scores.length}
               </Badge>
             )}
           </TabsTrigger>
         </TabsList>
 
-        {/* ─── Entry Tab ─── */}
+        {/* ─── Entry Tab Content ─── */}
         <TabsContent value="entry" className="mt-0 space-y-3">
           {!selectedClass ? (
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+            <Card className="border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl">
               <CardContent className="p-0">
-                <EmptyState
-                  icon={BookOpen}
-                  title="Select a Class"
-                  description="Choose a class to load pupils and start entering scores."
-                  action={
-                    <Button
-                      size="sm"
-                      onClick={() => setShowConfigSheet(true)}
-                      className="sm:hidden bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 rounded-lg"
-                    >
-                      <Filter className="h-3.5 w-3.5" />
-                      Open Filters
-                    </Button>
-                  }
-                />
+                <EmptyState icon={BookOpen} title="Select a Class" description="Tap a class chip above to view pupils." />
               </CardContent>
             </Card>
           ) : !selectedSubject ? (
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+            <Card className="border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl">
               <CardContent className="p-0">
-                <EmptyState icon={FileText} title="Select a Subject" description={`Class "${selectedClass}" selected. Choose a subject now.`} />
+                <EmptyState icon={FileText} title="Select a Subject" description={`Class "${selectedClass}" active. Choose a subject above.`} />
               </CardContent>
             </Card>
           ) : isLocked ? (
-            <Card className="border border-red-200/60 dark:border-red-900/40 shadow-sm bg-white dark:bg-slate-900">
+            <Card className="border border-red-200/60 dark:border-red-900/40 bg-white dark:bg-slate-900 rounded-2xl">
               <CardContent className="p-0">
                 <EmptyState
                   icon={Lock}
@@ -1491,7 +1442,7 @@ export default function PrimaryScoresTab({
                         if (avail) setSelectedSubject(avail);
                         else toast.info("All subjects have scores entered.");
                       }}
-                      className="gap-1.5"
+                      className="gap-1.5 rounded-xl"
                     >
                       Switch Subject <ChevronRight className="h-4 w-4" />
                     </Button>
@@ -1500,23 +1451,23 @@ export default function PrimaryScoresTab({
               </CardContent>
             </Card>
           ) : loading ? (
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+            <Card className="border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl">
               <CardContent className="text-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />
-                <p className="text-sm text-slate-500 font-medium">Loading pupils…</p>
+                <p className="text-sm text-slate-500 font-medium">Loading pupils for {selectedClass}…</p>
               </CardContent>
             </Card>
           ) : students.length === 0 ? (
-            <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+            <Card className="border border-slate-200/60 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-2xl">
               <CardContent className="p-0">
                 <EmptyState
                   icon={Users}
                   title="No Pupils Found"
-                  description={`No active pupils in ${selectedClass}.`}
+                  description={`No active pupils found in ${selectedClass}.`}
                   action={
-                    <Button variant="outline" size="sm" onClick={() => loadStudents(selectedClass)} className="gap-1.5">
+                    <Button variant="outline" size="sm" onClick={() => loadStudents(selectedClass)} className="gap-1.5 rounded-xl">
                       <RefreshCw className="h-3.5 w-3.5" />
-                      Retry
+                      Retry Loading
                     </Button>
                   }
                 />
@@ -1525,31 +1476,31 @@ export default function PrimaryScoresTab({
           ) : (
             <>
               {/* Context Header */}
-              <Card className="border border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/60 dark:to-slate-900">
+              <Card className="border border-slate-200/60 dark:border-slate-800 bg-gradient-to-r from-slate-50 to-white dark:from-slate-800/60 dark:to-slate-900 rounded-2xl">
                 <CardContent className="p-3 flex items-center justify-between">
                   <div className="flex items-center gap-2 min-w-0">
                     <BookOpen className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     <span className="font-semibold text-sm text-slate-800 dark:text-slate-100 truncate">
-                      {selectedSubject}
+                      {selectedClass} · {selectedSubject}
                     </span>
                     <Badge variant="secondary" className="text-[10px] font-bold shrink-0">
-                      {students.length}
+                      {students.length} pupils
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 text-[10px] text-slate-400 shrink-0">
+                  <div className="flex items-center gap-2 text-[10px] text-slate-400 shrink-0 font-medium">
                     <span className="flex items-center gap-1">
-                      <div className="h-1.5 w-5 rounded-full bg-emerald-400" />
-                      40
+                      <span className="h-1.5 w-4 rounded-full bg-emerald-500" />
+                      40 CA
                     </span>
                     <span className="flex items-center gap-1">
-                      <div className="h-1.5 w-8 rounded-full bg-blue-400" />
-                      60
+                      <span className="h-1.5 w-6 rounded-full bg-blue-500" />
+                      60 Exam
                     </span>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Mobile Cards */}
+              {/* Mobile Card Layout */}
               <div className="sm:hidden space-y-2.5">
                 {students.map((student) => {
                   const entry = scoreEntries[student.id] ?? { ca: "", exam: "" };
@@ -1587,19 +1538,19 @@ export default function PrimaryScoresTab({
                 })}
               </div>
 
-              {/* Desktop Table */}
-              <Card className="hidden sm:block border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900 overflow-hidden">
+              {/* Desktop Table View */}
+              <Card className="hidden sm:block border border-slate-200/60 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900 rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow className="border-slate-100 dark:border-slate-800 hover:bg-transparent bg-slate-50/50 dark:bg-slate-800/30">
-                        <TableHead className="pl-5 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider min-w-[200px]">Pupil</TableHead>
-                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">Adm No</TableHead>
-                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">CA /40</TableHead>
-                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">Exam /60</TableHead>
-                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">Total</TableHead>
-                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-28">Remark</TableHead>
-                        <TableHead className="text-center pr-5 font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider w-20">Action</TableHead>
+                        <TableHead className="pl-5 font-semibold text-[11px] text-slate-500 uppercase tracking-wider min-w-[200px]">Pupil</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 uppercase tracking-wider w-20">Adm No</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 uppercase tracking-wider w-28">CA /40</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 uppercase tracking-wider w-28">Exam /60</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 uppercase tracking-wider w-28">Total</TableHead>
+                        <TableHead className="text-center font-semibold text-[11px] text-slate-500 uppercase tracking-wider w-28">Remark</TableHead>
+                        <TableHead className="text-center pr-5 font-semibold text-[11px] text-slate-500 uppercase tracking-wider w-20">Action</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1615,7 +1566,7 @@ export default function PrimaryScoresTab({
                           <TableRow
                             key={student.id}
                             className={cn(
-                              "border-slate-100/80 dark:border-slate-800/80 transition-all duration-200",
+                              "border-slate-100 dark:border-slate-800/80 transition-all duration-200",
                               idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/10",
                               isSaved && "bg-emerald-50/40 dark:bg-emerald-950/10",
                               !isSaved && total > 0 && "bg-amber-50/20 dark:bg-amber-950/5"
@@ -1624,7 +1575,7 @@ export default function PrimaryScoresTab({
                             <TableCell className="pl-5 py-3">
                               <div className="flex items-center gap-3">
                                 <div className={cn(
-                                  "w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0",
+                                  "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold shrink-0",
                                   isSaved
                                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400"
                                     : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400"
@@ -1659,7 +1610,7 @@ export default function PrimaryScoresTab({
                                   }));
                                   setSavedStatus((prev) => ({ ...prev, [student.id]: false }));
                                 }}
-                                className="w-[72px] h-9 text-center mx-auto text-sm font-medium bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 focus-visible:border-emerald-400 rounded-lg"
+                                className="w-[72px] h-9 text-center mx-auto text-sm font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-emerald-500 rounded-xl"
                                 placeholder="0"
                                 disabled={isLocked}
                               />
@@ -1679,7 +1630,7 @@ export default function PrimaryScoresTab({
                                   }));
                                   setSavedStatus((prev) => ({ ...prev, [student.id]: false }));
                                 }}
-                                className="w-[72px] h-9 text-center mx-auto text-sm font-medium bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 focus-visible:border-blue-400 rounded-lg"
+                                className="w-[72px] h-9 text-center mx-auto text-sm font-bold bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 focus-visible:ring-blue-500 rounded-xl"
                                 placeholder="0"
                                 disabled={isLocked}
                               />
@@ -1703,7 +1654,7 @@ export default function PrimaryScoresTab({
                                 onClick={() => handleSaveSingle(student.id)}
                                 disabled={saving || isLocked || total === 0 || !isValidStaff}
                                 className={cn(
-                                  "h-8 w-8 p-0 rounded-lg",
+                                  "h-8 w-8 p-0 rounded-xl",
                                   isSaved
                                     ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
                                     : total > 0
@@ -1731,32 +1682,26 @@ export default function PrimaryScoresTab({
           )}
         </TabsContent>
 
-        {/* ─── View Tab ─── */}
+        {/* ─── View Tab Content ─── */}
         <TabsContent value="view" className="mt-0">
-          <Card className="border border-slate-200/60 dark:border-slate-800 shadow-sm bg-white dark:bg-slate-900">
+          <Card className="border border-slate-200/60 dark:border-slate-800 shadow-xs bg-white dark:bg-slate-900 rounded-2xl overflow-hidden">
             <CardHeader className="pb-3 border-b border-slate-100 dark:border-slate-800">
               <div className="flex flex-col gap-3">
                 <div>
                   <CardTitle className="text-sm font-semibold text-slate-800 dark:text-slate-100">
-                    Published Scores
+                    Published Assessment Scores
                   </CardTitle>
-                  <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5 flex items-center flex-wrap gap-1.5">
-                    <span className="truncate">{selectedClass || "No class"} · {selectedSubject || "No subject"}</span>
-                    {isLocked && (
-                      <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] border-red-200 dark:border-red-800">
-                        <Lock className="h-2.5 w-2.5 mr-1" />
-                        Locked
-                      </Badge>
-                    )}
-                  </div>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
+                    {selectedClass} · {selectedSubject} · {selectedTerm} Term
+                  </p>
                 </div>
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
                   <Input
-                    placeholder="Search pupils…"
+                    placeholder="Search pupils by name…"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 pr-9 h-10 text-sm bg-slate-50/80 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 rounded-lg"
+                    className="pl-9 pr-9 h-10 text-sm bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 rounded-xl"
                   />
                   {searchQuery && (
                     <button
@@ -1771,7 +1716,7 @@ export default function PrimaryScoresTab({
             </CardHeader>
             <CardContent className="p-3 sm:p-0">
               {!selectedClass || !selectedSubject ? (
-                <EmptyState icon={FileText} title="Configure Selection" description="Select a class and subject to view published scores." />
+                <EmptyState icon={FileText} title="Select Class & Subject" description="Choose a class and subject above to view published scores." />
               ) : loading ? (
                 <div className="text-center py-16">
                   <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mx-auto mb-3" />
@@ -1780,11 +1725,11 @@ export default function PrimaryScoresTab({
               ) : scores.length === 0 ? (
                 <EmptyState
                   icon={FileText}
-                  title="No Scores Published"
-                  description="Enter and save scores to see them here."
+                  title="No Published Scores"
+                  description="Scores you save in Score Entry will appear here."
                   action={
-                    <Button variant="outline" size="sm" onClick={() => setActiveTab("entry")} disabled={isLocked} className="gap-1.5">
-                      Go to Score Entry <ChevronRight className="h-4 w-4" />
+                    <Button variant="outline" size="sm" onClick={() => setActiveTab("entry")} disabled={isLocked} className="gap-1.5 rounded-xl">
+                      Go to Entry <ChevronRight className="h-4 w-4" />
                     </Button>
                   }
                 />
@@ -1829,7 +1774,7 @@ export default function PrimaryScoresTab({
                             <TableHead
                               key={h}
                               className={cn(
-                                "font-semibold text-[11px] text-slate-500 dark:text-slate-400 uppercase tracking-wider py-3",
+                                "font-semibold text-[11px] text-slate-500 uppercase tracking-wider py-3",
                                 h === "Pupil" ? "pl-5 min-w-[180px]" : "text-center",
                                 h === "Actions" ? "pr-5" : ""
                               )}
@@ -1850,23 +1795,23 @@ export default function PrimaryScoresTab({
                             <TableRow
                               key={score.id}
                               className={cn(
-                                "border-slate-100/80 dark:border-slate-800/80",
+                                "border-slate-100 dark:border-slate-800/80",
                                 idx % 2 === 0 ? "bg-white dark:bg-slate-900" : "bg-slate-50/30 dark:bg-slate-800/10"
                               )}
                             >
                               <TableCell className="pl-5 py-3">
                                 <div className="flex items-center gap-2.5">
                                   <span className="font-medium text-sm text-slate-800 dark:text-slate-200">{name}</span>
-                                  {!isOwn && <Lock className="h-3 w-3 text-red-400 flex-shrink-0" />}
+                                  {!isOwn && <Lock className="h-3 w-3 text-red-400 shrink-0" />}
                                 </div>
                               </TableCell>
                               <TableCell className="text-center text-xs font-mono text-slate-500 dark:text-slate-400">
                                 {score.student_admission || "—"}
                               </TableCell>
-                              <TableCell className="text-center text-sm text-slate-700 dark:text-slate-300 font-medium">
+                              <TableCell className="text-center text-sm text-slate-700 dark:text-slate-300 font-semibold">
                                 {score.ca_score || "—"}
                               </TableCell>
-                              <TableCell className="text-center text-sm font-medium text-blue-600 dark:text-blue-400">
+                              <TableCell className="text-center text-sm font-semibold text-blue-600 dark:text-blue-400">
                                 {score.exam_score || "—"}
                               </TableCell>
                               <TableCell className="text-center">
@@ -1900,7 +1845,7 @@ export default function PrimaryScoresTab({
                                       setEditingScore(score);
                                       setShowEditDialog(true);
                                     }}
-                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-20"
+                                    className="h-8 w-8 p-0 rounded-xl text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 disabled:opacity-20"
                                   >
                                     <Edit className="h-3.5 w-3.5" />
                                   </Button>
@@ -1918,7 +1863,7 @@ export default function PrimaryScoresTab({
                                       toast.success("Deleted");
                                       await refreshAllData();
                                     }}
-                                    className="h-8 w-8 p-0 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20"
+                                    className="h-8 w-8 p-0 rounded-xl text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-20"
                                   >
                                     <Trash2 className="h-3.5 w-3.5" />
                                   </Button>
@@ -1937,30 +1882,9 @@ export default function PrimaryScoresTab({
         </TabsContent>
       </Tabs>
 
-      {/* ═══ Config Sheet (Mobile) ═══ */}
-      <Sheet open={showConfigSheet} onOpenChange={setShowConfigSheet}>
-        <SheetContent side="bottom" className="z-[100] rounded-t-3xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-          <SheetHeader className="mb-4 text-left">
-            <SheetTitle className="flex items-center gap-2 text-base text-slate-800 dark:text-slate-100">
-              <Settings2 className="h-4 w-4 text-emerald-600" />
-              Configure Scores
-            </SheetTitle>
-          </SheetHeader>
-          <ConfigPanel />
-          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 pb-4">
-            <Button
-              onClick={() => setShowConfigSheet(false)}
-              className="w-full h-11 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-medium shadow-sm"
-            >
-              Apply Filter
-            </Button>
-          </div>
-        </SheetContent>
-      </Sheet>
-
       {/* ═══ Delete All Dialog ═══ */}
       <AlertDialog open={showDeleteAllDialog} onOpenChange={setShowDeleteAllDialog}>
-        <AlertDialogContent className="z-[100] max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
+        <AlertDialogContent className="z-50 max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <AlertDialogHeader>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2.5 rounded-xl bg-red-100 dark:bg-red-900/30">
@@ -1982,7 +1906,7 @@ export default function PrimaryScoresTab({
                   )}
                 </div>
                 <div className="flex items-center gap-2.5 p-3 bg-red-50 dark:bg-red-950/30 rounded-xl border border-red-200 dark:border-red-800/50">
-                  <Database className="h-4 w-4 text-red-500 flex-shrink-0" />
+                  <Database className="h-4 w-4 text-red-500 shrink-0" />
                   <span className="text-sm font-semibold text-red-700 dark:text-red-400">
                     {scores.length} record{scores.length !== 1 ? "s" : ""} will be deleted
                   </span>
@@ -1994,13 +1918,13 @@ export default function PrimaryScoresTab({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 mt-3 flex-col sm:flex-row">
-            <AlertDialogCancel disabled={isDeletingAll} className="h-10 rounded-lg w-full sm:w-auto mt-0">
+            <AlertDialogCancel disabled={isDeletingAll} className="h-10 rounded-xl w-full sm:w-auto mt-0">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteAll}
               disabled={isDeletingAll}
-              className="bg-red-600 hover:bg-red-700 text-white h-10 gap-1.5 rounded-lg w-full sm:w-auto"
+              className="bg-red-600 hover:bg-red-700 text-white h-10 gap-1.5 rounded-xl w-full sm:w-auto"
             >
               {isDeletingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash className="h-4 w-4" />}
               Delete
@@ -2009,9 +1933,9 @@ export default function PrimaryScoresTab({
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ═══ Delete Progress ═══ */}
+      {/* ═══ Delete Progress Dialog ═══ */}
       <Dialog open={isDeletingAll && deleteProgress > 0 && deleteProgress < 100} onOpenChange={() => {}}>
-        <DialogContent className="z-[100] max-w-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
+        <DialogContent className="z-50 max-w-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-slate-800 dark:text-slate-200">
               <Loader2 className="h-4 w-4 animate-spin text-red-500" />
@@ -2028,7 +1952,7 @@ export default function PrimaryScoresTab({
 
       {/* ═══ Edit Score Dialog ═══ */}
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-        <DialogContent className="z-[100] max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
+        <DialogContent className="z-50 max-w-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl mx-4">
           <DialogHeader>
             <DialogTitle className="text-base font-semibold text-slate-800 dark:text-slate-200">
               Edit Score
@@ -2045,7 +1969,7 @@ export default function PrimaryScoresTab({
               <div className="space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">CA /40</Label>
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">CA Score /40</Label>
                     <Input
                       type="number"
                       inputMode="numeric"
@@ -2058,11 +1982,11 @@ export default function PrimaryScoresTab({
                           ca_score: Math.min(40, parseInt(e.target.value) || 0),
                         })
                       }
-                      className="h-11 text-center text-base font-medium rounded-lg"
+                      className="h-11 text-center text-base font-bold rounded-xl"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Exam /60</Label>
+                    <Label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Exam Score /60</Label>
                     <Input
                       type="number"
                       inputMode="numeric"
@@ -2075,16 +1999,16 @@ export default function PrimaryScoresTab({
                           exam_score: Math.min(60, parseInt(e.target.value) || 0),
                         })
                       }
-                      className="h-11 text-center text-base font-medium rounded-lg"
+                      className="h-11 text-center text-base font-bold rounded-xl"
                     />
                   </div>
                 </div>
-                <div className="flex items-center justify-between p-3.5 bg-gradient-to-r from-emerald-50 to-emerald-50/50 dark:from-emerald-950/30 dark:to-emerald-950/10 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                <div className="flex items-center justify-between p-3.5 bg-emerald-50/60 dark:bg-emerald-950/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
                   <div>
                     <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wider">
                       Total
                     </span>
-                    <div className="flex items-center gap-2 mt-1">
+                    <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 tabular-nums">
                         {editTotal}
                       </span>
@@ -2106,13 +2030,13 @@ export default function PrimaryScoresTab({
               variant="outline"
               size="sm"
               onClick={() => setShowEditDialog(false)}
-              className="rounded-lg h-10 w-full sm:w-auto"
+              className="rounded-xl h-10 w-full sm:w-auto"
             >
               Cancel
             </Button>
             <Button
               size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg gap-1.5 h-10 w-full sm:w-auto"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl gap-1.5 h-10 w-full sm:w-auto"
               onClick={async () => {
                 if (!editingScore) return;
                 const ca = editingScore.ca_score || 0;
