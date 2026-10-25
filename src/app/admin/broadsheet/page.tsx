@@ -19,7 +19,6 @@ import {
   ArrowRight, ClipboardCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
 // ── Constants ─────────────────────────────────────────────────────────
 const PRIMARY_SUBJECTS = [
   { id: 'english', name: 'English' },
@@ -44,6 +43,11 @@ const PRIMARY_SUBJECTS = [
   { id: 'security_education', name: 'Security Education' },
   { id: 'home_economics', name: 'Home Economics' },
   { id: 'phe', name: 'Physical and Health Education' },
+  { id: 'rhymes', name: 'Rhymes' },
+  { id: 'social_norms', name: 'Social Norms' },
+  { id: 'sensorial', name: 'Sensorial' },
+  { id: 'fine_art', name: 'Fine Art' },
+  { id: 'practical_life', name: 'Practical Life' },
 ] as const
 
 const CLASSES = [
@@ -71,10 +75,12 @@ const SUBJECT_DISPLAY_NAMES: Record<string, string> = {
   'Basic Science': 'Science',
   'Social Studies': 'Social',
   'Civic Education': 'Civic',
+  'Social Norms': 'Social Norms',
+  'Practical Life': 'Practical Life',
 }
 
 const TERM_MAP: Record<string, string> = { first: 'First', second: 'Second', third: 'Third' }
-const MIN_SUBJECTS_FOR_REPORT = 20
+const MIN_SUBJECTS_FOR_REPORT = 13
 
 const getRemarkColor = (remark: string): string => {
   const colors: Record<string, string> = {

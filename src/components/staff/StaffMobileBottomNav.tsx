@@ -54,49 +54,63 @@ export function StaffMobileBottomNav({
     return () => { document.body.style.overflow = '' }
   }, [isMoreOpen])
 
-  // Check if current path is in "More" menu to highlight More button
-  const isMoreActive = moreNav.some(item => 
-    pathname === item.href || pathname?.startsWith(item.href + '/')
-  )
+  // Safer active check to prevent '/staff' matching everything 
+  // and '/staff/notes' matching '/staff/notes-extra'
+  const checkIsActive = (href: string) => {
+    if (href === '/staff') return pathname === '/staff'
+    return pathname === href || pathname?.startsWith(href + '/')
+  }
+
+  const isMoreActive = moreNav.some(item => checkIsActive(item.href))
 
   const handleLogout = () => {
     setIsMoreOpen(false)
     if (onLogout) onLogout()
   }
 
+  // Appends hex transparency for the pill background (~15% opacity)
+  const activeBgColor = `${accentColor}25`
+
   return (
     <>
       {/* ─── Bottom Nav Bar ──────────────────────────────────────────────── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-t border-slate-200/60 dark:border-slate-800/60 lg:hidden pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)]">
-        <div className="flex items-center justify-around h-16 px-1">
+      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-white/85 dark:bg-slate-950/85 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 lg:hidden pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_-15px_rgba(0,0,0,0.1)]">
+        <div className="flex items-center justify-around h-[68px] px-2">
           {primaryNav.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/staff' && pathname?.startsWith(item.href))
+            const isActive = checkIsActive(item.href)
             return (
               <Link
                 key={item.name}
                 href={item.href}
-                className="group relative flex flex-col items-center justify-center w-full h-full gap-1 outline-none rounded-xl"
-                style={isActive ? { color: accentColor } : undefined}
+                className="group relative flex flex-col items-center justify-center w-full h-full gap-1 outline-none [-webkit-tap-highlight-color:transparent]"
               >
-                {/* Active Indicator Blob (Optional visual enhancement over just colored text) */}
-                {isActive && (
-                  <motion.div
-                    layoutId="bottom-nav-indicator"
-                    className="absolute inset-0 opacity-10 rounded-xl"
-                    style={{ backgroundColor: accentColor }}
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                {/* Icon Wrapper with Pill */}
+                <div className="relative flex items-center justify-center w-14 h-8 rounded-full transition-transform active:scale-95">
+                  {isActive && (
+                    <motion.div
+                      layoutId="bottom-nav-indicator"
+                      className="absolute inset-0 rounded-full"
+                      style={{ backgroundColor: activeBgColor }}
+                      transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+                    />
+                  )}
+                  <item.icon 
+                    className={cn(
+                      "relative z-10 h-5 w-5 transition-colors", 
+                      isActive ? "stroke-[2.5px]" : "text-slate-500 dark:text-slate-400 stroke-[2px]"
+                    )}
+                    style={isActive ? { color: accentColor } : undefined}
                   />
-                )}
-                <item.icon 
+                </div>
+                
+                {/* Label */}
+                <span 
                   className={cn(
-                    "h-[22px] w-[22px] transition-transform group-active:scale-95", 
-                    isActive ? "stroke-[2.5px]" : "text-slate-500 dark:text-slate-400 stroke-[2px]"
-                  )} 
-                />
-                <span className={cn(
-                  "text-[10px] tracking-wide transition-colors",
-                  isActive ? "font-semibold" : "font-medium text-slate-500 dark:text-slate-400"
-                )}>
+                    "text-[10px] tracking-wide transition-colors",
+                    isActive ? "font-semibold" : "font-medium text-slate-500 dark:text-slate-400"
+                  )}
+                  style={isActive ? { color: accentColor } : undefined}
+                >
                   {item.name}
                 </span>
               </Link>
@@ -106,27 +120,32 @@ export function StaffMobileBottomNav({
           {/* More Button */}
           <button
             onClick={() => setIsMoreOpen(true)}
-            className="group relative flex flex-col items-center justify-center w-full h-full gap-1 outline-none rounded-xl"
-            style={isMoreActive ? { color: accentColor } : undefined}
+            className="group relative flex flex-col items-center justify-center w-full h-full gap-1 outline-none [-webkit-tap-highlight-color:transparent]"
           >
-            {isMoreActive && (
-              <motion.div
-                layoutId="bottom-nav-indicator"
-                className="absolute inset-0 opacity-10 rounded-xl"
-                style={{ backgroundColor: accentColor }}
-                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            <div className="relative flex items-center justify-center w-14 h-8 rounded-full transition-transform active:scale-95">
+              {isMoreActive && (
+                <motion.div
+                  layoutId="bottom-nav-indicator"
+                  className="absolute inset-0 rounded-full"
+                  style={{ backgroundColor: activeBgColor }}
+                  transition={{ type: "spring", bounce: 0.25, duration: 0.5 }}
+                />
+              )}
+              <MoreHorizontal 
+                className={cn(
+                  "relative z-10 h-5 w-5 transition-colors", 
+                  isMoreActive ? "stroke-[2.5px]" : "text-slate-500 dark:text-slate-400 stroke-[2px]"
+                )} 
+                style={isMoreActive ? { color: accentColor } : undefined}
               />
-            )}
-            <MoreHorizontal 
+            </div>
+            <span 
               className={cn(
-                "h-[22px] w-[22px] transition-transform group-active:scale-95", 
-                isMoreActive ? "stroke-[2.5px]" : "text-slate-500 dark:text-slate-400 stroke-[2px]"
-              )} 
-            />
-            <span className={cn(
-              "text-[10px] tracking-wide transition-colors",
-              isMoreActive ? "font-semibold" : "font-medium text-slate-500 dark:text-slate-400"
-            )}>
+                "text-[10px] tracking-wide transition-colors",
+                isMoreActive ? "font-semibold" : "font-medium text-slate-500 dark:text-slate-400"
+              )}
+              style={isMoreActive ? { color: accentColor } : undefined}
+            >
               More
             </span>
           </button>
@@ -143,7 +162,7 @@ export function StaffMobileBottomNav({
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsMoreOpen(false)}
-              className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 lg:hidden"
+              className="fixed inset-0 bg-slate-900/40 dark:bg-slate-950/60 backdrop-blur-sm z-50 lg:hidden"
             />
 
             {/* Sheet */}
@@ -151,26 +170,26 @@ export function StaffMobileBottomNav({
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
               drag="y"
               dragConstraints={{ top: 0 }}
-              dragElastic={0.2}
+              dragElastic={0.05}
               onDragEnd={(_, { offset, velocity }) => {
                 if (offset.y > 100 || velocity.y > 500) {
                   setIsMoreOpen(false)
                 }
               }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-900 rounded-t-3xl shadow-2xl lg:hidden max-h-[85dvh] flex flex-col pb-[env(safe-area-inset-bottom)]"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-slate-950 rounded-t-3xl shadow-2xl lg:hidden max-h-[85dvh] flex flex-col pb-[env(safe-area-inset-bottom)] ring-1 ring-slate-200 dark:ring-slate-800"
             >
               {/* Drag Indicator & Header */}
-              <div className="flex flex-col items-center pt-3 pb-2 px-4 border-b border-slate-100 dark:border-slate-800/60 shrink-0">
-                <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mb-4" />
+              <div className="flex flex-col items-center pt-3 pb-4 px-5 border-b border-slate-100 dark:border-slate-800/60 shrink-0 cursor-grab active:cursor-grabbing">
+                <div className="w-12 h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full mb-5" />
                 <div className="w-full flex items-center justify-between">
-                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">More Options</h3>
+                  <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100 tracking-tight">Menu</h3>
                   <button
                     onClick={() => setIsMoreOpen(false)}
                     aria-label="Close menu"
-                    className="h-9 w-9 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                    className="h-8 w-8 flex items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800/80 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -178,10 +197,10 @@ export function StaffMobileBottomNav({
               </div>
 
               {/* Scrollable Links */}
-              <div className="overflow-y-auto overscroll-contain px-4 py-3 hide-scrollbar">
-                <div className="grid grid-cols-1 gap-1.5">
+              <div className="overflow-y-auto overscroll-contain px-4 py-4 hide-scrollbar">
+                <div className="grid grid-cols-1 gap-1">
                   {moreNav.map((item) => {
-                    const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
+                    const isActive = checkIsActive(item.href)
                     return (
                       <button
                         key={item.name}
@@ -190,31 +209,30 @@ export function StaffMobileBottomNav({
                           router.push(item.href)
                         }}
                         className={cn(
-                          "flex items-center gap-3 w-full p-3 rounded-2xl transition-all text-left outline-none focus-visible:ring-2",
+                          "flex items-center gap-4 w-full p-3 rounded-2xl transition-all text-left outline-none [-webkit-tap-highlight-color:transparent]",
                           isActive 
                             ? "" 
-                            : "hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-700 dark:text-slate-300 active:scale-[0.98]"
+                            : "hover:bg-slate-50 dark:hover:bg-slate-900 active:scale-[0.98] text-slate-700 dark:text-slate-300"
                         )}
                         style={isActive ? { 
-                          backgroundColor: `${accentColor}15`, 
+                          backgroundColor: activeBgColor, 
                           color: accentColor 
                         } : undefined}
                       >
                         <div 
                           className={cn(
-                            "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm",
-                            isActive ? "" : "bg-white dark:bg-slate-800 border border-slate-100 dark:border-slate-700"
+                            "h-10 w-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm transition-colors",
+                            isActive ? "bg-white/60 dark:bg-black/20" : "bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800"
                           )}
-                          style={isActive ? { backgroundColor: `${accentColor}25` } : undefined}
                         >
                           <item.icon 
-                            className={cn("h-5 w-5", !isActive && "text-slate-500 dark:text-slate-400")} 
+                            className={cn("h-[22px] w-[22px]", !isActive && "text-slate-500 dark:text-slate-400")} 
                             style={isActive ? { color: accentColor } : undefined}
                           />
                         </div>
                         <span className="flex-1 text-[15px] font-semibold">{item.name}</span>
                         <ChevronRight 
-                          className={cn("h-4 w-4", !isActive && "text-slate-300 dark:text-slate-600")} 
+                          className={cn("h-5 w-5 opacity-60", !isActive && "text-slate-400 dark:text-slate-500")} 
                           style={isActive ? { color: accentColor } : undefined}
                         />
                       </button>
@@ -223,13 +241,13 @@ export function StaffMobileBottomNav({
                 </div>
 
                 {/* Logout Button */}
-                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800/60">
+                <div className="mt-5 pt-5 mb-2 border-t border-slate-100 dark:border-slate-800/60 px-1">
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-3 w-full p-3 rounded-2xl transition-all text-left bg-red-50 hover:bg-red-100 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-700 dark:text-red-400 active:scale-[0.98] outline-none focus-visible:ring-2 focus-visible:ring-red-500"
+                    className="flex items-center gap-4 w-full p-3 rounded-2xl transition-all text-left bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-700 dark:text-red-400 active:scale-[0.98] outline-none [-webkit-tap-highlight-color:transparent]"
                   >
-                    <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 bg-white dark:bg-red-900/40 border border-red-100 dark:border-red-900/50 shadow-sm">
-                      <LogOut className="h-5 w-5 text-red-600 dark:text-red-400" />
+                    <div className="h-10 w-10 rounded-xl flex items-center justify-center shrink-0 bg-white dark:bg-red-950/50 shadow-sm border border-red-100 dark:border-red-900/50">
+                      <LogOut className="h-[22px] w-[22px] text-red-600 dark:text-red-400" />
                     </div>
                     <span className="flex-1 text-[15px] font-semibold">Sign Out</span>
                   </button>

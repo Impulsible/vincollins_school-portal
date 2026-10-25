@@ -61,6 +61,11 @@ const PRIMARY_SUBJECTS = [
   { id: "security_education", name: "Security Education", category: "Core" },
   { id: "home_economics", name: "Home Economics", category: "Vocational" },
   { id: "phe", name: "Physical and Health Education", category: "Core" },
+  { id: "rhymes", name: "Rhymes", category: "Arts" },
+  { id: "social_norms", name: "Social Norms", category: "Core" },
+  { id: "sensorial", name: "Sensorial", category: "Core" },
+  { id: "fine_art", name: "Fine Art", category: "Arts" },
+  { id: "practical_life", name: "Practical Life", category: "Vocational" },
 ];
 
 const AFFECTIVE_DOMAIN = [
@@ -108,6 +113,11 @@ const SUBJECT_ORDER: Record<string, number> = {
   "Security Education": 20,
   "Home Economics": 21,
   "Physical and Health Education": 22,
+  Rhymes: 23,
+  "Social Norms": 24,
+  Sensorial: 25,
+  "Fine Art": 26,
+  "Practical Life": 27,
 };
 
 const MAX_SCORE_PER_SUBJECT = 100;
@@ -163,6 +173,11 @@ const normalizeSubjectName = (name: string): string => {
     "Vocational Aptitude": "Vocational Aptitude", Vocational: "Vocational Aptitude",
     "Quantitative Reasoning": "Quantitative Reasoning", Quant: "Quantitative Reasoning",
     "Verbal Reasoning": "Verbal Reasoning", Verbal: "Verbal Reasoning",
+    Rhymes: "Rhymes", Rhyme: "Rhymes",
+    "Social Norms": "Social Norms", "Social Norm": "Social Norms", SN: "Social Norms",
+    Sensorial: "Sensorial", Sensory: "Sensorial",
+    "Fine Art": "Fine Art", "Fine Arts": "Fine Art", FA: "Fine Art",
+    "Practical Life": "Practical Life", PL: "Practical Life",
   };
   return map[name] || name;
 };
@@ -180,11 +195,21 @@ const SUBJECT_DISPLAY_NAMES: Record<string, string> = {
   "Basic Science": "Basic Science",
   "Social Studies": "Social Studies",
   "Civic Education": "Civic Education",
+  "Social Norms": "Social Norms",
+  "Practical Life": "Practical Life",
 };
 
-const getSchoolLevel = (className?: string): "Primary" | "Nursery" | "Playgroup" => {
+// ─── SCHOOL LEVEL RESOLUTION ───────────────────────────────────────────────
+export type SchoolLevel = "Primary" | "Nursery" | "Kindergarten" | "Playgroup";
+
+const getSchoolLevel = (className?: string): SchoolLevel => {
   if (!className) return "Primary";
-  const lower = className.toLowerCase();
+  const lower = className.toLowerCase().trim();
+
+  if (lower.includes("kindergarten") || /\bkg\b/.test(lower)) {
+    return "Kindergarten";
+  }
+
   if (
     lower.includes("primary") ||
     (lower.includes("p") && /\d/.test(lower)) ||
@@ -193,6 +218,7 @@ const getSchoolLevel = (className?: string): "Primary" | "Nursery" | "Playgroup"
   ) {
     return "Primary";
   }
+
   if (
     lower.includes("nursery") ||
     lower.includes("n1") ||
@@ -203,16 +229,16 @@ const getSchoolLevel = (className?: string): "Primary" | "Nursery" | "Playgroup"
   ) {
     return "Nursery";
   }
+
   if (
     lower.includes("playgroup") ||
     lower.includes("play group") ||
     lower.includes("pre-school") ||
-    lower.includes("preschool") ||
-    lower.includes("kindergarten") ||
-    lower.includes("kg")
+    lower.includes("preschool")
   ) {
     return "Playgroup";
   }
+
   return "Primary";
 };
 
@@ -220,6 +246,36 @@ const getFullSchoolName = (school: SchoolSettings, className?: string): string =
   const level = getSchoolLevel(className);
   const baseName = school.name.replace(/\s*SCHOOLS?\s*$/i, "").trim();
   return `${baseName} ${level}`;
+};
+
+// ─── REPORT SUBJECT RESOLUTION (score-driven, all levels) ─────────────────
+const buildReportSubjectRows = (scores: SubjectScore[]): SubjectScore[] => {
+  const hasScore = (s: SubjectScore) =>
+    (Number(s.ca) || 0) > 0 ||
+    (Number(s.exam) || 0) > 0 ||
+    (Number(s.total) || 0) > 0;
+
+  const byName = new Map<string, SubjectScore>();
+  for (const s of scores) {
+    if (!s?.subject || !hasScore(s)) continue;
+    const name = normalizeSubjectName(s.subject);
+    const existing = byName.get(name);
+    if (!existing || (Number(s.total) || 0) > (Number(existing.total) || 0)) {
+      byName.set(name, { ...s, subject: name });
+    }
+  }
+
+  return Array.from(byName.values())
+    .sort((a, b) => {
+      const oa = SUBJECT_ORDER[a.subject] ?? 999;
+      const ob = SUBJECT_ORDER[b.subject] ?? 999;
+      if (oa !== ob) return oa - ob;
+      return a.subject.localeCompare(b.subject);
+    })
+    .map((s) => ({
+      ...s,
+      subject_display: SUBJECT_DISPLAY_NAMES[s.subject] ?? s.subject_display ?? s.subject,
+    }));
 };
 
 const getTeacherForClass = async (className: string): Promise<{ id: string; full_name: string } | null> => {
@@ -366,7 +422,7 @@ function AdminReportPreviewContent() {
     `,
   });
 
-  // ─── Fetch Next Term Resumption Date from system_settings & terms ─────────
+  // ─── Fetch Next Term Resumption Date ─────────
   const fetchResumptionDate = useCallback(async (currentTerm?: string, currentSession?: string) => {
     try {
       const { data: sysSetting } = await supabase
@@ -439,7 +495,6 @@ function AdminReportPreviewContent() {
   const loadAttendance = useCallback(
     async (sid: string) => {
       try {
-        // Query attendance_records directly for student
         const { data: recordsData, error: recsErr } = await supabase
           .from("attendance_records")
           .select("status, date, term_code, session_year")
@@ -447,7 +502,6 @@ function AdminReportPreviewContent() {
 
         let rowsToParse: any[] = recordsData || [];
 
-        // Fallback: Query 'attendance' table
         if (rowsToParse.length === 0) {
           const { data: attTableData } = await supabase
             .from("attendance")
@@ -463,7 +517,6 @@ function AdminReportPreviewContent() {
           const termLower = (paramTerm || "first").toLowerCase().trim();
           const yearLower = (paramYear || "").toLowerCase().replace(/\s+/g, "");
 
-          // Filter by term and session
           const filtered = rowsToParse.filter((r: any) => {
             const rTerm = (r.term_code || r.term || "").toString().toLowerCase().trim();
             const rYear = (r.session_year || r.academic_year || "").toString().toLowerCase().replace(/\s+/g, "");
@@ -533,7 +586,7 @@ function AdminReportPreviewContent() {
       if (!response.ok) throw new Error("Generation failed");
       const data = await response.json();
       const generatedRemark = data.principal_comment;
-      
+
       const { error: saveError } = await supabase.from("report_cards").upsert(
         {
           student_id: std.id,
@@ -543,12 +596,18 @@ function AdminReportPreviewContent() {
           class: std.class,
           average: Math.round(avg),
           grade: getRemark(avg),
+          status: "generated", // ← FIX: was defaulting to 'pending' which violates CHECK
         },
         { onConflict: "student_id,term,session_year" }
       );
 
       if (saveError) {
-        console.error("Failed to auto-save principal comment:", saveError);
+        console.error("Failed to auto-save principal comment:", {
+          message: saveError.message,
+          code: saveError.code,
+          details: saveError.details,
+          hint: saveError.hint,
+        });
       } else {
         setPrincipalComment(generatedRemark);
         setTempPrincipalComment(generatedRemark);
@@ -584,7 +643,6 @@ function AdminReportPreviewContent() {
 
       await loadAttendance(studentId);
 
-      // Fetch teacher assigned to class
       if (sd.class) {
         const teacher = await getTeacherForClass(sd.class);
         setClassTeacher(teacher?.full_name || "Class Teacher");
@@ -592,13 +650,11 @@ function AdminReportPreviewContent() {
         setClassTeacher("Class Teacher");
       }
 
-      // Fetch resumption date
       const dynamicResume = await fetchResumptionDate(paramTerm, paramYear);
       if (dynamicResume) {
         setResumptionDate(dynamicResume);
       }
 
-      // Load scores
       const { data: scores } = await supabase
         .from("primary_scores")
         .select("*")
@@ -611,15 +667,15 @@ function AdminReportPreviewContent() {
         return;
       }
 
+      // Build raw SubjectScore[] keeping canonical names
       const processed: SubjectScore[] = scores.map((s: any) => {
-        const ca = s.ca_score || 0;
-        const exam = s.exam_score || 0;
+        const ca = Number(s.ca_score) || 0;
+        const exam = Number(s.exam_score) || 0;
         const total = ca + exam;
-        const subjectName = normalizeSubjectName(s.subject);
-        const displayName = SUBJECT_DISPLAY_NAMES[subjectName] || subjectName;
+        const canonicalName = normalizeSubjectName(s.subject);
         return {
-          subject: displayName,
-          subject_display: displayName,
+          subject: canonicalName,
+          subject_display: canonicalName,
           ca,
           exam,
           total,
@@ -627,16 +683,8 @@ function AdminReportPreviewContent() {
         };
       });
 
-      const subjectMap = new Map<string, SubjectScore>();
-      processed.forEach((s) => {
-        const existing = subjectMap.get(s.subject);
-        if (!existing || s.total > existing.total) subjectMap.set(s.subject, s);
-      });
-
-      const sortedSubjects = Array.from(subjectMap.values()).sort((a, b) => {
-        return (SUBJECT_ORDER[a.subject] || 999) - (SUBJECT_ORDER[b.subject] || 999);
-      });
-
+      // Score-driven rendering for ALL class levels
+      const sortedSubjects = buildReportSubjectRows(processed);
       setSubjects(sortedSubjects);
 
       const total = sortedSubjects.reduce((sum, s) => sum + s.total, 0);
@@ -645,7 +693,6 @@ function AdminReportPreviewContent() {
       setAverageScore(avg);
       setOverallRemark(getRemark(avg));
 
-      // Fetch existing comments or generate
       const { data: existingCard } = await supabase
         .from("report_cards")
         .select("*")
@@ -701,11 +748,20 @@ function AdminReportPreviewContent() {
           session_year: paramYear,
           teacher_comment: tempTeacherComment || teacherComment,
           class: student?.class,
+          status: "generated", // ← FIX
         },
         { onConflict: "student_id,term,session_year" }
       );
 
-      if (error) throw error;
+      if (error) {
+        console.error("Failed to save teacher comment:", {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw error;
+      }
       setTeacherComment(tempTeacherComment || teacherComment);
       setEditingTeacher(false);
       toast.success("Teacher comment saved!");
@@ -725,11 +781,20 @@ function AdminReportPreviewContent() {
           session_year: paramYear,
           principal_comment: tempPrincipalComment || principalComment,
           class: student?.class,
+          status: "generated", // ← FIX
         },
         { onConflict: "student_id,term,session_year" }
       );
 
-      if (error) throw error;
+      if (error) {
+        console.error("Failed to save principal comment:", {
+          message: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        });
+        throw error;
+      }
       setPrincipalComment(tempPrincipalComment || principalComment);
       setEditingPrincipal(false);
       toast.success("Principal comment saved!");
@@ -772,7 +837,6 @@ function AdminReportPreviewContent() {
   const bestSubject = subjects.length > 0 ? subjects.reduce((a, b) => (a.total > b.total ? a : b)) : null;
   const worstSubject = subjects.length > 0 ? subjects.reduce((a, b) => (a.total < b.total ? a : b)) : null;
 
-  // Format Next Term Resume Date from DB Settings or fallback
   const getResumeDateString = () => {
     const rawDate = resumptionDate || school.next_term_resume;
     if (rawDate) {
@@ -879,7 +943,6 @@ function AdminReportPreviewContent() {
               
               {/* Header Grid */}
               <div className="flex items-start gap-3 sm:gap-4 pb-2">
-                {/* School Logo */}
                 <div className="shrink-0 w-14 h-14 sm:w-16 sm:h-16 print:w-14 print:h-14 border-2 border-blue-800 rounded-lg flex items-center justify-center bg-white p-1 shadow-sm">
                   {school.logo_url ? (
                     <img src={school.logo_url} alt="School logo" className="w-full h-full object-contain" />
@@ -888,7 +951,6 @@ function AdminReportPreviewContent() {
                   )}
                 </div>
 
-                {/* School Info - Center */}
                 <div className="flex-1 text-center min-w-0">
                   <h1 className="text-lg sm:text-xl md:text-[22px] print:text-lg font-black text-blue-900 tracking-wide leading-none uppercase">
                     {fullSchoolName}
@@ -915,13 +977,11 @@ function AdminReportPreviewContent() {
                   </div>
                 </div>
 
-                {/* Student Photo — Passport size (face-focused portrait) */}
                 <div
                   className={cn(
                     "shrink-0 overflow-hidden bg-slate-50 shadow-sm border-2 border-blue-800",
-                    // Passport-like portrait ratio (~3:4), larger for face clarity
                     "w-[56px] h-[72px] sm:w-[68px] sm:h-[90px] print:w-[65px] print:h-[85px]",
-                    "rounded-sm" // flatter corners = more passport-like than rounded-lg
+                    "rounded-sm"
                   )}
                 >
                   {student?.photo_url ? (
@@ -929,7 +989,6 @@ function AdminReportPreviewContent() {
                       src={student.photo_url}
                       alt="Student passport photo"
                       className="w-full h-full object-cover object-top"
-                      // object-top keeps face in frame if photo is full-body/upper-body
                       draggable={false}
                     />
                   ) : (
@@ -1007,7 +1066,7 @@ function AdminReportPreviewContent() {
                             "border-b border-blue-100 last:border-0",
                             i % 2 === 0 ? "bg-white/85" : "bg-blue-50/60"
                           )}>
-                            <td className="px-1.5 py-[3px] font-semibold text-slate-800 leading-tight border-r border-blue-100">{s.subject}</td>
+                            <td className="px-1.5 py-[3px] font-semibold text-slate-800 leading-tight border-r border-blue-100">{s.subject_display || s.subject}</td>
                             <td className="px-1 py-[3px] text-center font-bold text-slate-700 tabular-nums border-r border-blue-100">{s.ca}</td>
                             <td className="px-1 py-[3px] text-center font-bold text-slate-700 tabular-nums border-r border-blue-100">{s.exam}</td>
                             <td className="px-1 py-[3px] text-center font-black tabular-nums border-r border-blue-100">
@@ -1095,7 +1154,7 @@ function AdminReportPreviewContent() {
                     </div>
                   </div>
 
-                  {/* Head Master/Mistress Remark panel (Automated on load) */}
+                  {/* Head Master/Mistress Remark panel */}
                   <div className="border-2 border-blue-700 rounded-lg overflow-hidden flex-1 flex flex-col bg-white/90 min-h-[85px]">
                     <div className="bg-gradient-to-r from-blue-700 to-blue-600 text-white px-2 py-1 text-[9px] font-black uppercase tracking-wider flex items-center justify-between shrink-0">
                       <div className="flex items-center gap-1">
@@ -1201,7 +1260,7 @@ function AdminReportPreviewContent() {
                               <TrendingUp className="h-2 w-2" /> Best
                             </span>
                             <span className="font-black text-emerald-700 text-right text-[8px] leading-tight">
-                              {bestSubject.subject}
+                              {bestSubject.subject_display || bestSubject.subject}
                               <span className="block text-[7px]">({bestSubject.total}%)</span>
                             </span>
                           </div>
@@ -1213,7 +1272,7 @@ function AdminReportPreviewContent() {
                             <TrendingDown className="h-2 w-2" /> Improve
                           </span>
                           <span className="font-black text-rose-600 text-right text-[8px] leading-tight">
-                            {worstSubject.subject}
+                            {worstSubject.subject_display || worstSubject.subject}
                             <span className="block text-[7px]">({worstSubject.total}%)</span>
                           </span>
                         </div>
@@ -1312,7 +1371,7 @@ function AdminReportPreviewContent() {
                     </div>
                   </div>
 
-                  {/* Rating keys & grading scale configurations */}
+                  {/* Rating keys & grading scale */}
                   <div className="border border-blue-300 rounded-lg overflow-hidden bg-white/90">
                     <div className="bg-blue-50 text-blue-800 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-center border-b border-blue-200">
                       Rating Key

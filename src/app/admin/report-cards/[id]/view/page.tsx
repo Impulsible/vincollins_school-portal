@@ -48,7 +48,8 @@ const SUBJECT_ORDER: Record<string, number> = {
   'French': 12, 'Quantitative Reasoning': 13, 'Verbal Reasoning': 14,
   'Music': 15, 'Handwriting': 16, 'Literature': 17, 'Vocational Aptitude': 18,
   'History': 19, 'Security Education': 20, 'Home Economics': 21,
-  'Physical and Health Education': 22,
+  'Physical and Health Education': 22, 'Rhymes': 23, 'Social Norms': 24,
+  'Sensorial': 25, 'Fine Art': 26, 'Practical Life': 27,
 }
 
 const MAX_SCORE_PER_SUBJECT = 100
@@ -136,6 +137,11 @@ const normalizeSubjectName = (name: string): string => {
     'Vocational': 'Vocational Aptitude', 'Vocational Aptitude': 'Vocational Aptitude',
     'Quant': 'Quantitative Reasoning', 'Quantitative Reasoning': 'Quantitative Reasoning',
     'Verbal': 'Verbal Reasoning', 'Verbal Reasoning': 'Verbal Reasoning',
+    'Rhyme': 'Rhymes', 'Rhymes': 'Rhymes',
+    'Social Norm': 'Social Norms', 'Social Norms': 'Social Norms', 'SN': 'Social Norms',
+    'Sensory': 'Sensorial', 'Sensorial': 'Sensorial',
+    'Fine Arts': 'Fine Art', 'Fine Art': 'Fine Art', 'FA': 'Fine Art',
+    'PL': 'Practical Life', 'Practical Life': 'Practical Life',
   }
   return map[name] || name
 }
@@ -153,25 +159,39 @@ const SUBJECT_DISPLAY_NAMES: Record<string, string> = {
   'Basic Science': 'Basic Science',
   'Social Studies': 'Social Studies',
   'Civic Education': 'Civic Education',
+  'Social Norms': 'Social Norms',
+  'Practical Life': 'Practical Life',
 }
 
-const getSchoolLevel = (className?: string): 'Primary' | 'Nursery' | 'Playgroup' => {
+// ─── SCHOOL LEVEL RESOLUTION ───────────────────────────────────────────────
+export type SchoolLevel = 'Primary' | 'Nursery' | 'Kindergarten' | 'Playgroup'
+
+const getSchoolLevel = (className?: string): SchoolLevel => {
   if (!className) return 'Primary'
-  const lower = className.toLowerCase()
+  const lower = className.toLowerCase().trim()
+
+  // Kindergarten FIRST — must precede Playgroup so "kg" isn't swallowed
+  if (lower.includes('kindergarten') || /\bkg\b/.test(lower)) {
+    return 'Kindergarten'
+  }
+
   if (lower.includes('primary') || (lower.includes('p') && /\d/.test(lower)) ||
       ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].some(p => lower.includes(p)) ||
       lower.includes('basic')) {
     return 'Primary'
   }
-  if (lower.includes('nursery') || lower.includes('n1') || lower.includes('n2') || 
+
+  if (lower.includes('nursery') || lower.includes('n1') || lower.includes('n2') ||
       lower.includes('n3') || lower.includes('creche') || lower.includes('toddler')) {
     return 'Nursery'
   }
+
+  // Playgroup only — pre-school / preschool no longer lumped with Kindergarten
   if (lower.includes('playgroup') || lower.includes('play group') ||
-      lower.includes('pre-school') || lower.includes('preschool') ||
-      lower.includes('kindergarten') || lower.includes('kg')) {
+      lower.includes('pre-school') || lower.includes('preschool')) {
     return 'Playgroup'
   }
+
   return 'Primary'
 }
 
@@ -179,6 +199,42 @@ const getFullSchoolName = (school: SchoolSettings, className?: string): string =
   const level = getSchoolLevel(className)
   const baseName = school.name.replace(/\s*SCHOOLS?\s*$/i, '').trim()
   return `${baseName} ${level}`
+}
+
+// ─── REPORT SUBJECT RESOLUTION (score-driven, all levels) ─────────────────
+/**
+ * Builds the ready-to-render subject rows for a report card.
+ * Renders ONLY subjects the student actually has scores for — for every class
+ * level (Primary, Nursery, Kindergarten, Playgroup). Order follows SUBJECT_ORDER.
+ */
+const buildReportSubjectRows = (scores: SubjectScore[]): SubjectScore[] => {
+  const hasScore = (s: SubjectScore) =>
+    (Number(s.ca) || 0) > 0 ||
+    (Number(s.exam) || 0) > 0 ||
+    (Number(s.total) || 0) > 0
+
+  const byName = new Map<string, SubjectScore>()
+  for (const s of scores) {
+    if (!s?.subject || !hasScore(s)) continue
+    const name = normalizeSubjectName(s.subject)
+    // If duplicates exist, keep the one with the highest total
+    const existing = byName.get(name)
+    if (!existing || (Number(s.total) || 0) > (Number(existing.total) || 0)) {
+      byName.set(name, { ...s, subject: name })
+    }
+  }
+
+  return Array.from(byName.values())
+    .sort((a, b) => {
+      const oa = SUBJECT_ORDER[a.subject] ?? 999
+      const ob = SUBJECT_ORDER[b.subject] ?? 999
+      if (oa !== ob) return oa - ob
+      return a.subject.localeCompare(b.subject)
+    })
+    .map(s => ({
+      ...s,
+      subject_display: SUBJECT_DISPLAY_NAMES[s.subject] ?? s.subject_display ?? s.subject,
+    }))
 }
 
 const getRemark = (score: number): string => {
@@ -594,55 +650,31 @@ export default function ReportCardViewPage() {
           .eq('student_id', rc.student_id)
           .eq('term', rc.term)
           .eq('academic_year', academicYear)
-        
+
         scoresData = result || []
       }
 
-      let subjectsData: any[] = []
-      if (scoresData.length > 0) {
-        subjectsData = scoresData.map((s) => {
-          const ca = s.ca_score || 0
-          const exam = s.exam_score || 0
-          const total = ca + exam
-          const subjectName = normalizeSubjectName(s.subject)
-          const displayName = SUBJECT_DISPLAY_NAMES[subjectName] || subjectName
-          return {
-            subject: displayName,
-            subject_display: displayName,
-            ca,
-            exam,
-            total,
-            remark: getRemark(total),
-          }
-        })
-      } else {
-        subjectsData = rc.subjects || []
-      }
-
-      const subjectMap = new Map<string, SubjectScore>()
-      subjectsData.forEach((s: any) => {
-        const subject = s.subject || s.name || 'Unknown'
-        const caVal = s.ca !== undefined ? s.ca : 0
-        const examVal = s.exam !== undefined ? s.exam : 0
-        const total = s.total !== undefined ? s.total : (caVal + examVal)
-        const existing = subjectMap.get(subject)
-        
-        if (!existing || total > existing.total) {
-          subjectMap.set(subject, {
-            subject: subject,
-            subject_display: s.subject_display || s.subject || subject,
-            ca: caVal,
-            exam: examVal,
-            total: total,
-            remark: s.remark || getRemark(total),
+      // Build raw SubjectScore[] from DB rows (or fall back to embedded rc.subjects)
+      const rawScores: SubjectScore[] = scoresData.length > 0
+        ? scoresData.map((s) => {
+            const ca = Number(s.ca_score) || 0
+            const exam = Number(s.exam_score) || 0
+            const total = ca + exam
+            const canonicalName = normalizeSubjectName(s.subject)
+            return {
+              subject: canonicalName,
+              subject_display: canonicalName,
+              ca,
+              exam,
+              total,
+              remark: getRemark(total),
+            }
           })
-        }
-      })
+        : (rc.subjects || [])
 
-      const sortedSubjects = Array.from(subjectMap.values()).sort((a, b) => {
-        return (SUBJECT_ORDER[a.subject] || 999) - (SUBJECT_ORDER[b.subject] || 999)
-      })
-
+      // Score-driven rendering: only subjects with scores, ordered by SUBJECT_ORDER,
+      // for ALL class levels (Playgroup, Kindergarten, Nursery, Primary).
+      const sortedSubjects = buildReportSubjectRows(rawScores)
       setSubjects(sortedSubjects)
 
       const total = sortedSubjects.reduce((sum, s) => sum + s.total, 0)
@@ -971,7 +1003,7 @@ export default function ReportCardViewPage() {
                             'border-b border-blue-100 last:border-0',
                             i % 2 === 0 ? 'bg-white/85' : 'bg-blue-50/60'
                           )}>
-                            <td className="px-1.5 py-[3px] font-semibold text-slate-800 leading-tight border-r border-blue-100">{s.subject}</td>
+                            <td className="px-1.5 py-[3px] font-semibold text-slate-800 leading-tight border-r border-blue-100">{s.subject_display || s.subject}</td>
                             <td className="px-1 py-[3px] text-center font-bold text-slate-700 tabular-nums border-r border-blue-100">{s.ca}</td>
                             <td className="px-1 py-[3px] text-center font-bold text-slate-700 tabular-nums border-r border-blue-100">{s.exam}</td>
                             <td className="px-1 py-[3px] text-center font-black tabular-nums border-r border-blue-100">
@@ -1187,7 +1219,7 @@ export default function ReportCardViewPage() {
                               <TrendingUp className="h-2 w-2" /> Best
                             </span>
                             <span className="font-black text-emerald-700 text-right text-[8px] leading-tight">
-                              {bestSubject.subject}
+                              {bestSubject.subject_display || bestSubject.subject}
                               <span className="block text-[7px]">({bestSubject.total}%)</span>
                             </span>
                           </div>
@@ -1199,7 +1231,7 @@ export default function ReportCardViewPage() {
                             <TrendingDown className="h-2 w-2" /> Improve
                           </span>
                           <span className="font-black text-rose-600 text-right text-[8px] leading-tight">
-                            {worstSubject.subject}
+                            {worstSubject.subject_display || worstSubject.subject}
                             <span className="block text-[7px]">({worstSubject.total}%)</span>
                           </span>
                         </div>

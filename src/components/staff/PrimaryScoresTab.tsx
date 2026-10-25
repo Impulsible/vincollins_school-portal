@@ -140,6 +140,7 @@ const PRIMARY_SUBJECTS: string[] = [
   "Christian Religious Studies", "French", "Quantitative Reasoning", "Verbal Reasoning",
   "Music", "Handwriting", "Literature", "Vocational Aptitude", "History",
   "Security Education", "Home Economics", "Physical and Health Education",
+  "Rhymes", "Social Norms", "Sensorial", "Fine Art", "Practical Life",
 ];
 
 const STORAGE_KEYS = {

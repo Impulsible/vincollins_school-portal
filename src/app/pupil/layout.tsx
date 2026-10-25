@@ -8,6 +8,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useUser } from '@/contexts/UserContext'
 import { Header, HeaderUser } from '@/components/layout/header'
 import { PupilSidebar } from '@/components/pupil/PupilSidebar'
+import { PupilMobileBottomNav } from '@/components/pupil/PupilMobileBottomNav'
 import { cn } from '@/lib/utils'
 import { supabase } from '@/lib/supabase/client'
 import { Loader2, ChevronRight, Home } from 'lucide-react'
@@ -78,7 +79,7 @@ function PupilBreadcrumb({ pathname }: { pathname: string }) {
     const map: Record<string, string> = {
       'assignments': 'Assignments',
       'notes': 'Study Notes',
-      'announcements': 'Announcements', // ✅ Added
+      'announcements': 'Announcements',
       'report-cards': 'Report Cards',
       'classmates': 'Classmates',
       'profile': 'Profile',
@@ -161,7 +162,7 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
           .eq('id', user.id)
           .single() as any
 
-        // ✅ FIX: Handle error properly
+        // Handle error properly
         if (error) {
           // Check if error is "no rows returned" (PGRST116)
           if (error.code === 'PGRST116') {
@@ -221,7 +222,7 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
       newTab = 'assignments'
     } else if (pathname?.startsWith('/pupil/notes')) {
       newTab = 'notes'
-    } else if (pathname?.startsWith('/pupil/announcements')) { // ✅ ADDED
+    } else if (pathname?.startsWith('/pupil/announcements')) { 
       newTab = 'announcements'
     } else if (pathname?.startsWith('/pupil/report-cards')) {
       newTab = 'report-cards'
@@ -254,7 +255,7 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
       return
     }
     
-    // ✅ FIX: Check for both 'student' and 'pupil' roles
+    // Check for both 'student' and 'pupil' roles
     const isValidRole = user.role === 'student' || user.role === 'pupil'
     
     if (!isValidRole) {
@@ -295,7 +296,6 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
     )
   }
 
-  // ✅ FIX: Check for both 'student' and 'pupil' roles
   if (!user || (user.role !== 'student' && user.role !== 'pupil')) {
     console.log('🚫 [PupilLayout] User not valid, returning null')
     return null
@@ -312,11 +312,8 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
     class_arm: user.class_arm || '',
   }
 
-  console.log('✅ [PupilLayout] Rendering layout with user:', user)
-  console.log('✅ [PupilLayout] sidebarProfile:', sidebarProfile)
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-x-hidden w-full">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 overflow-x-hidden w-full relative">
       <Header user={headerUser} onLogout={handleLogout} />
       
       <div className="flex w-full overflow-x-hidden">
@@ -333,7 +330,8 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
           "flex-1 transition-all duration-300 w-full overflow-x-hidden",
           sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
         )}>
-          <main className="min-h-[calc(100vh-64px)] pt-[72px] lg:pt-24 pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
+          {/* ✅ ADJUSTED PADDING: pb-24 on mobile ensures content clears the bottom nav. lg:pb-12 reverts to normal on desktop */}
+          <main className="min-h-[calc(100vh-64px)] pt-[72px] lg:pt-24 pb-24 lg:pb-12 px-3 sm:px-4 lg:px-8 w-full overflow-x-hidden">
             <div className="w-full max-w-7xl mx-auto">
               {/* Breadcrumb Navigation */}
               <PupilBreadcrumb pathname={pathname || ''} />
@@ -344,6 +342,12 @@ export default function PupilLayout({ children }: PupilLayoutProps) {
           </main>
         </div>
       </div>
+
+      {/* ─── Mobile Bottom Nav (Hidden on LG+) ─── */}
+      <PupilMobileBottomNav 
+        onLogout={handleLogout}
+        accentColor="#059669"
+      />
     </div>
   )
 }

@@ -43,6 +43,11 @@ const PRIMARY_SUBJECTS = [
   { id: 'security_education', name: 'Security Education', category: 'Core' },
   { id: 'home_economics', name: 'Home Economics', category: 'Vocational' },
   { id: 'phe', name: 'Physical and Health Education', category: 'Core' },
+  { id: 'rhymes', name: 'Rhymes', category: 'Arts' },
+  { id: 'social_norms', name: 'Social Norms', category: 'Core' },
+  { id: 'sensorial', name: 'Sensorial', category: 'Core' },
+  { id: 'fine_art', name: 'Fine Art', category: 'Arts' },
+  { id: 'practical_life', name: 'Practical Life', category: 'Vocational' },
 ]
 
 // ─── AFFECTIVE DOMAIN ──────────────────────────────────────────────────────
@@ -77,7 +82,8 @@ const SUBJECT_ORDER: Record<string, number> = {
   'French': 12, 'Quantitative Reasoning': 13, 'Verbal Reasoning': 14,
   'Music': 15, 'Handwriting': 16, 'Literature': 17, 'Vocational Aptitude': 18,
   'History': 19, 'Security Education': 20, 'Home Economics': 21,
-  'Physical and Health Education': 22,
+  'Physical and Health Education': 22, 'Rhymes': 23, 'Social Norms': 24,
+  'Sensorial': 25, 'Fine Art': 26, 'Practical Life': 27,
 }
 
 const MAX_SCORE_PER_SUBJECT = 100
@@ -139,6 +145,11 @@ const normalizeSubjectName = (name: string): string => {
     'Vocational': 'Vocational Aptitude', 'Vocational Aptitude': 'Vocational Aptitude',
     'Quant': 'Quantitative Reasoning', 'Quantitative Reasoning': 'Quantitative Reasoning',
     'Verbal': 'Verbal Reasoning', 'Verbal Reasoning': 'Verbal Reasoning',
+    'Rhyme': 'Rhymes', 'Rhymes': 'Rhymes',
+    'Social Norm': 'Social Norms', 'Social Norms': 'Social Norms', 'SN': 'Social Norms',
+    'Sensory': 'Sensorial', 'Sensorial': 'Sensorial',
+    'Fine Arts': 'Fine Art', 'Fine Art': 'Fine Art', 'FA': 'Fine Art',
+    'PL': 'Practical Life', 'Practical Life': 'Practical Life',
   }
   return map[name] || name
 }
@@ -156,25 +167,39 @@ const SUBJECT_DISPLAY_NAMES: Record<string, string> = {
   'Basic Science': 'Basic Science',
   'Social Studies': 'Social Studies',
   'Civic Education': 'Civic Education',
+  'Social Norms': 'Social Norms',
+  'Practical Life': 'Practical Life',
 }
 
-const getSchoolLevel = (className?: string): 'Primary' | 'Nursery' | 'Playgroup' => {
+// ─── SCHOOL LEVEL RESOLUTION ───────────────────────────────────────────────
+export type SchoolLevel = 'Primary' | 'Nursery' | 'Kindergarten' | 'Playgroup'
+
+const getSchoolLevel = (className?: string): SchoolLevel => {
   if (!className) return 'Primary'
-  const lower = className.toLowerCase()
+  const lower = className.toLowerCase().trim()
+
+  // Kindergarten FIRST — must precede Playgroup so "kg" isn't swallowed
+  if (lower.includes('kindergarten') || /\bkg\b/.test(lower)) {
+    return 'Kindergarten'
+  }
+
   if (lower.includes('primary') || (lower.includes('p') && /\d/.test(lower)) ||
       ['p1', 'p2', 'p3', 'p4', 'p5', 'p6'].some(p => lower.includes(p)) ||
       lower.includes('basic')) {
     return 'Primary'
   }
+
   if (lower.includes('nursery') || lower.includes('n1') || lower.includes('n2') ||
       lower.includes('n3') || lower.includes('creche') || lower.includes('toddler')) {
     return 'Nursery'
   }
+
+  // Playgroup only — pre-school / preschool no longer lumped with Kindergarten
   if (lower.includes('playgroup') || lower.includes('play group') ||
-      lower.includes('pre-school') || lower.includes('preschool') ||
-      lower.includes('kindergarten') || lower.includes('kg')) {
+      lower.includes('pre-school') || lower.includes('preschool')) {
     return 'Playgroup'
   }
+
   return 'Primary'
 }
 
@@ -182,6 +207,41 @@ const getFullSchoolName = (school: SchoolSettings, className?: string): string =
   const level = getSchoolLevel(className)
   const baseName = school.name.replace(/\s*SCHOOLS?\s*$/i, '').trim()
   return `${baseName} ${level}`
+}
+
+// ─── REPORT SUBJECT RESOLUTION (score-driven, all levels) ─────────────────
+/**
+ * Builds the ready-to-render subject rows for a report card.
+ * Renders ONLY subjects the student actually has scores for — for every class
+ * level (Primary, Nursery, Kindergarten, Playgroup). Order follows SUBJECT_ORDER.
+ */
+const buildReportSubjectRows = (scores: SubjectScore[]): SubjectScore[] => {
+  const hasScore = (s: SubjectScore) =>
+    (Number(s.ca) || 0) > 0 ||
+    (Number(s.exam) || 0) > 0 ||
+    (Number(s.total) || 0) > 0
+
+  const byName = new Map<string, SubjectScore>()
+  for (const s of scores) {
+    if (!s?.subject || !hasScore(s)) continue
+    const name = normalizeSubjectName(s.subject)
+    const existing = byName.get(name)
+    if (!existing || (Number(s.total) || 0) > (Number(existing.total) || 0)) {
+      byName.set(name, { ...s, subject: name })
+    }
+  }
+
+  return Array.from(byName.values())
+    .sort((a, b) => {
+      const oa = SUBJECT_ORDER[a.subject] ?? 999
+      const ob = SUBJECT_ORDER[b.subject] ?? 999
+      if (oa !== ob) return oa - ob
+      return a.subject.localeCompare(b.subject)
+    })
+    .map(s => ({
+      ...s,
+      subject_display: SUBJECT_DISPLAY_NAMES[s.subject] ?? s.subject_display ?? s.subject,
+    }))
 }
 
 const getRemark = (score: number): string => {
@@ -344,7 +404,6 @@ export default function PupilReportCardPage() {
   // ─── Load terms from database (hardened for unknown schemas) ───────────────
   const loadTerms = useCallback(async () => {
     try {
-      // Select * so we don't 400 on unknown column names
       const { data: termsData, error: termsError } = await supabase
         .from('terms')
         .select('*')
@@ -354,7 +413,6 @@ export default function PupilReportCardPage() {
       }
 
       if (!termsError && termsData && termsData.length > 0) {
-        // Normalize row shape across possible schema variants
         const normalized = termsData.map((t: any) => {
           const termCode = (
             t.term_code || t.term || t.code || t.name || t.term_name || ''
@@ -371,10 +429,8 @@ export default function PupilReportCardPage() {
           return { termCode, termName, sessionYear }
         }).filter((t: any) => t.termCode)
 
-        // Unique terms (First / Second / Third)
         const termMap = new Map<string, string>()
         normalized.forEach((t: any) => {
-          // Prefer short code-like values for Select value
           const value = t.termCode.replace(/\s*term\s*/i, '').trim() || t.termCode
           const label = t.termName.replace(/\s*term\s*/i, '').trim() || value
           if (value && !termMap.has(value)) {
@@ -383,7 +439,6 @@ export default function PupilReportCardPage() {
         })
 
         if (termMap.size > 0) {
-          // Optional preferred order
           const order = ['First', 'Second', 'Third', '1st', '2nd', '3rd']
           const terms: TermOption[] = Array.from(termMap.entries())
             .map(([value, label]) => ({ value, label }))
@@ -398,7 +453,6 @@ export default function PupilReportCardPage() {
           setAvailableTerms(terms)
         }
 
-        // Unique years
         const years = [
           ...new Set(
             normalized
@@ -410,7 +464,6 @@ export default function PupilReportCardPage() {
         if (years.length > 0) setAvailableYears(years)
       }
 
-      // Current term/session from school_settings (safe even if terms failed)
       const { data: settings } = await supabase
         .from('school_settings')
         .select('*')
@@ -434,7 +487,6 @@ export default function PupilReportCardPage() {
       }
     } catch (error) {
       console.error('Error loading terms:', error)
-      // Keep built-in defaults: First/Second/Third + 2026/2027
     }
   }, [])
 
@@ -608,7 +660,7 @@ export default function PupilReportCardPage() {
 
       setReportCard(matchedCard)
 
-      // ─── 3. Get Class Teacher Name (same as admin report view) ─────────────
+      // ─── 3. Get Class Teacher Name ─────────────────────────────────────────
       const className = matchedCard.class || matchedCard.class_name || sd.class
       if (className) {
         const { data: teacherClassData } = await supabase
@@ -672,19 +724,18 @@ export default function PupilReportCardPage() {
         return
       }
 
-      // ─── 6. Process and Deduplicate Scores ─────────────────────────────────
+      // ─── 6. Build raw SubjectScore[] from DB rows ──────────────────────────
       const processed: SubjectScore[] = rawScores.map((s: any) => {
         const ca = Number(s.ca_score ?? s.ca ?? 0)
         const exam = Number(s.exam_score ?? s.exam ?? 0)
         const total = Number(s.total ?? (ca + exam))
         const remark = s.remark || getRemark(total)
         const rawName = s.subject || s.name || 'Subject'
-        const subjectName = normalizeSubjectName(rawName)
-        const displayName = SUBJECT_DISPLAY_NAMES[subjectName] || subjectName
+        const canonicalName = normalizeSubjectName(rawName)
 
         return {
-          subject: displayName,
-          subject_display: displayName,
+          subject: canonicalName,
+          subject_display: canonicalName,
           ca,
           exam,
           total,
@@ -692,16 +743,8 @@ export default function PupilReportCardPage() {
         }
       })
 
-      const subjectMap = new Map<string, SubjectScore>()
-      processed.forEach(s => {
-        const existing = subjectMap.get(s.subject)
-        if (!existing || s.total > existing.total) subjectMap.set(s.subject, s)
-      })
-
-      const sortedSubjects = Array.from(subjectMap.values()).sort((a, b) => {
-        return (SUBJECT_ORDER[a.subject] || 999) - (SUBJECT_ORDER[b.subject] || 999)
-      })
-
+      // ─── 7. Score-driven rendering for ALL class levels ─────────────────────
+      const sortedSubjects = buildReportSubjectRows(processed)
       setSubjects(sortedSubjects)
       setHasReport(true)
 
@@ -1059,7 +1102,7 @@ export default function PupilReportCardPage() {
                             'border-b border-blue-100 last:border-0',
                             i % 2 === 0 ? 'bg-white/85' : 'bg-blue-50/60'
                           )}>
-                            <td className="px-1.5 py-[3px] font-semibold text-slate-800 leading-tight border-r border-blue-100">{s.subject}</td>
+                            <td className="px-1.5 py-[3px] font-semibold text-slate-800 leading-tight border-r border-blue-100">{s.subject_display || s.subject}</td>
                             <td className="px-1 py-[3px] text-center font-bold text-slate-700 tabular-nums border-r border-blue-100">{s.ca}</td>
                             <td className="px-1 py-[3px] text-center font-bold text-slate-700 tabular-nums border-r border-blue-100">{s.exam}</td>
                             <td className="px-1 py-[3px] text-center font-black tabular-nums border-r border-blue-100">
@@ -1159,7 +1202,7 @@ export default function PupilReportCardPage() {
                               <TrendingUp className="h-2 w-2" /> Best
                             </span>
                             <span className="font-black text-emerald-700 text-right text-[8px] leading-tight">
-                              {bestSubject.subject}
+                              {bestSubject.subject_display || bestSubject.subject}
                               <span className="block text-[7px]">({bestSubject.total}%)</span>
                             </span>
                           </div>
@@ -1171,7 +1214,7 @@ export default function PupilReportCardPage() {
                             <TrendingDown className="h-2 w-2" /> Improve
                           </span>
                           <span className="font-black text-rose-600 text-right text-[8px] leading-tight">
-                            {worstSubject.subject}
+                            {worstSubject.subject_display || worstSubject.subject}
                             <span className="block text-[7px]">({worstSubject.total}%)</span>
                           </span>
                         </div>
