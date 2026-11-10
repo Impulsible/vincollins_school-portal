@@ -47,7 +47,7 @@ async function checkAdmissionNumberUnique(
   excludeUserId?: string
 ): Promise<{ unique: boolean; conflictName?: string }> {
   const admNo = admissionNumber.trim().toUpperCase()
-  if (!admNo) return { unique: true }  // empty → always allowed
+  if (!admNo) return { unique: true }
 
   let query = supabaseAdmin
     .from('profiles')
@@ -117,7 +117,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json()
     console.log('📦 Received body:', JSON.stringify(body, null, 2))
 
-    // Support both camelCase and snake_case inputs from frontend
     const firstName = body.first_name || body.firstName || ''
     const middleName = body.middle_name || body.middleName || ''
     const lastName = body.last_name || body.lastName || ''
@@ -156,7 +155,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // ─── 1b. Admission Number — OPTIONAL but must be unique if provided ─
     if (admissionNumber) {
       const { unique, conflictName } = await checkAdmissionNumberUnique(supabaseAdmin, admissionNumber)
       if (!unique) {
@@ -167,7 +165,6 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Parse Integer fields safely
     const parsedJoinYear = joinYear && !isNaN(parseInt(joinYear)) ? parseInt(joinYear) : new Date().getFullYear()
     const parsedAdmissionYear = admissionYear && !isNaN(parseInt(admissionYear)) ? parseInt(admissionYear) : new Date().getFullYear()
     const yearForVin = role === 'student' || role === 'pupil' ? parsedAdmissionYear : parsedJoinYear
@@ -212,7 +209,7 @@ export async function POST(req: NextRequest) {
 
     console.log('📧 Creating Auth User:', { email, vin_id, fullName, role })
 
-    // ─── 5. Create Supabase Auth User (Retry loop if email collision) ──
+    // ─── 5. Create Supabase Auth User ──────────────────────────────────
     let authUser = null
     let authError = null
     let currentEmailAttempt = email
@@ -221,7 +218,7 @@ export async function POST(req: NextRequest) {
     while (!authUser && emailCounter <= 10) {
       const { data: authData, error: err } = await supabaseAdmin.auth.admin.createUser({
         email: currentEmailAttempt,
-        password: vin_id, // Default password is VIN ID
+        password: vin_id,
         email_confirm: true,
         user_metadata: {
           full_name: fullName,
@@ -291,7 +288,6 @@ export async function POST(req: NextRequest) {
     if (role === 'student' || role === 'pupil') {
       if (studentClass.trim()) profileData.class = studentClass.trim()
       if (admissionYear && !isNaN(parseInt(admissionYear))) profileData.admission_year = parseInt(admissionYear)
-      // 👇 Admission number is OPTIONAL — store null if not provided
       profileData.admission_number = admissionNumber || null
       if (guardianName.trim()) profileData.guardian_name = guardianName.trim()
       if (guardianPhone.trim()) profileData.guardian_phone = guardianPhone.trim()
@@ -308,7 +304,6 @@ export async function POST(req: NextRequest) {
 
     if (profileError) {
       console.error('❌ Profile creation failed:', profileError)
-      // Rollback auth user
       await supabaseAdmin.auth.admin.deleteUser(userId)
       console.log('🔄 Rolled back auth user creation')
       return NextResponse.json(
@@ -356,8 +351,6 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ success: false, error: 'User ID is required' }, { status: 400 })
     }
 
-    // ─── 1. Admission Number — OPTIONAL but must be unique if provided ──
-    // Only check if the client explicitly sent the field
     const hasAdmissionNumberField = 'admission_number' in body
     const rawAdmissionNumber = hasAdmissionNumberField
       ? (body.admission_number || '').toString().trim().toUpperCase()
@@ -381,8 +374,6 @@ export async function PUT(req: NextRequest) {
       updated_at: new Date().toISOString(),
     }
 
-    // ─── 2. Apply optional fields only when present in payload ──────────
-    // For text fields, allow empty string → store as null (clears the field)
     if ('first_name' in body && body.first_name !== undefined)
       updateData.first_name = capitalizeWords(String(body.first_name).trim())
     if ('last_name' in body && body.last_name !== undefined)
@@ -408,7 +399,6 @@ export async function PUT(req: NextRequest) {
     if ('guardian_email' in body && body.guardian_email !== undefined)
       updateData.guardian_email = body.guardian_email || null
 
-    // 👇 Admission number — store null if empty/cleared
     if (hasAdmissionNumberField) {
       updateData.admission_number = rawAdmissionNumber || null
     }
@@ -423,6 +413,10 @@ export async function PUT(req: NextRequest) {
       updateData.department = body.department || null
     if ('title' in body && body.title !== undefined)
       updateData.title = body.title || null
+
+    // 👇 NEW: photo_url support (bypasses RLS via service role)
+    if ('photo_url' in body && body.photo_url !== undefined)
+      updateData.photo_url = body.photo_url || null
 
     const { data: profile, error: profileError } = await supabaseAdmin
       .from('profiles')

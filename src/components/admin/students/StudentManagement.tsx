@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client'
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react'
+import React, { useState, useMemo, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -12,6 +12,7 @@ import {
   Loader2, Trash2, Edit2, Eye, Users, UserCheck, UserX,
   RefreshCw, Fingerprint, MoreVertical, LayoutGrid, List,
   X, UserCog, Shield, Sparkles, Calendar, ChevronRight,
+  Camera, Upload, ImageIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -79,6 +80,7 @@ export interface StudentFormData {
   guardian_phone: string
   guardian_email: string
   email: string
+  photo_url: string
 }
 
 // ── Constants ──────────────────────────────────────────────────────────────────
@@ -101,7 +103,10 @@ const EMPTY_FORM: StudentFormData = {
   admission_year: new Date().getFullYear().toString(),
   admission_number: '', gender: '', date_of_birth: '',
   guardian_name: '', guardian_phone: '', guardian_email: '', email: '',
+  photo_url: '',
 }
+
+const MAX_PHOTO_SIZE = 2 * 1024 * 1024 // 2MB
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -127,6 +132,29 @@ const getClassCode = (className?: string) => {
 
 const buildFullName = (f: StudentFormData) =>
   [f.first_name, f.middle_name, f.last_name].filter(Boolean).join(' ')
+
+/**
+ * Upload a photo to Supabase Storage.
+ * @param file File to upload
+ * @param ownerId The profile id (used for folder) — pass a temp id for pre-create uploads
+ */
+const uploadPhotoToStorage = async (file: File, ownerId: string): Promise<string> => {
+  if (!file.type.startsWith('image/')) throw new Error('Please upload an image file')
+  if (file.size > MAX_PHOTO_SIZE) throw new Error('Image must be less than 2MB')
+
+  const fileExt = file.name.split('.').pop() || 'jpg'
+  const fileName = `${ownerId}-${Date.now()}.${fileExt}`
+  const filePath = `${ownerId}/${fileName}`
+
+  const { error: uploadError } = await supabase.storage
+    .from('profiles')
+    .upload(filePath, file, { cacheControl: '3600', upsert: true })
+
+  if (uploadError) throw new Error(uploadError.message || 'Upload failed')
+
+  const { data: { publicUrl } } = supabase.storage.from('profiles').getPublicUrl(filePath)
+  return publicUrl
+}
 
 // ── Small reusable pieces ──────────────────────────────────────────────────────
 
@@ -252,6 +280,173 @@ function Field({ label, id, helper, children }: {
   )
 }
 
+/**
+ * Photo uploader with preview, used in Create & Edit modals.
+ * - In CREATE mode (no studentId), file is kept in memory as `pendingFile`.
+ * - In EDIT mode (studentId provided), file is uploaded immediately and DB is updated.
+ */
+function PhotoUploader({
+  photoUrl,
+  nameForFallback,
+  mode,
+  studentId,
+  onPhotoChange,
+  onPendingFileChange,
+}: {
+  photoUrl?: string
+  nameForFallback: string
+  accent: string
+  mode: 'create' | 'edit'
+  studentId?: string
+  onPhotoChange: (url: string) => void
+  onPendingFileChange?: (file: File | null) => void
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const [previewUrl, setPreviewUrl] = useState<string | undefined>(photoUrl)
+
+  // Sync when prop changes (e.g. switching students in edit mode)
+  useEffect(() => { setPreviewUrl(photoUrl) }, [photoUrl])
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file (JPEG, PNG, etc.)')
+      return
+    }
+    if (file.size > MAX_PHOTO_SIZE) {
+      toast.error('Image must be less than 2MB')
+      return
+    }
+
+    // CREATE MODE: keep file in memory, show local preview
+    if (mode === 'create') {
+      const localUrl = URL.createObjectURL(file)
+      setPreviewUrl(localUrl)
+      onPendingFileChange?.(file)
+      toast.success('Photo selected — will upload on enrolment')
+      if (fileInputRef.current) fileInputRef.current.value = ''
+      return
+    }
+
+    // EDIT MODE: upload immediately
+    if (!studentId) {
+      toast.error('Missing student ID')
+      return
+    }
+    setIsUploading(true)
+    try {
+      const publicUrl = await uploadPhotoToStorage(file, studentId)
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ photo_url: publicUrl, updated_at: new Date().toISOString() })
+        .eq('id', studentId)
+
+      if (updateError) throw new Error(updateError.message)
+
+      setPreviewUrl(publicUrl)
+      onPhotoChange(publicUrl)
+      toast.success('Photo updated!')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to upload photo')
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleRemove = async () => {
+    // CREATE MODE: just clear local
+    if (mode === 'create') {
+      setPreviewUrl(undefined)
+      onPendingFileChange?.(null)
+      onPhotoChange('')
+      return
+    }
+    // EDIT MODE: update DB
+    if (!studentId) return
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ photo_url: null, updated_at: new Date().toISOString() })
+        .eq('id', studentId)
+      if (error) throw new Error(error.message)
+      setPreviewUrl(undefined)
+      onPhotoChange('')
+      toast.success('Photo removed')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to remove photo')
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative shrink-0">
+        <Avatar className="h-16 w-16 border-2 border-white shadow-md ring-1 ring-slate-200">
+          <AvatarImage src={previewUrl} />
+          <AvatarFallback
+            className={cn('text-white font-bold bg-gradient-to-br text-base', getAvatarGradient(nameForFallback))}
+          >
+            {getInitials(nameForFallback) || <ImageIcon className="w-5 h-5" />}
+          </AvatarFallback>
+        </Avatar>
+        {isUploading && (
+          <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center">
+            <Loader2 className="w-5 h-5 text-white animate-spin" />
+          </div>
+        )}
+      </div>
+
+      <div className="flex-1 min-w-0 space-y-1.5">
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            className="h-8 rounded-lg text-xs gap-1.5 font-semibold"
+          >
+            {isUploading ? (
+              <Loader2 className="w-3 h-3 animate-spin" />
+            ) : previewUrl ? (
+              <Camera className="w-3 h-3" />
+            ) : (
+              <Upload className="w-3 h-3" />
+            )}
+            {previewUrl ? 'Change' : 'Upload'}
+          </Button>
+          {previewUrl && !isUploading && (
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              onClick={handleRemove}
+              className="h-8 rounded-lg text-xs gap-1.5 font-semibold text-red-500 hover:text-red-600 hover:bg-red-50"
+            >
+              <X className="w-3 h-3" /> Remove
+            </Button>
+          )}
+        </div>
+        <p className="text-[10px] text-slate-400 leading-tight">
+          JPG, PNG · Max 2MB{mode === 'create' && previewUrl ? ' · Will upload on save' : ''}
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={handleFileSelect}
+          className="hidden"
+        />
+      </div>
+    </div>
+  )
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // Main Component
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -274,6 +469,7 @@ export function StudentManagement() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const [createForm, setCreateForm] = useState<StudentFormData>(EMPTY_FORM)
+  const [createPendingPhoto, setCreatePendingPhoto] = useState<File | null>(null)
   const [editForm, setEditForm] = useState<Partial<Student>>({})
 
   // Force cards view on mobile — much better UX than tables
@@ -343,7 +539,11 @@ export function StudentManagement() {
   const activeFilters = (classFilter !== 'all' ? 1 : 0) + (statusFilter !== 'all' ? 1 : 0)
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-  const closeModal = () => { setModal('none'); setSelectedStudent(null) }
+  const closeModal = () => {
+    setModal('none')
+    setSelectedStudent(null)
+    setCreatePendingPhoto(null)
+  }
 
   const openEdit = (s: Student) => {
     setSelectedStudent(s)
@@ -351,7 +551,8 @@ export function StudentManagement() {
       full_name: s.full_name, first_name: s.first_name, last_name: s.last_name,
       class: s.class, gender: s.gender, phone: s.phone, address: s.address,
       guardian_name: s.guardian_name, guardian_phone: s.guardian_phone,
-      guardian_email: s.guardian_email, admission_number: s.admission_number, is_active: s.is_active,
+      guardian_email: s.guardian_email, admission_number: s.admission_number,
+      is_active: s.is_active, photo_url: s.photo_url,
     })
     setModal('edit')
   }
@@ -372,7 +573,6 @@ export function StudentManagement() {
       toast.error('Please select a class')
       return
     }
-    // 👇 Admission number is now OPTIONAL — no required check
 
     // ── Check duplicate admission number (only if provided) ──────────────
     const admNo = createForm.admission_number.trim().toUpperCase()
@@ -389,12 +589,14 @@ export function StudentManagement() {
     setIsSubmitting(true)
     try {
       const fullName = buildFullName(createForm)
+
+      // 1) Create the user (without photo — we don't have ID yet)
       const res = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...createForm,
-          admission_number: admNo,  // may be empty string
+          admission_number: admNo,
           role: 'pupil',
           full_name: fullName,
           display_name: fullName,
@@ -402,8 +604,28 @@ export function StudentManagement() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Failed to create student')
+
+      // 2) Upload photo now that we have an ID
+      const newUserId: string | undefined =
+        data.user?.id || data.profile?.id || data.id || data.credentials?.id
+
+      if (createPendingPhoto && newUserId) {
+        try {
+          toast.loading('Uploading photo…', { id: 'photo-upload' })
+          const publicUrl = await uploadPhotoToStorage(createPendingPhoto, newUserId)
+          await supabase
+            .from('profiles')
+            .update({ photo_url: publicUrl, updated_at: new Date().toISOString() })
+            .eq('id', newUserId)
+          toast.success('Photo uploaded!', { id: 'photo-upload' })
+        } catch (photoErr: any) {
+          toast.error(`Student created, but photo upload failed: ${photoErr.message}`, { id: 'photo-upload' })
+        }
+      }
+
       toast.success(`Enrolled! VIN: ${data.credentials?.vin_id || 'N/A'}`)
       setCreateForm(EMPTY_FORM)
+      setCreatePendingPhoto(null)
       closeModal()
       await fetchStudents()
     } catch (e: any) {
@@ -416,9 +638,6 @@ export function StudentManagement() {
   const handleSaveEdit = async () => {
     if (!selectedStudent) return
 
-    // 👇 Admission number is now OPTIONAL — no required check
-
-    // ── Check duplicate admission number (only if provided, excluding self) ─
     const admNo = (editForm.admission_number || '').trim().toUpperCase()
     if (admNo) {
       const duplicate = students.find(
@@ -440,7 +659,7 @@ export function StudentManagement() {
         body: JSON.stringify({
           id: selectedStudent.id,
           ...editForm,
-          admission_number: admNo,  // may be empty string
+          admission_number: admNo,
         }),
       })
       const data = await res.json()
@@ -522,7 +741,6 @@ export function StudentManagement() {
 
       {/* ── Toolbar ───────────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-slate-200/60 shadow-sm p-2.5 sm:p-3 space-y-2.5">
-        {/* Row 1: search + add */}
         <div className="flex gap-2">
           <div className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
@@ -549,7 +767,6 @@ export function StudentManagement() {
           </Button>
         </div>
 
-        {/* Row 2: filters */}
         <div className="flex items-center gap-2 overflow-x-auto -mx-0.5 px-0.5 pb-0.5 scrollbar-none">
           <Select value={classFilter} onValueChange={setClassFilter}>
             <SelectTrigger className="h-8 rounded-lg border-slate-200 text-xs w-32 min-w-32 gap-1 shrink-0">
@@ -602,7 +819,6 @@ export function StudentManagement() {
           </div>
         </div>
 
-        {/* Row 3: result count */}
         <p className="text-[11px] text-slate-400">
           <span className="font-bold text-slate-600">{filtered.length}</span> of{' '}
           <span className="font-bold text-slate-600">{students.length}</span> pupils
@@ -645,7 +861,6 @@ export function StudentManagement() {
           </motion.div>
 
         ) : viewMode === 'table' ? (
-          /* ── TABLE VIEW ─────────────────────────────────────────────────── */
           <motion.div key="table" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="bg-white rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
@@ -706,7 +921,6 @@ export function StudentManagement() {
           </motion.div>
 
         ) : (
-          /* ── CARD VIEW ──────────────────────────────────────────────────── */
           <motion.div key="cards" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5 sm:gap-3">
             {filtered.map((s, idx) => (
@@ -810,6 +1024,18 @@ export function StudentManagement() {
           <form onSubmit={handleCreate} className="flex flex-col overflow-hidden flex-1">
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-5">
 
+              {/* ── Photo (NEW) ─────────────────────────────────────────── */}
+              <FormSection title="Photo" icon={Camera} accent={accent}>
+                <PhotoUploader
+                  mode="create"
+                  photoUrl={createForm.photo_url}
+                  nameForFallback={buildFullName(createForm) || 'Student'}
+                  accent={accent}
+                  onPhotoChange={(url) => setCreateForm({ ...createForm, photo_url: url })}
+                  onPendingFileChange={setCreatePendingPhoto}
+                />
+              </FormSection>
+
               <FormSection title="Personal" icon={Users} accent={accent}>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                   <Field label="First Name *" id="fn">
@@ -878,7 +1104,6 @@ export function StudentManagement() {
                       onChange={(e) => setCreateForm({ ...createForm, admission_year: e.target.value })}
                       className="h-10 rounded-xl border-slate-200 text-sm" />
                   </Field>
-                  {/* 👇 Admission No. is now OPTIONAL */}
                   <Field
                     label="Admission No."
                     id="ano"
@@ -968,89 +1193,112 @@ export function StudentManagement() {
             </div>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-2.5">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <Field label="First Name" id="ef">
-                <Input id="ef" value={editForm.first_name || ''}
-                  onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 space-y-4">
+
+            {/* ── Photo (NEW) ─────────────────────────────────────────── */}
+            <FormSection title="Photo" icon={Camera} accent={accent}>
+              <PhotoUploader
+                mode="edit"
+                studentId={selectedStudent?.id}
+                photoUrl={editForm.photo_url}
+                nameForFallback={editForm.full_name || selectedStudent?.full_name || 'Student'}
+                accent={accent}
+                onPhotoChange={(url) => {
+                  setEditForm((prev) => ({ ...prev, photo_url: url || undefined }))
+                  // Also update list optimistically
+                  if (selectedStudent) {
+                    setStudents((prev) =>
+                      prev.map((s) => (s.id === selectedStudent.id ? { ...s, photo_url: url || undefined } : s))
+                    )
+                    setSelectedStudent({ ...selectedStudent, photo_url: url || undefined })
+                  }
+                }}
+              />
+            </FormSection>
+
+            <div className="space-y-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <Field label="First Name" id="ef">
+                  <Input id="ef" value={editForm.first_name || ''}
+                    onChange={(e) => setEditForm({ ...editForm, first_name: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
+                <Field label="Last Name" id="el">
+                  <Input id="el" value={editForm.last_name || ''}
+                    onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
+              </div>
+              <Field label="Full Name" id="efn">
+                <Input id="efn" value={editForm.full_name || ''}
+                  onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
                   className="h-10 rounded-xl border-slate-200 text-sm" />
               </Field>
-              <Field label="Last Name" id="el">
-                <Input id="el" value={editForm.last_name || ''}
-                  onChange={(e) => setEditForm({ ...editForm, last_name: e.target.value })}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <Field label="Class" id="ec">
+                  <Select value={editForm.class || ''} onValueChange={(v) => setEditForm({ ...editForm, class: v })}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                      {CLASSES.map((c) => (
+                        <SelectItem key={c.id} value={c.name}>{c.name} ({c.code})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+                <Field label="Gender" id="eg">
+                  <Select value={editForm.gender || ''} onValueChange={(v) => setEditForm({ ...editForm, gender: v })}>
+                    <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <Field label="Phone" id="eph">
+                  <Input id="eph" value={editForm.phone || ''}
+                    onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
+                <Field label="Admission No." id="ean" helper="Optional · Must be unique if provided">
+                  <Input
+                    id="ean"
+                    value={editForm.admission_number || ''}
+                    placeholder="e.g. PUP001"
+                    onChange={(e) => setEditForm({ ...editForm, admission_number: e.target.value.toUpperCase() })}
+                    className="h-10 rounded-xl border-slate-200 text-sm font-mono"
+                  />
+                </Field>
+              </div>
+              <Field label="Address" id="ead">
+                <Input id="ead" value={editForm.address || ''}
+                  onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+                  className="h-10 rounded-xl border-slate-200 text-sm" />
+              </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <Field label="Guardian Name" id="egn">
+                  <Input id="egn" value={editForm.guardian_name || ''}
+                    onChange={(e) => setEditForm({ ...editForm, guardian_name: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
+                <Field label="Guardian Phone" id="egp">
+                  <Input id="egp" value={editForm.guardian_phone || ''}
+                    onChange={(e) => setEditForm({ ...editForm, guardian_phone: e.target.value })}
+                    className="h-10 rounded-xl border-slate-200 text-sm" />
+                </Field>
+              </div>
+              <Field label="Guardian Email" id="ege">
+                <Input id="ege" type="email" value={editForm.guardian_email || ''}
+                  onChange={(e) => setEditForm({ ...editForm, guardian_email: e.target.value })}
                   className="h-10 rounded-xl border-slate-200 text-sm" />
               </Field>
             </div>
-            <Field label="Full Name" id="efn">
-              <Input id="efn" value={editForm.full_name || ''}
-                onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
-                className="h-10 rounded-xl border-slate-200 text-sm" />
-            </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <Field label="Class" id="ec">
-                <Select value={editForm.class || ''} onValueChange={(v) => setEditForm({ ...editForm, class: v })}>
-                  <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
-                    {CLASSES.map((c) => (
-                      <SelectItem key={c.id} value={c.name}>{c.name} ({c.code})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-              <Field label="Gender" id="eg">
-                <Select value={editForm.gender || ''} onValueChange={(v) => setEditForm({ ...editForm, gender: v })}>
-                  <SelectTrigger className="h-10 rounded-xl border-slate-200 text-sm">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-xl bg-white border-slate-200 shadow-xl">
-                    <SelectItem value="male">Male</SelectItem>
-                    <SelectItem value="female">Female</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </Field>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <Field label="Phone" id="eph">
-                <Input id="eph" value={editForm.phone || ''}
-                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                  className="h-10 rounded-xl border-slate-200 text-sm" />
-              </Field>
-              {/* 👇 Admission No. is now OPTIONAL */}
-              <Field label="Admission No." id="ean" helper="Optional · Must be unique if provided">
-                <Input
-                  id="ean"
-                  value={editForm.admission_number || ''}
-                  placeholder="e.g. PUP001"
-                  onChange={(e) => setEditForm({ ...editForm, admission_number: e.target.value.toUpperCase() })}
-                  className="h-10 rounded-xl border-slate-200 text-sm font-mono"
-                />
-              </Field>
-            </div>
-            <Field label="Address" id="ead">
-              <Input id="ead" value={editForm.address || ''}
-                onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
-                className="h-10 rounded-xl border-slate-200 text-sm" />
-            </Field>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              <Field label="Guardian Name" id="egn">
-                <Input id="egn" value={editForm.guardian_name || ''}
-                  onChange={(e) => setEditForm({ ...editForm, guardian_name: e.target.value })}
-                  className="h-10 rounded-xl border-slate-200 text-sm" />
-              </Field>
-              <Field label="Guardian Phone" id="egp">
-                <Input id="egp" value={editForm.guardian_phone || ''}
-                  onChange={(e) => setEditForm({ ...editForm, guardian_phone: e.target.value })}
-                  className="h-10 rounded-xl border-slate-200 text-sm" />
-              </Field>
-            </div>
-            <Field label="Guardian Email" id="ege">
-              <Input id="ege" type="email" value={editForm.guardian_email || ''}
-                onChange={(e) => setEditForm({ ...editForm, guardian_email: e.target.value })}
-                className="h-10 rounded-xl border-slate-200 text-sm" />
-            </Field>
           </div>
 
           <div className="px-4 py-3 sm:px-5 border-t border-slate-100 bg-slate-50/80 backdrop-blur shrink-0
